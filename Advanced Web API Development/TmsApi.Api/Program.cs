@@ -30,6 +30,8 @@ using TmsApi.Infrastructure.Services;
 using TmsApi.Infrastructure.Transcripts;
 using TmsApi.Infrastructure.Workers;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Database Context
@@ -187,10 +189,15 @@ using (var scope = app.Services.CreateScope())
                     ""PicName"" character varying(100) NOT NULL,
                     ""Location"" character varying(200) NOT NULL,
                     ""Notes"" text,
+                    ""AttendeesCount"" integer NOT NULL DEFAULT 0,
                     ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
                     ""UpdatedAt"" timestamp with time zone,
                     CONSTRAINT ""PK_Schedules"" PRIMARY KEY (""Id"")
                 );
+
+                ALTER TABLE ""Schedules"" ADD COLUMN IF NOT EXISTS ""PicAvatar"" character varying(500) NOT NULL DEFAULT '';
+                ALTER TABLE ""Schedules"" ADD COLUMN IF NOT EXISTS ""AttendeesCount"" integer NOT NULL DEFAULT 0;
+                ALTER TABLE ""Schedules"" ADD COLUMN IF NOT EXISTS ""IsDeleted"" boolean NOT NULL DEFAULT false;
 
                 ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""Category"" character varying(100) NOT NULL DEFAULT 'General';
                 ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""Level"" character varying(50) NOT NULL DEFAULT 'Beginner';
@@ -490,7 +497,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Monthly Mentor Alignment",
                 Category = "Meetings",
-                Date = new DateTime(2030, 5, 14),
+                Date = new DateTime(2030, 5, 14, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "09:00 AM",
                 EndTime = "10:30 AM",
                 PicName = "James Ocampo",
@@ -502,7 +509,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Creative Portfolio Review Session",
                 Category = "Workshops",
-                Date = new DateTime(2030, 5, 15),
+                Date = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "09:30 AM",
                 EndTime = "12:00 PM",
                 PicName = "James Ocampo",
@@ -514,7 +521,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Eduva Community Networking Night",
                 Category = "Events",
-                Date = new DateTime(2030, 5, 15),
+                Date = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "06:30 PM",
                 EndTime = "08:30 PM",
                 PicName = "Marcus Delgado",
@@ -526,7 +533,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Course Planning Discussion",
                 Category = "Meetings",
-                Date = new DateTime(2030, 5, 17),
+                Date = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "10:00 AM",
                 EndTime = "11:00 AM",
                 PicName = "Elise Wong",
@@ -538,7 +545,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Frontend Development Bootcamp",
                 Category = "Workshops",
-                Date = new DateTime(2030, 5, 18),
+                Date = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "02:00 PM",
                 EndTime = "05:00 PM",
                 PicName = "Mason James",
@@ -550,7 +557,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "AI Productivity Seminar",
                 Category = "Events",
-                Date = new DateTime(2030, 5, 18),
+                Date = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "07:00 PM",
                 EndTime = "09:00 PM",
                 PicName = "Alan Turing",
@@ -562,7 +569,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Weekly Mentor Coordination",
                 Category = "Meetings",
-                Date = new DateTime(2030, 5, 21),
+                Date = new DateTime(2030, 5, 21, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "09:00 AM",
                 EndTime = "10:00 AM",
                 PicName = "Gina Alexander",
@@ -574,7 +581,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Student Success and Career Webinar",
                 Category = "Workshops",
-                Date = new DateTime(2030, 5, 21),
+                Date = new DateTime(2030, 5, 21, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "01:00 PM",
                 EndTime = "03:00 PM",
                 PicName = "Angela Cole",
@@ -586,7 +593,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Public Speaking Essentials Workshop",
                 Category = "Workshops",
-                Date = new DateTime(2030, 5, 24),
+                Date = new DateTime(2030, 5, 24, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "09:30 AM",
                 EndTime = "12:00 PM",
                 PicName = "Angela Cole",
@@ -598,7 +605,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Learning Community Meetup",
                 Category = "Events",
-                Date = new DateTime(2030, 5, 24),
+                Date = new DateTime(2030, 5, 24, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "06:30 PM",
                 EndTime = "08:00 PM",
                 PicName = "Marcus Delgado",
@@ -610,7 +617,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Monthly Instructor Briefing",
                 Category = "Meetings",
-                Date = new DateTime(2030, 5, 27),
+                Date = new DateTime(2030, 5, 27, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "09:00 AM",
                 EndTime = "10:30 AM",
                 PicName = "Fabricio Conrad",
@@ -622,7 +629,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Title = "Eduva Student Appreciation Day",
                 Category = "Events",
-                Date = new DateTime(2030, 5, 29),
+                Date = new DateTime(2030, 5, 29, 0, 0, 0, DateTimeKind.Utc),
                 StartTime = "05:00 PM",
                 EndTime = "08:00 PM",
                 PicName = "Noah Hansen",
@@ -643,14 +650,14 @@ using (var scope = app.Services.CreateScope())
 
         var enrollments = new List<Enrollment>
         {
-            new() { StudentId = stList[0].Id, CourseId = crList[6].Id, Status = EnrollmentStatus.Active, Batch = "Batch 12", Fee = 42m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0142", Country = "USA", EnrolledAt = new DateTime(2030, 5, 18) },
-            new() { StudentId = stList[1].Id, CourseId = crList[2].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 8", Fee = 55m, PaymentStatus = "Pending", PhoneNumber = "+1 202-555-0189", Country = "Canada", EnrolledAt = new DateTime(2030, 5, 18) },
-            new() { StudentId = stList[2].Id, CourseId = crList[4].Id, Status = EnrollmentStatus.Active, Batch = "Batch 5", Fee = 27m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0171", Country = "UK", EnrolledAt = new DateTime(2030, 5, 17) },
-            new() { StudentId = stList[3].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 10", Fee = 49m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0133", Country = "Australia", EnrolledAt = new DateTime(2030, 5, 17) },
-            new() { StudentId = stList[4].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 6", Fee = 32m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0160", Country = "Germany", EnrolledAt = new DateTime(2030, 5, 16) },
-            new() { StudentId = stList[5].Id, CourseId = crList[7].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 4", Fee = 79m, PaymentStatus = "Pending", PhoneNumber = "+1 202-555-0194", Country = "USA", EnrolledAt = new DateTime(2030, 5, 16) },
-            new() { StudentId = stList[6].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 9", Fee = 39m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0118", Country = "USA", EnrolledAt = new DateTime(2030, 5, 15) },
-            new() { StudentId = stList[7].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 7", Fee = 51m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0125", Country = "UK", EnrolledAt = new DateTime(2030, 5, 15) }
+            new() { StudentId = stList[0].Id, CourseId = crList[6].Id, Status = EnrollmentStatus.Active, Batch = "Batch 12", Fee = 42m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0142", Country = "USA", EnrolledAt = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[1].Id, CourseId = crList[2].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 8", Fee = 55m, PaymentStatus = "Pending", PhoneNumber = "+1 202-555-0189", Country = "Canada", EnrolledAt = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[2].Id, CourseId = crList[4].Id, Status = EnrollmentStatus.Active, Batch = "Batch 5", Fee = 27m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0171", Country = "UK", EnrolledAt = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[3].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 10", Fee = 49m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0133", Country = "Australia", EnrolledAt = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[4].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 6", Fee = 32m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0160", Country = "Germany", EnrolledAt = new DateTime(2030, 5, 16, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[5].Id, CourseId = crList[7].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 4", Fee = 79m, PaymentStatus = "Pending", PhoneNumber = "+1 202-555-0194", Country = "USA", EnrolledAt = new DateTime(2030, 5, 16, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[6].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 9", Fee = 39m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0118", Country = "USA", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) },
+            new() { StudentId = stList[7].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 7", Fee = 51m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0125", Country = "UK", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) }
         };
 
         await db.Enrollments.AddRangeAsync(enrollments);
