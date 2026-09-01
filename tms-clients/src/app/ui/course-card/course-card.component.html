@@ -1,0 +1,55 @@
+<mat-card class="course-card glass-card">
+  <div class="top-accent-bar"></div>
+
+  <mat-card-header class="course-card-header">
+    <div class="header-badges">
+      <span class="badge badge-primary font-mono text-xs">{{ course.code }}</span>
+      <span class="credits-badge">{{ course.credits }} Credits</span>
+    </div>
+
+    <mat-card-title class="card-title">{{ course.title }}</mat-card-title>
+    <mat-card-subtitle class="card-dept">
+      <mat-icon>domain</mat-icon>
+      <span>{{ course.department }}</span>
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content class="course-card-content">
+    <p class="course-desc">{{ course.description }}</p>
+
+    <!-- Capacity Bar -->
+    <div class="capacity-section">
+      <div class="capacity-labels">
+        <span class="cap-title">Class Capacity</span>
+        <span class="cap-count" [class.full-count]="isFull">
+          {{ course.enrolledCount }} / {{ course.maxCapacity }}
+        </span>
+      </div>
+      <mat-progress-bar
+        mode="determinate"
+        [value]="capacityPercentage"
+        [color]="isFull ? 'warn' : 'primary'"
+        class="capacity-bar"
+      ></mat-progress-bar>
+    </div>
+  </mat-card-content>
+
+  <mat-card-actions class="course-card-actions">
+    <div class="instructor-info">
+      <div class="instructor-avatar">
+        {{ (course.instructorName || 'P')[0] }}
+      </div>
+      <span class="instructor-name">{{ course.instructorName || 'Unassigned' }}</span>
+    </div>
+
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="actionClicked.emit(course)"
+      [disabled]="isFull && actionLabel === 'Enroll'"
+      class="card-action-btn"
+    >
+      {{ isFull && actionLabel === 'Enroll' ? 'Class Full' : actionLabel }}
+    </button>
+  </mat-card-actions>
+</mat-card>

@@ -5,7 +5,7 @@
 @import '@angular/material/prebuilt-themes/azure-blue.css';
 
 :root {
-  /* Color Palette - Deep Slate / Midnight & Vibrant Accents */
+  /* Dark Theme Palette (Default) */
   --bg-primary: #090d16;
   --bg-surface: #111827;
   --bg-card: rgba(17, 24, 39, 0.85);
@@ -58,6 +58,30 @@
   --radius-xl: 1.5rem;
 }
 
+html.light-theme {
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-elevated: #f1f5f9;
+  --bg-subtle: #e2e8f0;
+
+  --border-subtle: #cbd5e1;
+  --border-focus: #6366f1;
+  --border-accent: #0284c7;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-inverse: #f8fafc;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -71,6 +95,7 @@ html, body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom Scrollbars */
@@ -84,12 +109,12 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #475569;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #64748b;
 }
 
 /* Glassmorphism Surface Utility */
@@ -166,30 +191,8 @@ html, body {
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: #334155;
-    border-color: rgba(255, 255, 255, 0.15);
-  }
-}
-
-.btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    opacity: 0.95;
-    transform: translateY(-1px);
+    background: var(--bg-card-hover);
+    border-color: rgba(99, 102, 241, 0.3);
   }
 }
 
@@ -231,33 +234,33 @@ html, body {
 
   &.badge-primary {
     background: rgba(99, 102, 241, 0.15);
-    color: #a5b4fc;
+    color: var(--accent-primary);
     border: 1px solid rgba(99, 102, 241, 0.3);
   }
 }
 
-/* Form Inputs */
-.form-input, .form-select, .form-textarea {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
+/* Angular Material Global Tweaks */
+.mat-mdc-card {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-md) !important;
+}
 
-  &:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-    background: var(--bg-surface);
-  }
+.mat-mdc-table {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
 
-  &::placeholder {
-    color: var(--text-muted);
-  }
+.mat-mdc-header-cell {
+  color: var(--text-muted) !important;
+  font-weight: 600 !important;
+  border-bottom-color: var(--border-subtle) !important;
+}
+
+.mat-mdc-cell {
+  color: var(--text-secondary) !important;
+  border-bottom-color: var(--border-subtle) !important;
 }
 
 /* Typography Headings */
@@ -265,20 +268,13 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0;
   font-weight: 700;
   letter-spacing: -0.025em;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 h1 { font-size: 2.25rem; line-height: 2.5rem; }
 h2 { font-size: 1.875rem; line-height: 2.25rem; }
 h3 { font-size: 1.5rem; line-height: 2rem; }
 h4 { font-size: 1.25rem; line-height: 1.75rem; }
-
-/* Grid Layouts */
-.grid-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
 
 .pulse-dot {
   width: 8px;

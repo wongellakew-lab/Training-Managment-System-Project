@@ -1,0 +1,124 @@
+<div class="browser-page">
+  <app-navbar></app-navbar>
+
+  <!-- Header & Search Controls -->
+  <mat-card class="search-card glass-panel">
+    <div class="search-header-row">
+      <div>
+        <h1 class="page-title">Course Catalog</h1>
+        <p class="page-subtitle">Explore curriculum offerings and request semester enrollments</p>
+      </div>
+
+      <!-- Cache Engine Toggle -->
+      <div class="cache-toggle-group">
+        <button
+          mat-button
+          [class.active-toggle]="!useCachedVersion()"
+          (click)="useCachedVersion.set(false); searchCourses()"
+        >
+          Live DB
+        </button>
+        <button
+          mat-button
+          [class.active-toggle]="useCachedVersion()"
+          (click)="useCachedVersion.set(true); searchCourses()"
+          class="flex items-center gap-1"
+        >
+          <mat-icon class="bolt-icon">bolt</mat-icon>
+          <span>HybridCache</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Form Controls -->
+    <div class="filters-row">
+      <mat-form-field appearance="outline" class="search-input-field">
+        <mat-label>Search course title or code...</mat-label>
+        <input
+          matInput
+          [(ngModel)]="searchTerm"
+          (keyup.enter)="searchCourses()"
+          placeholder="e.g. CS-101, Algorithms"
+        />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="dept-select-field">
+        <mat-label>Department</mat-label>
+        <mat-select [(ngModel)]="departmentFilter" (selectionChange)="searchCourses()">
+          <mat-option value="">All Departments</mat-option>
+          <mat-option value="Computer Science">Computer Science</mat-option>
+          <mat-option value="Software Engineering">Software Engineering</mat-option>
+          <mat-option value="Cloud Computing">Cloud Computing</mat-option>
+          <mat-option value="Artificial Intelligence">Artificial Intelligence</mat-option>
+          <mat-option value="Mathematics">Mathematics</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" (click)="searchCourses()" class="filter-btn">
+        Apply Filter
+      </button>
+    </div>
+  </mat-card>
+
+  <!-- Feedback Alert Banner -->
+  @if (alertMessage()) {
+    <div class="alert-banner" [class.success]="isSuccessAlert()" [class.error]="!isSuccessAlert()">
+      <mat-icon>{{ isSuccessAlert() ? 'check_circle' : 'error' }}</mat-icon>
+      <span class="alert-text">{{ alertMessage() }}</span>
+      <button mat-icon-button (click)="alertMessage.set(null)" class="close-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <!-- Course Cards Grid -->
+  @if (courseStore.isLoading()) {
+    <div class="loading-state">
+      <mat-spinner diameter="36"></mat-spinner>
+      <span>Searching course catalog...</span>
+    </div>
+  } @else if (courseStore.courses().length === 0) {
+    <div class="empty-state glass-panel">
+      <mat-icon class="empty-icon">search_off</mat-icon>
+      <h3 class="empty-title">No courses match your query</h3>
+      <p class="empty-desc">Try modifying your search criteria or changing the department filter.</p>
+    </div>
+  } @else {
+    <div class="grid-cards">
+      @for (course of courseStore.courses(); track course.id) {
+        <app-course-card
+          [course]="course"
+          actionLabel="Enroll"
+          buttonClass="btn-primary text-xs py-1.5 px-3"
+          (actionClicked)="onEnrollCourse($event)"
+        ></app-course-card>
+      }
+    </div>
+
+    <!-- Pagination Controls -->
+    <mat-card class="pagination-card glass-panel">
+      <div class="pagination-info">
+        Page <span class="font-bold">{{ courseStore.pageNumber() }}</span> of <span class="font-bold">{{ courseStore.totalPages() }}</span>
+        ({{ courseStore.totalCount() }} courses total)
+      </div>
+
+      <div class="pagination-buttons">
+        <button
+          mat-stroked-button
+          (click)="changePage(courseStore.pageNumber() - 1)"
+          [disabled]="courseStore.pageNumber() <= 1"
+        >
+          Previous
+        </button>
+        <button
+          mat-stroked-button
+          (click)="changePage(courseStore.pageNumber() + 1)"
+          [disabled]="courseStore.pageNumber() >= courseStore.totalPages()"
+        >
+          Next
+        </button>
+      </div>
+    </mat-card>
+  }
+</div>

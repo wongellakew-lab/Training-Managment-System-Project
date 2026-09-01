@@ -1,0 +1,135 @@
+.detail-page {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.course-detail-card {
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+
+  .detail-top-row {
+    margin-bottom: 1.25rem;
+
+    .code-chip {
+      background: var(--accent-primary) !important;
+      color: #ffffff !important;
+      font-weight: 700;
+    }
+
+    .credits-chip {
+      background: var(--bg-subtle) !important;
+      color: var(--text-secondary) !important;
+      font-weight: 600;
+    }
+  }
+
+  .course-title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .dept-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .desc-box {
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    margin-bottom: 2rem;
+
+    .desc-label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .desc-text {
+      font-size: 0.9375rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    .stat-card {
+      padding: 1.25rem;
+      border-radius: var(--radius-md);
+
+      .stat-label {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-val {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-primary);
+
+        &.text-primary-val {
+          color: var(--accent-primary);
+        }
+
+        &.text-accent-val {
+          color: var(--status-success);
+        }
+      }
+    }
+  }
+
+  .action-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+
+    button, a {
+      font-size: 0.8125rem;
+    }
+  }
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 1rem;
+  text-align: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+}

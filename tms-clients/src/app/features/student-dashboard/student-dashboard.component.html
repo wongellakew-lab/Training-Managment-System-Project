@@ -1,0 +1,213 @@
+<div class="dashboard-page">
+  <app-navbar></app-navbar>
+
+  <!-- Welcome Banner -->
+  <mat-card class="welcome-card glass-panel">
+    <div class="welcome-content">
+      <div class="welcome-left">
+        <div class="role-chip-container">
+          <mat-chip-set>
+            <mat-chip class="role-chip" highlighted>Student Workspace</mat-chip>
+          </mat-chip-set>
+          <span class="welcome-prefix">Welcome back,</span>
+        </div>
+        <h1 class="student-name">
+          {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}
+        </h1>
+        <p class="student-desc">
+          Track your enrolled courses, monitor cumulative GPA, and manage degree credits.
+        </p>
+      </div>
+
+      <div class="welcome-actions">
+        <a mat-flat-button color="primary" routerLink="/student/courses" class="action-btn">
+          <mat-icon>search</mat-icon>
+          <span>Course Catalog</span>
+        </a>
+        <a mat-stroked-button routerLink="/student/certificates" class="action-btn">
+          <mat-icon>workspace_premium</mat-icon>
+          <span>Certificates</span>
+        </a>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- KPI Analytics Cards -->
+  <div class="metrics-grid">
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box gpa-icon">
+          <mat-icon>auto_awesome</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ gpaDisplay() }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Cumulative GPA</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-progress-bar mode="determinate" [value]="(academicRecord()?.gpa || 3.8) * 25" color="primary"></mat-progress-bar>
+        <div class="metric-footer">Scale: 4.0 Max GPA</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box courses-icon">
+          <mat-icon>school</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ enrollmentStore.activeEnrollmentsCount() }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Active Courses</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Current semester load</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box credits-icon">
+          <mat-icon>military_tech</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ academicRecord()?.totalCredits || 12 }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Earned Credits</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Towards degree completion</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box cert-icon">
+          <mat-icon>verified</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ academicRecord()?.records?.length || 1 }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Certificates</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Verified credentials</div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Course Registrations Table Section -->
+  <mat-card class="enrollments-card glass-panel">
+    <div class="card-header-bar">
+      <div>
+        <h2 class="section-title">My Course Registrations</h2>
+        <p class="section-subtitle">Real-time schedule and published academic scores</p>
+      </div>
+
+      <div class="filter-chips">
+        <button
+          mat-stroked-button
+          [class.active-filter]="enrollmentStore.statusFilter() === 'All'"
+          (click)="enrollmentStore.setStatusFilter('All')"
+        >
+          All
+        </button>
+        <button
+          mat-stroked-button
+          [class.active-filter]="enrollmentStore.statusFilter() === 'Active'"
+          (click)="enrollmentStore.setStatusFilter('Active')"
+        >
+          Active
+        </button>
+        <button
+          mat-stroked-button
+          [class.active-filter]="enrollmentStore.statusFilter() === 'Completed'"
+          (click)="enrollmentStore.setStatusFilter('Completed')"
+        >
+          Completed
+        </button>
+      </div>
+    </div>
+
+    @if (enrollmentStore.isLoading()) {
+      <div class="loading-state">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading academic enrollments...</span>
+      </div>
+    } @else if (enrollmentStore.filteredEnrollments().length === 0) {
+      <div class="empty-state">
+        <mat-icon class="empty-icon">menu_book</mat-icon>
+        <h3 class="empty-title">No course enrollments found</h3>
+        <p class="empty-desc">You are not currently registered in any courses matching this filter.</p>
+        <a mat-flat-button color="primary" routerLink="/student/courses">Browse Available Courses</a>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table mat-table [dataSource]="enrollmentStore.filteredEnrollments()" class="tms-table">
+          <!-- Course Column -->
+          <ng-container matColumnDef="course">
+            <th mat-header-cell *matHeaderCellDef>Course</th>
+            <td mat-cell *matCellDef="let item" class="course-cell">
+              <span class="course-title">{{ item.courseTitle || 'Course #' + item.courseId }}</span>
+              <span class="course-code font-mono">{{ item.courseCode }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let item">
+              <span
+                class="badge"
+                [ngClass]="{
+                  'badge-success': item.status === 'Completed',
+                  'badge-primary': item.status === 'Active',
+                  'badge-warning': item.status === 'Pending',
+                  'badge-danger': item.status === 'Dropped'
+                }"
+              >
+                {{ item.status }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Date Column -->
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let item" class="date-cell">
+              {{ item.enrolledAt || item.enrollmentDate | date:'mediumDate' }}
+            </td>
+          </ng-container>
+
+          <!-- Grade Column -->
+          <ng-container matColumnDef="grade">
+            <th mat-header-cell *matHeaderCellDef class="text-center">Letter Grade</th>
+            <td mat-cell *matCellDef="let item" class="text-center font-bold" [class.graded]="item.grade">
+              {{ item.grade || '—' }}
+            </td>
+          </ng-container>
+
+          <!-- Score Column -->
+          <ng-container matColumnDef="score">
+            <th mat-header-cell *matHeaderCellDef class="text-center">Numeric Score</th>
+            <td mat-cell *matCellDef="let item" class="text-center font-mono">
+              {{ item.numericScore !== undefined ? item.numericScore + '%' : '—' }}
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+            <td mat-cell *matCellDef="let item" class="text-right">
+              @if (item.status === 'Active') {
+                <button
+                  mat-button
+                  color="warn"
+                  (click)="dropCourse(item.id)"
+                  class="drop-btn"
+                >
+                  Drop
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
+        </table>
+      </div>
+    }
+  </mat-card>
+</div>

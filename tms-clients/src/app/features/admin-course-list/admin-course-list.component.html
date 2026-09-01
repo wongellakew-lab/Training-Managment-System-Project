@@ -1,0 +1,172 @@
+<div class="courses-admin-page">
+  <app-navbar></app-navbar>
+
+  <!-- Header Banner -->
+  <mat-card class="header-card glass-panel">
+    <div class="header-content">
+      <div class="header-left">
+        <div class="role-chip-container">
+          <mat-chip-set>
+            <mat-chip class="role-chip" highlighted>Administration</mat-chip>
+          </mat-chip-set>
+          <span class="header-prefix">Catalog Management</span>
+        </div>
+        <h1 class="page-title">Curriculum & Courses</h1>
+        <p class="page-desc">Create, update specifications, and manage academic courses across all departments.</p>
+      </div>
+
+      <div class="header-actions">
+        <button mat-flat-button color="primary" (click)="openCreateModal()" class="create-btn">
+          <mat-icon>add</mat-icon>
+          <span>Add New Course</span>
+        </button>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Alert Banner -->
+  @if (alertMessage()) {
+    <div class="alert-banner" [class.success]="isSuccess()" [class.error]="!isSuccess()">
+      <mat-icon>{{ isSuccess() ? 'check_circle' : 'error' }}</mat-icon>
+      <span class="alert-text">{{ alertMessage() }}</span>
+      <button mat-icon-button (click)="alertMessage.set(null)" class="close-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <!-- Courses Table Card -->
+  <mat-card class="table-card glass-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading courses from database...</span>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table mat-table [dataSource]="courses()" class="tms-table">
+          <!-- Code Column -->
+          <ng-container matColumnDef="code">
+            <th mat-header-cell *matHeaderCellDef>Code</th>
+            <td mat-cell *matCellDef="let c" class="code-cell font-mono">
+              {{ c.code }}
+            </td>
+          </ng-container>
+
+          <!-- Title & Department Column -->
+          <ng-container matColumnDef="title">
+            <th mat-header-cell *matHeaderCellDef>Title & Department</th>
+            <td mat-cell *matCellDef="let c" class="title-cell">
+              <span class="course-name">{{ c.title }}</span>
+              <span class="dept-tag">{{ c.department }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Credits Column -->
+          <ng-container matColumnDef="credits">
+            <th mat-header-cell *matHeaderCellDef class="text-center">Credits</th>
+            <td mat-cell *matCellDef="let c" class="text-center font-semibold">
+              {{ c.credits }}
+            </td>
+          </ng-container>
+
+          <!-- Capacity Column -->
+          <ng-container matColumnDef="capacity">
+            <th mat-header-cell *matHeaderCellDef class="text-center">Enrolled / Cap</th>
+            <td mat-cell *matCellDef="let c" class="text-center font-mono">
+              <span [class.full-cap]="c.enrolledCount >= c.maxCapacity">
+                {{ c.enrolledCount }} / {{ c.maxCapacity }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Instructor Column -->
+          <ng-container matColumnDef="instructor">
+            <th mat-header-cell *matHeaderCellDef>Instructor</th>
+            <td mat-cell *matCellDef="let c" class="text-muted">
+              {{ c.instructorName || 'Unassigned' }}
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+            <td mat-cell *matCellDef="let c" class="text-right actions-cell">
+              <button mat-button color="primary" (click)="openEditModal(c)" class="edit-btn">Edit</button>
+              <button mat-button color="warn" (click)="deleteCourse(c.id)" class="del-btn">Delete</button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
+        </table>
+      </div>
+    }
+  </mat-card>
+
+  <!-- Create / Edit Modal -->
+  @if (showModal()) {
+    <div class="modal-backdrop">
+      <mat-card class="modal-card glass-panel">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title">{{ editingCourseId() ? 'Edit Course' : 'Create New Course' }}</h2>
+            <p class="modal-subtitle">Configure academic course specifications</p>
+          </div>
+          <button mat-icon-button (click)="showModal.set(false)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <form (ngSubmit)="saveCourse()" class="modal-form">
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Course Code</mat-label>
+              <input matInput [(ngModel)]="formData.code" name="code" required placeholder="e.g. CS-101" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Credits</mat-label>
+              <input matInput type="number" [(ngModel)]="formData.credits" name="credits" required min="1" max="10" />
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Course Title</mat-label>
+            <input matInput [(ngModel)]="formData.title" name="title" required placeholder="Introduction to Computer Science" />
+          </mat-form-field>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Department</mat-label>
+              <mat-select [(ngModel)]="formData.department" name="department">
+                <mat-option value="Computer Science">Computer Science</mat-option>
+                <mat-option value="Software Engineering">Software Engineering</mat-option>
+                <mat-option value="Cloud Computing">Cloud Computing</mat-option>
+                <mat-option value="Artificial Intelligence">Artificial Intelligence</mat-option>
+                <mat-option value="Mathematics">Mathematics</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Max Capacity</mat-label>
+              <input matInput type="number" [(ngModel)]="formData.maxCapacity" name="maxCapacity" required min="1" />
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Course Description</mat-label>
+            <textarea matInput [(ngModel)]="formData.description" name="description" rows="3" placeholder="Syllabus overview..."></textarea>
+          </mat-form-field>
+
+          <div class="modal-actions">
+            <button mat-button type="button" (click)="showModal.set(false)">Cancel</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="isSaving()">
+              {{ isSaving() ? 'Saving...' : 'Save Course' }}
+            </button>
+          </div>
+        </form>
+      </mat-card>
+    </div>
+  }
+</div>

@@ -1,0 +1,126 @@
+<nav class="app-navbar glass-panel">
+  <!-- Brand / Logo -->
+  <div class="brand-container">
+    <div class="brand-icon">
+      <mat-icon>school</mat-icon>
+    </div>
+    <div class="brand-text">
+      <a routerLink="/" class="brand-title">TMS Core</a>
+      <span class="brand-sub">Enterprise LMS</span>
+    </div>
+  </div>
+
+  <!-- Navigation Links -->
+  @if (authService.isAuthenticated()) {
+    <div class="nav-links">
+      @if (authService.isStudent()) {
+        <a mat-button routerLink="/student/dashboard" routerLinkActive="active-link" class="nav-link-btn">
+          <mat-icon>dashboard</mat-icon>
+          <span>Dashboard</span>
+        </a>
+        <a mat-button routerLink="/student/courses" routerLinkActive="active-link" class="nav-link-btn">
+          <mat-icon>search</mat-icon>
+          <span>Catalog</span>
+        </a>
+        <a mat-button routerLink="/student/certificates" routerLinkActive="active-link" class="nav-link-btn">
+          <mat-icon>workspace_premium</mat-icon>
+          <span>Certificates</span>
+        </a>
+      }
+
+      @if (authService.isInstructor()) {
+        <a mat-button routerLink="/instructor/dashboard" routerLinkActive="active-link" class="nav-link-btn">
+          <mat-icon>assignment</mat-icon>
+          <span>Instructor Hub</span>
+        </a>
+      }
+
+      @if (authService.isAdmin()) {
+        <a mat-button routerLink="/admin/dashboard" routerLinkActive="active-link" class="nav-link-btn">
+          <mat-icon>dashboard</mat-icon>
+          <span>Admin Portal</span>
+        </a>
+        <a mat-button routerLink="/admin/courses" routerLinkActive="active-link" class="nav-link-btn">
+          <mat-icon>library_books</mat-icon>
+          <span>Manage Courses</span>
+        </a>
+      }
+    </div>
+  }
+
+  <!-- Right Actions: Theme + Live Indicator + Notifications + User Profile -->
+  <div class="right-actions">
+    <!-- Theme Switcher Toggle -->
+    <button
+      mat-icon-button
+      type="button"
+      (click)="themeService.toggleTheme()"
+      [matTooltip]="themeService.currentTheme() === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+      class="action-btn"
+    >
+      <mat-icon>{{ themeService.currentTheme() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    </button>
+
+    <!-- SignalR Live Status Indicator -->
+    <div class="live-pill" [matTooltip]="liveSync.isConnected() ? 'Connected to SignalR Hub' : 'SignalR Offline'">
+      <span class="live-indicator-dot" [class.connected]="liveSync.isConnected()"></span>
+      <span class="live-label">{{ liveSync.isConnected() ? 'LIVE' : 'OFFLINE' }}</span>
+    </div>
+
+    @if (authService.isAuthenticated()) {
+      <!-- Notifications Bell Menu -->
+      <div class="notifications-wrapper">
+        <button
+          mat-icon-button
+          [matMenuTriggerFor]="notificationsMenu"
+          (click)="onOpenNotifications()"
+          class="action-btn notif-btn"
+          aria-label="View notifications"
+        >
+          <mat-icon [matBadge]="notificationService.unreadCount() > 0 ? notificationService.unreadCount() : null" matBadgeColor="warn" matBadgeSize="small">
+            notifications
+          </mat-icon>
+        </button>
+
+        <mat-menu #notificationsMenu="matMenu" xPosition="before" class="notifications-menu">
+          <div class="notif-header" (click)="$event.stopPropagation()">
+            <span class="notif-title">Notifications</span>
+            <button mat-button color="primary" class="mark-read-btn" (click)="markAllRead($event)">Mark all read</button>
+          </div>
+
+          @if (notificationService.notifications().length === 0) {
+            <div class="empty-notif" (click)="$event.stopPropagation()">
+              <mat-icon>notifications_none</mat-icon>
+              <p>No notifications</p>
+            </div>
+          } @else {
+            <div class="notif-list">
+              @for (item of notificationService.notifications(); track item.id) {
+                <div class="notif-item" [class.unread]="!item.isRead" (click)="onNotificationClick(item)">
+                  <div class="notif-item-title">{{ item.title }}</div>
+                  <div class="notif-item-message">{{ item.message }}</div>
+                  <div class="notif-item-time">{{ item.createdAt | date:'short' }}</div>
+                </div>
+              }
+            </div>
+          }
+        </mat-menu>
+      </div>
+
+      <!-- User Profile & Logout -->
+      <div class="user-profile-section">
+        <div class="user-details">
+          <div class="user-name">{{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}</div>
+          <div class="user-role">{{ authService.userRole() }}</div>
+        </div>
+        <button mat-icon-button color="warn" (click)="authService.logout()" matTooltip="Sign Out" class="action-btn logout-btn">
+          <mat-icon>logout</mat-icon>
+        </button>
+      </div>
+    } @else {
+      <a mat-flat-button color="primary" routerLink="/login" class="signin-btn">
+        <span>Sign In</span>
+      </a>
+    }
+  </div>
+</nav>

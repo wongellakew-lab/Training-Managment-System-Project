@@ -1,11 +1,11 @@
 {
   "/api": {
-    "target": "http://localhost:5000",
+    "target": "http://localhost:5211",
     "secure": false,
     "changeOrigin": true
   },
   "/hubs": {
-    "target": "http://localhost:5000",
+    "target": "http://localhost:5211",
     "ws": true,
     "secure": false,
     "changeOrigin": true

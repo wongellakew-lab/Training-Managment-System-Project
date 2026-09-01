@@ -1,0 +1,145 @@
+<div class="login-container">
+  <div class="glow-bg top-glow"></div>
+  <div class="glow-bg bottom-glow"></div>
+
+  <mat-card class="login-card">
+    <mat-card-header class="login-header">
+      <div class="brand-badge">
+        <mat-icon>school</mat-icon>
+      </div>
+      <mat-card-title class="title">Training Management System</mat-card-title>
+      <mat-card-subtitle class="subtitle">Enterprise Course Administration & Live Sync</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Mode Tabs -->
+      <div class="mode-toggle">
+        <button
+          type="button"
+          mat-button
+          [class.active-mode]="!isRegisterMode()"
+          (click)="setMode(false)"
+        >
+          Sign In
+        </button>
+        <button
+          type="button"
+          mat-button
+          [class.active-mode]="isRegisterMode()"
+          (click)="setMode(true)"
+        >
+          Register
+        </button>
+      </div>
+
+      <!-- Error Alert -->
+      @if (errorMessage()) {
+        <div class="error-alert">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <!-- Quick Demo Credentials -->
+      @if (!isRegisterMode()) {
+        <div class="demo-section">
+          <div class="demo-title">Quick Demo Login:</div>
+          <div class="demo-buttons">
+            <button mat-stroked-button (click)="fillCredentials('student@tms.local', 'Student123!')">
+              Student
+            </button>
+            <button mat-stroked-button (click)="fillCredentials('instructor@tms.local', 'Instructor123!')">
+              Instructor
+            </button>
+            <button mat-stroked-button (click)="fillCredentials('admin@tms.local', 'Admin123!')">
+              Admin
+            </button>
+          </div>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
+        @if (isRegisterMode()) {
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>First Name</mat-label>
+              <input matInput formControlName="firstName" placeholder="Jane" />
+              @if (form.get('firstName')?.hasError('required') && form.get('firstName')?.touched) {
+                <mat-error>First name is required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="half-width">
+              <mat-label>Last Name</mat-label>
+              <input matInput formControlName="lastName" placeholder="Doe" />
+              @if (form.get('lastName')?.hasError('required') && form.get('lastName')?.touched) {
+                <mat-error>Last name is required</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Account Role</mat-label>
+            <mat-select formControlName="role">
+              <mat-option value="Student">Student</mat-option>
+              <mat-option value="Instructor">Instructor</mat-option>
+              <mat-option value="Admin">Administrator</mat-option>
+            </mat-select>
+          </mat-form-field>
+        }
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email Address</mat-label>
+          <input matInput formControlName="email" type="email" placeholder="user@tms.local" />
+          <mat-icon matPrefix>email</mat-icon>
+          @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
+            <mat-error>Email is required</mat-error>
+          } @else if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
+            <mat-error>Please enter a valid email address</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Password</mat-label>
+          <input
+            matInput
+            [type]="hidePassword() ? 'password' : 'text'"
+            formControlName="password"
+            placeholder="••••••••"
+          />
+          <mat-icon matPrefix>lock</mat-icon>
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            (click)="hidePassword.set(!hidePassword())"
+            [attr.aria-label]="'Hide password'"
+            [attr.aria-pressed]="hidePassword()"
+          >
+            <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+            <mat-error>Password is required</mat-error>
+          } @else if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
+            <mat-error>Password must be at least 6 characters</mat-error>
+          }
+        </mat-form-field>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="submit-btn"
+          [disabled]="isLoading() || form.invalid"
+        >
+          @if (isLoading()) {
+            <mat-spinner diameter="20" class="btn-spinner"></mat-spinner>
+            <span>Authenticating...</span>
+          } @else {
+            <span>{{ isRegisterMode() ? 'Create Account' : 'Sign In to Portal' }}</span>
+          }
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

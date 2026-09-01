@@ -1,0 +1,232 @@
+<div class="admin-page">
+  <app-navbar></app-navbar>
+
+  <!-- Welcome Header Banner -->
+  <mat-card class="welcome-card glass-panel">
+    <div class="welcome-content">
+      <div class="welcome-left">
+        <div class="role-chip-container">
+          <mat-chip-set>
+            <mat-chip class="role-chip" highlighted>System Administration</mat-chip>
+          </mat-chip-set>
+          <span class="welcome-prefix">Administrative Hub</span>
+        </div>
+        <h1 class="admin-title">Enterprise TMS Administration</h1>
+        <p class="admin-desc">
+          Live oversight of platform metrics, user accounts, course offerings, and enrollment approvals.
+        </p>
+      </div>
+
+      <div class="welcome-actions">
+        <button mat-stroked-button (click)="loadDashboard()" [disabled]="isLoading()" class="action-btn">
+          <mat-icon [class.animate-spin]="isLoading()">refresh</mat-icon>
+          <span>Sync Real-Time Metrics</span>
+        </button>
+        <a mat-flat-button color="primary" routerLink="/admin/courses" class="action-btn">
+          <mat-icon>library_books</mat-icon>
+          <span>Manage Courses</span>
+        </a>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- KPI Metrics Grid -->
+  @if (dashboard()) {
+    <div class="metrics-grid">
+      <mat-card class="metric-card glass-card">
+        <mat-card-header>
+          <div class="metric-icon-box students-icon">
+            <mat-icon>person</mat-icon>
+          </div>
+          <mat-card-title class="metric-value">{{ dashboard()!.totalStudents }}</mat-card-title>
+          <mat-card-subtitle class="metric-label">Total Students</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-footer">Registered users</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card glass-card">
+        <mat-card-header>
+          <div class="metric-icon-box instructors-icon">
+            <mat-icon>school</mat-icon>
+          </div>
+          <mat-card-title class="metric-value">{{ dashboard()!.totalInstructors }}</mat-card-title>
+          <mat-card-subtitle class="metric-label">Instructors</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-footer">Faculty instructors</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card glass-card">
+        <mat-card-header>
+          <div class="metric-icon-box courses-icon">
+            <mat-icon>menu_book</mat-icon>
+          </div>
+          <mat-card-title class="metric-value">{{ dashboard()!.totalCourses }}</mat-card-title>
+          <mat-card-subtitle class="metric-label">Courses</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-footer">Active catalog entries</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card glass-card">
+        <mat-card-header>
+          <div class="metric-icon-box active-icon">
+            <mat-icon>trending_up</mat-icon>
+          </div>
+          <mat-card-title class="metric-value">{{ dashboard()!.activeEnrollments }}</mat-card-title>
+          <mat-card-subtitle class="metric-label">Active Enrollments</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-footer">In training sessions</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card glass-card">
+        <mat-card-header>
+          <div class="metric-icon-box pending-icon">
+            <mat-icon>pending_actions</mat-icon>
+          </div>
+          <mat-card-title class="metric-value">{{ dashboard()!.pendingEnrollments }}</mat-card-title>
+          <mat-card-subtitle class="metric-label">Pending Approval</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-footer">Requires admin action</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="metric-card glass-card">
+        <mat-card-header>
+          <div class="metric-icon-box cert-icon">
+            <mat-icon>workspace_premium</mat-icon>
+          </div>
+          <mat-card-title class="metric-value">{{ dashboard()!.totalCertificates }}</mat-card-title>
+          <mat-card-subtitle class="metric-label">Certificates</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-footer">Awarded credentials</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+
+  <!-- Split Grid: Approvals Queue & System Activity -->
+  <div class="content-split-grid">
+    <!-- Approvals Queue -->
+    <mat-card class="queue-card glass-panel">
+      <div class="queue-header-bar">
+        <div>
+          <h2 class="section-title">Pending Enrollment Approvals</h2>
+          <p class="section-subtitle">Real-time applications awaiting administrative verification</p>
+        </div>
+        @if (dashboard()?.pendingApprovalList?.length) {
+          <span class="badge badge-warning">
+            {{ dashboard()!.pendingApprovalList.length }} Pending
+          </span>
+        }
+      </div>
+
+      @if (isLoading()) {
+        <div class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+          <span>Loading approval requests...</span>
+        </div>
+      } @else if (!dashboard()?.pendingApprovalList?.length) {
+        <div class="empty-state">
+          <mat-icon class="empty-icon success-icon">task_alt</mat-icon>
+          <h3 class="empty-title">All Caught Up</h3>
+          <p class="empty-desc">There are no pending enrollment applications requiring approval.</p>
+        </div>
+      } @else {
+        <div class="table-container">
+          <table mat-table [dataSource]="dashboard()!.pendingApprovalList" class="tms-table">
+            <!-- Student Column -->
+            <ng-container matColumnDef="student">
+              <th mat-header-cell *matHeaderCellDef>Applicant</th>
+              <td mat-cell *matCellDef="let item" class="student-cell">
+                <span class="student-name">{{ item.studentName || 'Student #' + item.studentId }}</span>
+                <span class="student-id font-mono">ID: {{ item.studentId }}</span>
+              </td>
+            </ng-container>
+
+            <!-- Course Column -->
+            <ng-container matColumnDef="course">
+              <th mat-header-cell *matHeaderCellDef>Course</th>
+              <td mat-cell *matCellDef="let item" class="course-cell">
+                <span class="course-code font-mono">{{ item.courseCode || 'CS' }}</span>
+                <span class="course-title">{{ item.courseTitle }}</span>
+              </td>
+            </ng-container>
+
+            <!-- Date Column -->
+            <ng-container matColumnDef="date">
+              <th mat-header-cell *matHeaderCellDef>Submitted</th>
+              <td mat-cell *matCellDef="let item" class="date-cell">
+                {{ item.enrolledAt || item.enrollmentDate | date:'mediumDate' }}
+              </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef class="text-right">Decision</th>
+              <td mat-cell *matCellDef="let item" class="text-right actions-cell">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  (click)="approveEnrollment(item.id)"
+                  class="approve-btn"
+                >
+                  Approve
+                </button>
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  (click)="rejectEnrollment(item.id)"
+                  class="reject-btn"
+                >
+                  Reject
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
+          </table>
+        </div>
+      }
+    </mat-card>
+
+    <!-- Real-time Activity Log -->
+    <mat-card class="activity-card glass-panel">
+      <div class="activity-header-bar">
+        <h2 class="section-title">Audit & Activity Feed</h2>
+        <p class="section-subtitle">Real-time system events</p>
+      </div>
+
+      <div class="activity-feed">
+        @if (!dashboard()?.recentActivity?.length) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">history</mat-icon>
+            <p class="empty-desc">No recent activity logged.</p>
+          </div>
+        } @else {
+          @for (act of dashboard()!.recentActivity; track act.id) {
+            <div class="activity-item">
+              <div class="activity-icon-box">
+                <mat-icon>notifications</mat-icon>
+              </div>
+              <div class="activity-body">
+                <div class="activity-title">{{ act.title }}</div>
+                <div class="activity-desc">{{ act.description }}</div>
+                <div class="activity-time font-mono">{{ act.timestamp | date:'short' }}</div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    </mat-card>
+  </div>
+</div>

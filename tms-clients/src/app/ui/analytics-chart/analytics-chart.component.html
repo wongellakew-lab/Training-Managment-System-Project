@@ -1,0 +1,19 @@
+<div class="analytics-grid">
+  @for (metric of metrics; track metric.label) {
+    <mat-card class="stat-card glass-card">
+      <div class="stat-header">
+        <span class="stat-label">{{ metric.label }}</span>
+        <div class="stat-icon-box" [ngStyle]="{ 'background': metric.colorGradient || 'rgba(99, 102, 241, 0.15)' }">
+          <mat-icon>{{ metric.icon }}</mat-icon>
+        </div>
+      </div>
+      <div class="stat-value">{{ metric.value }}</div>
+      @if (metric.change) {
+        <div class="stat-trend" [class.trend-up]="metric.trend === 'up'">
+          <mat-icon class="trend-icon">{{ metric.trend === 'up' ? 'trending_up' : 'info' }}</mat-icon>
+          <span>{{ metric.change }}</span>
+        </div>
+      }
+    </mat-card>
+  }
+</div>

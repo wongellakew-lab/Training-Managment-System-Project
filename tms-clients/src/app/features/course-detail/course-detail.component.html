@@ -1,0 +1,58 @@
+<div class="detail-page">
+  <app-navbar></app-navbar>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <mat-spinner diameter="36"></mat-spinner>
+      <span>Loading course syllabus and specifications...</span>
+    </div>
+  } @else if (course()) {
+    <mat-card class="course-detail-card glass-panel">
+      <!-- Top badges -->
+      <div class="detail-top-row">
+        <mat-chip-set>
+          <mat-chip class="code-chip font-mono" highlighted>{{ course()?.code }}</mat-chip>
+          <mat-chip class="credits-chip">{{ course()?.credits }} Academic Credits</mat-chip>
+        </mat-chip-set>
+      </div>
+
+      <h1 class="course-title">{{ course()?.title }}</h1>
+      <div class="dept-row">
+        <mat-icon>domain</mat-icon>
+        <span>{{ course()?.department }}</span>
+      </div>
+
+      <!-- Description box -->
+      <div class="desc-box">
+        <div class="desc-label">Description & Syllabus Overview</div>
+        <p class="desc-text">{{ course()?.description }}</p>
+      </div>
+
+      <!-- Statistics grid -->
+      <div class="stats-grid">
+        <mat-card class="stat-card glass-card">
+          <div class="stat-label">Maximum Class Capacity</div>
+          <div class="stat-val">{{ course()?.maxCapacity }} Students</div>
+        </mat-card>
+
+        <mat-card class="stat-card glass-card">
+          <div class="stat-label">Currently Enrolled</div>
+          <div class="stat-val text-primary-val">{{ course()?.enrolledCount }} Students</div>
+        </mat-card>
+
+        <mat-card class="stat-card glass-card">
+          <div class="stat-label">Lead Faculty Instructor</div>
+          <div class="stat-val text-accent-val">{{ course()?.instructorName || 'Department Faculty' }}</div>
+        </mat-card>
+      </div>
+
+      <!-- Bottom action bar -->
+      <div class="action-footer">
+        <a mat-stroked-button routerLink="/student/courses">
+          <mat-icon>arrow_back</mat-icon>
+          <span>Back to Catalog</span>
+        </a>
+      </div>
+    </mat-card>
+  }
+</div>

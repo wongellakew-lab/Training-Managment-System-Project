@@ -1,0 +1,227 @@
+<div class="instructor-page">
+  <app-navbar></app-navbar>
+
+  <!-- Welcome Banner -->
+  <mat-card class="welcome-card glass-panel">
+    <div class="welcome-content">
+      <div class="welcome-left">
+        <div class="role-chip-container">
+          <mat-chip-set>
+            <mat-chip class="role-chip" highlighted>Instructor Workspace</mat-chip>
+          </mat-chip-set>
+          <span class="welcome-prefix">Faculty Portal</span>
+        </div>
+        <h1 class="instructor-name">
+          Prof. {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}
+        </h1>
+        <p class="instructor-desc">
+          Manage course rosters, grade student performance, and award certificates backed by PostgreSQL.
+        </p>
+      </div>
+
+      <div class="welcome-actions">
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="submitAllGrades()"
+          [disabled]="isSubmittingBulk() || gradeRows().length === 0"
+          class="submit-all-btn"
+        >
+          <mat-icon>cloud_upload</mat-icon>
+          <span>{{ isSubmittingBulk() ? 'Saving All...' : 'Submit All Grades' }}</span>
+        </button>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- KPI Metrics Cards -->
+  <div class="metrics-grid">
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box assigned-icon">
+          <mat-icon>cast_for_education</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ courses().length }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Assigned Courses</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Active teaching sections</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box students-icon">
+          <mat-icon>groups</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ gradeRows().length }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Section Students</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Enrolled in selected course</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box pending-icon">
+          <mat-icon>fact_check</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ pendingCount() }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Pending Grades</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Requires instructor scoring</div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="metric-card glass-card">
+      <mat-card-header>
+        <div class="metric-icon-box cert-icon">
+          <mat-icon>workspace_premium</mat-icon>
+        </div>
+        <mat-card-title class="metric-value">{{ issuedCount() }}</mat-card-title>
+        <mat-card-subtitle class="metric-label">Certificates Issued</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="metric-footer">Eligible students awarded</div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Course Roster & Gradebook Section -->
+  <mat-card class="roster-card glass-panel">
+    <div class="roster-header-bar">
+      <div>
+        <h2 class="section-title">Course Gradebook & Roster</h2>
+        <p class="section-subtitle">Select an assigned course to view students and input final grades</p>
+      </div>
+
+      <!-- Course Selection Form Field -->
+      <mat-form-field appearance="outline" class="course-select-field">
+        <mat-label>Select Course Section</mat-label>
+        <mat-select [value]="selectedCourseId()" (selectionChange)="onCourseSelect($event.value)">
+          @for (c of courses(); track c.id) {
+            <mat-option [value]="c.id">{{ c.code }} - {{ c.title }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <!-- Alert / Feedback Banner -->
+    @if (feedbackMessage()) {
+      <div class="feedback-banner" [class.success]="isFeedbackSuccess()" [class.error]="!isFeedbackSuccess()">
+        <mat-icon>{{ isFeedbackSuccess() ? 'check_circle' : 'error' }}</mat-icon>
+        <span class="feedback-text">{{ feedbackMessage() }}</span>
+        <button mat-icon-button (click)="feedbackMessage.set(null)" class="close-btn">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+
+    @if (isLoading()) {
+      <div class="loading-state">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading course roster and grades...</span>
+      </div>
+    } @else if (gradeRows().length === 0) {
+      <div class="empty-state">
+        <mat-icon class="empty-icon">group_off</mat-icon>
+        <h3 class="empty-title">No students enrolled in this section</h3>
+        <p class="empty-desc">Students will appear here in real-time once they register for this course.</p>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table mat-table [dataSource]="gradeRows()" class="tms-table">
+          <!-- Student Column -->
+          <ng-container matColumnDef="student">
+            <th mat-header-cell *matHeaderCellDef>Student</th>
+            <td mat-cell *matCellDef="let row" class="student-cell">
+              <span class="student-name">{{ row.enrollment.studentName || 'Student #' + row.enrollment.studentId }}</span>
+              <span class="student-id font-mono">ID: {{ row.enrollment.studentId }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Enrollment Status</th>
+            <td mat-cell *matCellDef="let row">
+              <span
+                class="badge"
+                [ngClass]="row.enrollment.status === 'Completed' ? 'badge-success' : 'badge-primary'"
+              >
+                {{ row.enrollment.status }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Numeric Score Column -->
+          <ng-container matColumnDef="numericScore">
+            <th mat-header-cell *matHeaderCellDef class="w-36">Score (0-100)</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-form-field appearance="outline" class="score-input-field">
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  [(ngModel)]="row.numericScore"
+                  (ngModelChange)="onScoreChange(row)"
+                  class="font-mono text-right"
+                />
+              </mat-form-field>
+            </td>
+          </ng-container>
+
+          <!-- Letter Grade Column -->
+          <ng-container matColumnDef="letterGrade">
+            <th mat-header-cell *matHeaderCellDef class="text-center">Letter Grade</th>
+            <td mat-cell *matCellDef="let row" class="text-center">
+              <span class="letter-grade-badge">{{ row.letterGrade || '—' }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Certificate Column -->
+          <ng-container matColumnDef="certificate">
+            <th mat-header-cell *matHeaderCellDef class="text-center">Certificate</th>
+            <td mat-cell *matCellDef="let row" class="text-center">
+              @if (row.isIssued) {
+                <span class="badge badge-success">Issued</span>
+              } @else if (row.enrollment.status === 'Completed' || row.numericScore >= 60) {
+                <button
+                  mat-stroked-button
+                  color="accent"
+                  (click)="issueCertificate(row)"
+                  class="award-btn"
+                >
+                  Award Cert
+                </button>
+              } @else {
+                <span class="text-muted text-xs">Requires 60%+</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
+            <td mat-cell *matCellDef="let row" class="text-right">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="saveSingleGrade(row)"
+                [disabled]="row.isSaving"
+                class="save-btn"
+              >
+                {{ row.isSaving ? 'Saving...' : 'Save Grade' }}
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
+        </table>
+      </div>
+    }
+  </mat-card>
+</div>
