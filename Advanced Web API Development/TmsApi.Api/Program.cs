@@ -194,6 +194,110 @@ using (var scope = app.Services.CreateScope())
         await userManager.CreateAsync(admin, "Admin123!");
         await userManager.AddToRoleAsync(admin, "Admin");
     }
+
+    // Seed Instructors
+    var instUserEmail = "instructor@tms.local";
+    if (await userManager.FindByEmailAsync(instUserEmail) == null)
+    {
+        var instructor = new Instructor
+        {
+            FirstName = "Alan",
+            LastName = "Turing",
+            Email = instUserEmail,
+            EmployeeNumber = "EMP-001",
+            Department = "Computer Science",
+            HireDate = DateTime.UtcNow.AddYears(-3)
+        };
+        await db.Instructors.AddAsync(instructor);
+        await db.SaveChangesAsync();
+
+        var instUser = new TmsUser
+        {
+            UserName = instUserEmail,
+            Email = instUserEmail,
+            FirstName = "Alan",
+            LastName = "Turing",
+            InstructorId = instructor.Id,
+            EmailConfirmed = true
+        };
+        await userManager.CreateAsync(instUser, "Instructor123!");
+        await userManager.AddToRoleAsync(instUser, "Instructor");
+    }
+
+    // Seed Student
+    var studentUserEmail = "student@tms.local";
+    TmsUser? studentUser = await userManager.FindByEmailAsync(studentUserEmail);
+    Student? student = null;
+    if (studentUser == null)
+    {
+        student = new Student
+        {
+            FirstName = "Alice",
+            LastName = "Walker",
+            Email = studentUserEmail,
+            RegistrationNumber = "REG-2026-001",
+            Gpa = 3.85m
+        };
+        await db.Students.AddAsync(student);
+        await db.SaveChangesAsync();
+
+        studentUser = new TmsUser
+        {
+            UserName = studentUserEmail,
+            Email = studentUserEmail,
+            FirstName = "Alice",
+            LastName = "Walker",
+            StudentId = student.Id,
+            EmailConfirmed = true
+        };
+        await userManager.CreateAsync(studentUser, "Student123!");
+        await userManager.AddToRoleAsync(studentUser, "Student");
+    }
+
+    // Seed Courses
+    if (!await db.Courses.AnyAsync())
+    {
+        var instructor = await db.Instructors.FirstOrDefaultAsync();
+        var courses = new List<Course>
+        {
+            new() { Code = "CS-101", Title = "Introduction to Computer Science", Description = "Fundamental principles of programming and algorithmic problem solving.", Department = "Computer Science", Credits = 3, MaxCapacity = 30, InstructorId = instructor?.Id },
+            new() { Code = "CS-201", Title = "Data Structures & Algorithms", Description = "In-depth exploration of arrays, linked lists, trees, graphs, and search algorithms.", Department = "Computer Science", Credits = 4, MaxCapacity = 25, InstructorId = instructor?.Id },
+            new() { Code = "CS-301", Title = "Full-Stack Web Architecture", Description = "Modern scalable web applications using .NET, Angular, RESTful APIs, and SignalR.", Department = "Software Engineering", Credits = 4, MaxCapacity = 20, InstructorId = instructor?.Id },
+            new() { Code = "CS-401", Title = "Cloud Native Computing & DevOps", Description = "Microservices, containerization with Docker/Kubernetes, and CI/CD pipelines.", Department = "Cloud Computing", Credits = 3, MaxCapacity = 25, InstructorId = instructor?.Id },
+            new() { Code = "AI-501", Title = "Applied Machine Learning & Neural Networks", Description = "Supervised/unsupervised learning, deep learning with PyTorch, and generative models.", Department = "Artificial Intelligence", Credits = 4, MaxCapacity = 18, InstructorId = instructor?.Id }
+        };
+        await db.Courses.AddRangeAsync(courses);
+        await db.SaveChangesAsync();
+
+        if (student != null)
+        {
+            var enrollments = new List<Enrollment>
+            {
+                new() { CourseId = courses[0].Id, StudentId = student.Id, Status = EnrollmentStatus.Completed, Grade = 3.9m, EnrolledAt = DateTime.UtcNow.AddMonths(-3) },
+                new() { CourseId = courses[1].Id, StudentId = student.Id, Status = EnrollmentStatus.Completed, Grade = 3.8m, EnrolledAt = DateTime.UtcNow.AddMonths(-2) },
+                new() { CourseId = courses[2].Id, StudentId = student.Id, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.UtcNow.AddDays(-10) },
+                new() { CourseId = courses[3].Id, StudentId = student.Id, Status = EnrollmentStatus.Pending, EnrolledAt = DateTime.UtcNow.AddDays(-2) }
+            };
+            await db.Enrollments.AddRangeAsync(enrollments);
+
+            var cert = new Certificate
+            {
+                StudentId = student.Id,
+                CourseId = courses[0].Id,
+                CertificateNumber = $"CERT-{Guid.NewGuid().ToString()[..8].ToUpper()}",
+                IssueDate = DateTime.UtcNow.AddMonths(-1)
+            };
+            await db.Certificates.AddAsync(cert);
+
+            var notifications = new List<Notification>
+            {
+                new() { UserId = studentUser.Id, Title = "Welcome to TMS", Message = "Welcome to the Training Management System! Explore available courses.", Type = "System", IsRead = false, CreatedAt = DateTime.UtcNow.AddDays(-10) },
+                new() { UserId = studentUser.Id, Title = "Enrollment Submitted", Message = "Your enrollment request for CS-401 has been submitted.", Type = "Enrollment", IsRead = false, CreatedAt = DateTime.UtcNow.AddDays(-2) }
+            };
+            await db.Notifications.AddRangeAsync(notifications);
+            await db.SaveChangesAsync();
+        }
+    }
 }
 
 // Exception Middleware
