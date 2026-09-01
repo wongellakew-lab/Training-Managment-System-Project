@@ -1,0 +1,31 @@
+using AutoMapper;
+using TmsApi.Application.DTOs.CourseDtos;
+using TmsApi.Application.DTOs.EnrollmentDtos;
+using TmsApi.Application.DTOs.InstructorDtos;
+using TmsApi.Application.DTOs.StudentDtos;
+using TmsApi.Domain.Entities;
+
+namespace TmsApi.Application.Mappings;
+
+public class MappingProfile : Profile
+{
+    public MappingProfile()
+    {
+        CreateMap<Student, StudentDto>();
+        CreateMap<CreateStudentDto, Student>();
+        CreateMap<UpdateStudentDto, Student>();
+
+        CreateMap<Instructor, InstructorDto>();
+        CreateMap<CreateInstructorDto, Instructor>();
+
+        CreateMap<Course, CourseDto>()
+            .ForMember(dest => dest.EnrolledCount, opt => opt.MapFrom(src => src.Enrollments.Count));
+        CreateMap<CreateCourseDto, Course>();
+        CreateMap<UpdateCourseDto, Course>();
+
+        CreateMap<Enrollment, EnrollmentDto>()
+            .ForMember(dest => dest.StudentName, opt => opt.MapFrom(src => src.Student != null ? $"{src.Student.FirstName} {src.Student.LastName}" : string.Empty))
+            .ForMember(dest => dest.CourseCode, opt => opt.MapFrom(src => src.Course != null ? src.Course.Code : string.Empty))
+            .ForMember(dest => dest.CourseTitle, opt => opt.MapFrom(src => src.Course != null ? src.Course.Title : string.Empty));
+    }
+}
