@@ -117,6 +117,8 @@ builder.Services.AddScoped<ICourseService>(sp => sp.GetRequiredService<CourseSer
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // SignalR & Background Channels
 builder.Services.AddSignalR();

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -25,15 +26,31 @@ public class EnrollmentsController : ControllerBase
         _enrollmentService = enrollmentService;
     }
 
+    private int? GetCurrentStudentId()
+    {
+        var claim = User.FindFirst("studentId")?.Value;
+        return int.TryParse(claim, out var id) ? id : null;
+    }
+
     [Authorize]
     [HttpGet]
     public async Task<IActionResult> GetEnrollments(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10,
+        [FromQuery] int pageSize = 50,
         [FromQuery] int? studentId = null,
         [FromQuery] int? courseId = null,
         CancellationToken cancellationToken = default)
     {
+        // If caller is student, constrain to their own studentId
+        if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
+        {
+            var currentStudentId = GetCurrentStudentId();
+            if (currentStudentId.HasValue)
+            {
+                studentId = currentStudentId.Value;
+            }
+        }
+
         var response = await _enrollmentService.GetEnrollmentsAsync(page, pageSize, studentId, courseId, cancellationToken);
         return Ok(response);
     }
@@ -46,6 +63,15 @@ public class EnrollmentsController : ControllerBase
         var enrollment = await _mediator.Send(query, cancellationToken);
         if (enrollment == null) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
+        if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
+        {
+            var currentStudentId = GetCurrentStudentId();
+            if (currentStudentId.HasValue && enrollment.StudentId != currentStudentId.Value)
+            {
+                return Forbid();
+            }
+        }
+
         return Ok(enrollment);
     }
 
@@ -53,6 +79,15 @@ public class EnrollmentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> EnrollStudent([FromBody] CreateEnrollmentDto dto, CancellationToken cancellationToken)
     {
+        if (User.IsInRole("Student") && !User.IsInRole("Admin"))
+        {
+            var currentStudentId = GetCurrentStudentId();
+            if (currentStudentId.HasValue)
+            {
+                dto.StudentId = currentStudentId.Value;
+            }
+        }
+
         var command = new EnrollStudentCommand(dto.StudentId, dto.CourseId);
         var result = await _mediator.Send(command, cancellationToken);
 
@@ -69,5 +104,35 @@ public class EnrollmentsController : ControllerBase
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         return NoContent();
+    }
+
+    [Authorize(Roles = "Admin,Instructor")]
+    [HttpPut("{id:int}/approve")]
+    public async Task<IActionResult> ApproveEnrollment(int id, CancellationToken cancellationToken)
+    {
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Active, cancellationToken);
+        if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
+
+        return Ok(new { message = "Enrollment approved successfully." });
+    }
+
+    [Authorize(Roles = "Admin,Instructor")]
+    [HttpPut("{id:int}/reject")]
+    public async Task<IActionResult> RejectEnrollment(int id, CancellationToken cancellationToken)
+    {
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Rejected, cancellationToken);
+        if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
+
+        return Ok(new { message = "Enrollment rejected." });
+    }
+
+    [Authorize]
+    [HttpPut("{id:int}/drop")]
+    public async Task<IActionResult> DropEnrollment(int id, CancellationToken cancellationToken)
+    {
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Dropped, cancellationToken);
+        if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
+
+        return Ok(new { message = "Course enrollment dropped." });
     }
 }

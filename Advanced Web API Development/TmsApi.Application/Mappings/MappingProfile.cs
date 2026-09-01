@@ -28,5 +28,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.StudentName, opt => opt.MapFrom(src => src.Student != null ? $"{src.Student.FirstName} {src.Student.LastName}" : string.Empty))
             .ForMember(dest => dest.CourseCode, opt => opt.MapFrom(src => src.Course != null ? src.Course.Code : string.Empty))
             .ForMember(dest => dest.CourseTitle, opt => opt.MapFrom(src => src.Course != null ? src.Course.Title : string.Empty));
+
+        CreateMap<Notification, TmsApi.Application.DTOs.NotificationDtos.NotificationDto>();
     }
 }
