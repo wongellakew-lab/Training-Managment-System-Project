@@ -30,7 +30,15 @@ export class EnrollmentService {
     return this.http.put<Enrollment>(`${this.baseUrl}/${enrollmentId}/status`, { status });
   }
 
-  dropEnrollment(enrollmentId: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${enrollmentId}`);
+  approveEnrollment(enrollmentId: number): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`${this.baseUrl}/${enrollmentId}/approve`, {});
+  }
+
+  rejectEnrollment(enrollmentId: number): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`${this.baseUrl}/${enrollmentId}/reject`, {});
+  }
+
+  dropEnrollment(enrollmentId: number): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`${this.baseUrl}/${enrollmentId}/drop`, {});
   }
 }

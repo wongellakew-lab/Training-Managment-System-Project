@@ -58,13 +58,13 @@ import { UserRole } from '../../models/user.model';
           <div class="mb-6">
             <div class="text-[11px] font-semibold text-slate-400 mb-2 uppercase tracking-wider">Quick Demo Login:</div>
             <div class="grid grid-cols-3 gap-2">
-              <button (click)="fillCredentials('student@tms.com', 'Student')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/40 border border-white/5 rounded-lg text-[11px] font-medium text-slate-300 transition-colors">
+              <button (click)="fillCredentials('student@tms.local', 'Student', 'Student123!')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/40 border border-white/5 rounded-lg text-[11px] font-medium text-slate-300 transition-colors">
                 Student
               </button>
-              <button (click)="fillCredentials('instructor@tms.com', 'Instructor')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/40 border border-white/5 rounded-lg text-[11px] font-medium text-slate-300 transition-colors">
+              <button (click)="fillCredentials('instructor@tms.local', 'Instructor', 'Instructor123!')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/40 border border-white/5 rounded-lg text-[11px] font-medium text-slate-300 transition-colors">
                 Instructor
               </button>
-              <button (click)="fillCredentials('admin@tms.com', 'Admin')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/40 border border-white/5 rounded-lg text-[11px] font-medium text-slate-300 transition-colors">
+              <button (click)="fillCredentials('admin@tms.local', 'Admin', 'Admin123!')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-950/50 hover:border-indigo-500/40 border border-white/5 rounded-lg text-[11px] font-medium text-slate-300 transition-colors">
                 Admin
               </button>
             </div>
@@ -115,7 +115,7 @@ import { UserRole } from '../../models/user.model';
               [(ngModel)]="email"
               name="email"
               required
-              placeholder="user@example.com"
+              placeholder="user@tms.local"
               class="form-input text-xs"
             />
           </div>
@@ -154,19 +154,19 @@ export class LoginComponent {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 
-  email = 'student@tms.com';
-  password = 'Password123!';
-  firstName = 'Jane';
-  lastName = 'Doe';
+  email = '';
+  password = '';
+  firstName = '';
+  lastName = '';
   role: UserRole = 'Student';
 
   isRegisterMode = signal(false);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
 
-  fillCredentials(email: string, role: UserRole) {
+  fillCredentials(email: string, role: UserRole, defaultPass: string) {
     this.email = email;
-    this.password = 'Password123!';
+    this.password = defaultPass;
     this.role = role;
   }
 
@@ -214,7 +214,7 @@ export class LoginComponent {
     if (role === 'Instructor') {
       this.router.navigate(['/instructor/dashboard']);
     } else if (role === 'Admin') {
-      this.router.navigate(['/admin/courses']);
+      this.router.navigate(['/admin/dashboard']);
     } else {
       this.router.navigate(['/student/dashboard']);
     }

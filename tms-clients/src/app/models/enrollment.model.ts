@@ -7,7 +7,8 @@ export interface Enrollment {
   courseId: number;
   courseTitle?: string;
   courseCode?: string;
-  enrollmentDate: string;
+  enrollmentDate?: string;
+  enrolledAt?: string;
   status: EnrollmentStatus;
   grade?: string;
   numericScore?: number;

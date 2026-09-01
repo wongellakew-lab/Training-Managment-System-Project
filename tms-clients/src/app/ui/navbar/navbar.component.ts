@@ -49,6 +49,10 @@ import { LiveSyncService } from '../../services/live-sync.service';
           }
 
           @if (authService.isAdmin()) {
+            <a routerLink="/admin/dashboard" routerLinkActive="bg-indigo-600/20 text-indigo-300 border-indigo-500/30" class="nav-item">
+              <span class="material-icons text-sm">dashboard</span>
+              <span>Admin Dashboard</span>
+            </a>
             <a routerLink="/admin/courses" routerLinkActive="bg-indigo-600/20 text-indigo-300 border-indigo-500/30" class="nav-item">
               <span class="material-icons text-sm">settings</span>
               <span>Course Management</span>
