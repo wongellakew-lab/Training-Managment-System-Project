@@ -1,0 +1,40 @@
+.eduva-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 32px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  gap: 16px;
+
+  .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+
+    .copyright {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .footer-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+
+    &:hover {
+      color: var(--eduva-blue);
+    }
+  }
+}

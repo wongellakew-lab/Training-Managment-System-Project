@@ -1,0 +1,429 @@
+.enrollments-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 4 KPI Cards Grid */
+.kpi-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  .kpi-card {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .kpi-icon-box {
+        width: 38px;
+        height: 38px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        mat-icon {
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+        }
+
+        &.bg-blue-subtle { background: #f0f9ff; color: #0284c7; }
+        &.bg-green-subtle { background: #ecfdf5; color: #10b981; }
+        &.bg-orange-subtle { background: #fffbeb; color: #f59e0b; }
+        &.bg-rose-subtle { background: #fef2f2; color: #ef4444; }
+      }
+
+      .growth-tag {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+
+        &.tag-green { background: #ecfdf5; color: #059669; }
+        &.tag-red { background: #fef2f2; color: #dc2626; }
+      }
+    }
+
+    .kpi-body {
+      display: flex;
+      flex-direction: column;
+
+      .kpi-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .kpi-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+    }
+  }
+}
+
+/* Payment Status Breakdown Card */
+.payment-breakdown-card {
+  .payment-content-flex {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 20px;
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .stacked-bar-chart {
+    display: flex;
+    gap: 12px;
+    height: 160px;
+
+    .bar-y-axis {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 0.625rem;
+      color: var(--text-muted);
+      padding-bottom: 24px;
+    }
+
+    .bars-container {
+      flex: 1;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 6px;
+      position: relative;
+
+      .stack-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+        justify-content: flex-end;
+        position: relative;
+        width: 60px;
+
+        .stacked-bar {
+          width: 32px;
+          border-radius: 4px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          background: #f1f5f9;
+
+          .seg {
+            width: 100%;
+            &.seg-paid { background: #172b4d; }
+            &.seg-pending { background: #0284c7; }
+            &.seg-unpaid { background: #cbd5e1; }
+          }
+        }
+
+        .bar-name {
+          margin-top: 8px;
+          font-size: 0.6875rem;
+          color: var(--text-muted);
+        }
+
+        .enrolled-tooltip {
+          position: absolute;
+          top: -75px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #ffffff;
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-sm);
+          box-shadow: var(--shadow-card);
+          padding: 6px 10px;
+          font-size: 0.625rem;
+          z-index: 10;
+          white-space: nowrap;
+
+          .tt-title {
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+          }
+
+          .tt-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin: 1px 0;
+            color: var(--text-secondary);
+
+            .tt-dot {
+              width: 5px;
+              height: 5px;
+              border-radius: 50%;
+              &.dot-paid { background: #172b4d; }
+              &.dot-pending { background: #0284c7; }
+              &.dot-unpaid { background: #cbd5e1; }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .payment-stats-metrics {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-left: 1px solid var(--border-subtle);
+    padding-left: 20px;
+
+    .stat-metric-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .stat-metric-label {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+      }
+
+      .stat-metric-val {
+        font-size: 1.125rem;
+        font-weight: 800;
+        color: var(--text-primary);
+      }
+
+      .stat-metric-sub {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.6875rem;
+        color: var(--text-secondary);
+
+        .pct-chip {
+          padding: 1px 5px;
+          border-radius: var(--radius-full);
+          font-size: 0.625rem;
+          font-weight: 700;
+          color: #fff;
+
+          &.bg-navy { background: #172b4d; }
+          &.bg-cyan { background: #0284c7; }
+          &.bg-gray { background: #64748b; }
+        }
+      }
+    }
+  }
+}
+
+/* Enrollment Table Card */
+.enrollment-table-card {
+  .table-header-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    .table-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .table-filters-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .table-search-box {
+        width: 220px;
+      }
+    }
+  }
+
+  .table-responsive-wrapper {
+    overflow-x: auto;
+  }
+
+  .eduva-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+
+    thead {
+      tr {
+        border-bottom: 1px solid var(--border-subtle);
+
+        th {
+          text-align: left;
+          padding: 12px 14px;
+          font-weight: 600;
+          color: var(--text-muted);
+          white-space: nowrap;
+
+          .sort-icon {
+            font-size: 14px;
+            width: 14px;
+            height: 14px;
+            vertical-align: middle;
+            color: var(--text-muted);
+          }
+        }
+      }
+    }
+
+    tbody {
+      tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s;
+
+        &:hover {
+          background: #f8fafc;
+        }
+
+        td {
+          padding: 14px;
+          color: var(--text-primary);
+          white-space: nowrap;
+
+          &.date-cell {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+          }
+
+          &.phone-cell {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+          }
+
+          &.batch-cell {
+            color: var(--text-secondary);
+          }
+        }
+      }
+    }
+  }
+
+  .student-profile-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .student-av {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .student-info-col {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+
+      .student-name {
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .student-email {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+      }
+    }
+  }
+
+  .fee-payment-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .fee-val {
+      font-weight: 700;
+    }
+  }
+
+  /* Table Footer Pagination */
+  .table-footer-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+
+    .page-size-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .size-dropdown {
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 4px 8px;
+        background: #fff;
+        outline: none;
+      }
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .pg-arrow, .pg-num {
+        background: transparent;
+        border: 1px solid transparent;
+        width: 30px;
+        height: 30px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover:not(:disabled) {
+          background: #f1f5f9;
+        }
+
+        &.active {
+          background: #172b4d;
+          color: #ffffff;
+        }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+      }
+
+      .pg-ellipsis {
+        padding: 0 4px;
+        color: var(--text-muted);
+      }
+    }
+  }
+}

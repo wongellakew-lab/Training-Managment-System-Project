@@ -1,0 +1,66 @@
+<header class="eduva-header">
+  <!-- Title / Greeting Area -->
+  <div class="header-left">
+    @if (showGreeting) {
+      <div class="greeting-box">
+        <h1 class="header-title">Good Morning,</h1>
+        <h1 class="header-title-highlight">Noah!</h1>
+      </div>
+    } @else {
+      <h1 class="header-title">{{ pageTitle }}</h1>
+    }
+  </div>
+
+  <!-- Right Actions & Profile -->
+  <div class="header-right">
+    <!-- Omni Search Bar -->
+    <div class="eduva-input-group search-bar">
+      <input type="text" placeholder="Search anything" aria-label="Search anything" />
+      <mat-icon>search</mat-icon>
+    </div>
+
+    <!-- Notification Bell -->
+    <button mat-icon-button class="icon-action-btn" [matBadge]="'3'" matBadgeColor="primary" matBadgeSize="small" aria-label="Notifications">
+      <mat-icon>notifications</mat-icon>
+    </button>
+
+    <!-- Settings Button -->
+    <button mat-icon-button class="icon-action-btn" aria-label="Settings">
+      <mat-icon>settings</mat-icon>
+    </button>
+
+    <!-- User Profile Chip -->
+    <div class="user-profile-chip" [matMenuTriggerFor]="userMenu">
+      <img
+        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+        alt="User Avatar"
+        class="profile-avatar"
+      />
+      <div class="profile-info">
+        <span class="profile-name">{{ getUserName() }}</span>
+        <span class="profile-role">{{ getUserRole() }}</span>
+      </div>
+    </div>
+
+    <mat-menu #userMenu="matMenu" class="eduva-dropdown-menu">
+      <div class="menu-header">
+        <strong>{{ getUserName() }}</strong>
+        <small>{{ currentUser()?.email || 'noah.hansen@eduva.com' }}</small>
+      </div>
+      <mat-divider></mat-divider>
+      <button mat-menu-item routerLink="/admin/dashboard">
+        <mat-icon>dashboard</mat-icon>
+        <span>Dashboard</span>
+      </button>
+      <button mat-menu-item routerLink="/calendar">
+        <mat-icon>calendar_today</mat-icon>
+        <span>Calendar</span>
+      </button>
+      <mat-divider></mat-divider>
+      <button mat-menu-item (click)="currentUser()">
+        <mat-icon>person</mat-icon>
+        <span>Account Profile</span>
+      </button>
+    </mat-menu>
+  </div>
+</header>

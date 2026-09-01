@@ -1,0 +1,307 @@
+<app-layout pageTitle="Enrollments">
+  <!-- Top Row: 4 KPI Cards + Payment Status Breakdown -->
+  <div class="enrollments-top-grid">
+    <!-- 4 KPI Cards (Left 2x2 grid) -->
+    <div class="kpi-cards-grid">
+      <!-- Card 1: Total Students -->
+      <div class="eduva-card kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-icon-box bg-blue-subtle">
+            <mat-icon>school</mat-icon>
+          </div>
+          <span class="growth-tag tag-green">+12.5%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">Total Students</span>
+          <div class="kpi-value">18,540</div>
+        </div>
+      </div>
+
+      <!-- Card 2: Enrolled -->
+      <div class="eduva-card kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-icon-box bg-green-subtle">
+            <mat-icon>badge</mat-icon>
+          </div>
+          <span class="growth-tag tag-green">+8.4%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">Enrolled</span>
+          <div class="kpi-value">14,280</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Applied -->
+      <div class="eduva-card kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-icon-box bg-orange-subtle">
+            <mat-icon>person_add</mat-icon>
+          </div>
+          <span class="growth-tag tag-green">+15.2%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">Applied</span>
+          <div class="kpi-value">3,120</div>
+        </div>
+      </div>
+
+      <!-- Card 4: Waitlisted -->
+      <div class="eduva-card kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-icon-box bg-rose-subtle">
+            <mat-icon>hourglass_empty</mat-icon>
+          </div>
+          <span class="growth-tag tag-red">-3.1%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">Waitlisted</span>
+          <div class="kpi-value">1,140</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Status Breakdown Card (Right) -->
+    <div class="eduva-card payment-breakdown-card">
+      <div class="card-header-flex">
+        <h3 class="card-title">Payment Status Breakdown</h3>
+        <button class="filter-dropdown-btn" [matMenuTriggerFor]="payTimeMenu">
+          <span>All Time</span>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+        <mat-menu #payTimeMenu="matMenu">
+          <button mat-menu-item>All Time</button>
+          <button mat-menu-item>This Year</button>
+          <button mat-menu-item>This Month</button>
+        </mat-menu>
+      </div>
+
+      <div class="payment-content-flex">
+        <!-- Stacked Bar Chart -->
+        <div class="stacked-bar-chart">
+          <div class="bar-y-axis">
+            <span>15,000</span>
+            <span>12,000</span>
+            <span>9,000</span>
+            <span>6,000</span>
+            <span>3,000</span>
+            <span>0</span>
+          </div>
+
+          <div class="bars-container">
+            <!-- Enrolled Bar (with breakdown tooltip) -->
+            <div class="stack-col">
+              <div class="enrolled-tooltip">
+                <div class="tt-title">Enrolled</div>
+                <div class="tt-row"><span class="tt-dot dot-paid"></span> Paid <strong>12,800</strong></div>
+                <div class="tt-row"><span class="tt-dot dot-pending"></span> Pending <strong>1,200</strong></div>
+                <div class="tt-row"><span class="tt-dot dot-unpaid"></span> Unpaid <strong>280</strong></div>
+              </div>
+              <div class="stacked-bar" style="height: 85%;">
+                <div class="seg seg-unpaid" style="height: 4%;"></div>
+                <div class="seg seg-pending" style="height: 12%;"></div>
+                <div class="seg seg-paid" style="height: 84%;"></div>
+              </div>
+              <span class="bar-name">Enrolled</span>
+            </div>
+
+            <!-- Applied Bar -->
+            <div class="stack-col">
+              <div class="stacked-bar" style="height: 25%;">
+                <div class="seg seg-pending" style="height: 80%;"></div>
+                <div class="seg seg-unpaid" style="height: 20%;"></div>
+              </div>
+              <span class="bar-name">Applied</span>
+            </div>
+
+            <!-- Waitlisted Bar -->
+            <div class="stack-col">
+              <div class="stacked-bar" style="height: 12%;">
+                <div class="seg seg-unpaid" style="height: 70%;"></div>
+                <div class="seg seg-pending" style="height: 30%;"></div>
+              </div>
+              <span class="bar-name">Waitlisted</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Statistics List -->
+        <div class="payment-stats-metrics">
+          <div class="stat-metric-block">
+            <span class="stat-metric-label">Total Paid</span>
+            <div class="stat-metric-val">$946,210</div>
+            <div class="stat-metric-sub">
+              <span>13,180 Students</span>
+              <span class="pct-chip bg-navy">70.3%</span>
+            </div>
+          </div>
+
+          <div class="stat-metric-block">
+            <span class="stat-metric-label">Total Pending</span>
+            <div class="stat-metric-val">$268,340</div>
+            <div class="stat-metric-sub">
+              <span>3,900 Students</span>
+              <span class="pct-chip bg-cyan">20.8%</span>
+            </div>
+          </div>
+
+          <div class="stat-metric-block">
+            <span class="stat-metric-label">Total Unpaid</span>
+            <div class="stat-metric-val">$96,179</div>
+            <div class="stat-metric-sub">
+              <span>1,660 Students</span>
+              <span class="pct-chip bg-gray">8.9%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enrollment List Table Card -->
+  <div class="eduva-card enrollment-table-card">
+    <div class="table-header-toolbar">
+      <h3 class="table-title">Enrollment List</h3>
+
+      <div class="table-filters-group">
+        <!-- Search -->
+        <div class="eduva-input-group table-search-box">
+          <input
+            type="text"
+            placeholder="Search enrollment"
+            [(ngModel)]="searchTerm"
+            (keyup.enter)="onSearch()"
+          />
+          <mat-icon (click)="onSearch()">search</mat-icon>
+        </div>
+
+        <!-- Time Filter -->
+        <button class="filter-dropdown-btn" [matMenuTriggerFor]="timeFilterMenu">
+          <span>{{ selectedTime }}</span>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+        <mat-menu #timeFilterMenu="matMenu">
+          <button mat-menu-item (click)="selectedTime = 'All Time'">All Time</button>
+          <button mat-menu-item (click)="selectedTime = 'This Year'">This Year</button>
+          <button mat-menu-item (click)="selectedTime = 'This Month'">This Month</button>
+        </mat-menu>
+
+        <!-- Status Filter -->
+        <button class="filter-dropdown-btn" [matMenuTriggerFor]="statusFilterMenu">
+          <span>{{ selectedStatus }}</span>
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+        <mat-menu #statusFilterMenu="matMenu">
+          <button mat-menu-item (click)="onStatusChange('Any Status')">Any Status</button>
+          <button mat-menu-item (click)="onStatusChange('Enrolled')">Enrolled</button>
+          <button mat-menu-item (click)="onStatusChange('Applied')">Applied</button>
+          <button mat-menu-item (click)="onStatusChange('Waitlisted')">Waitlisted</button>
+        </mat-menu>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-responsive-wrapper">
+      <table class="eduva-data-table">
+        <thead>
+          <tr>
+            <th>Applied Date <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Name <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Phone Number <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Course <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Category <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Batch <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Status <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+            <th>Fee <mat-icon class="sort-icon">unfold_more</mat-icon></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of enrollments(); track item.id) {
+            <tr>
+              <!-- Applied Date -->
+              <td class="date-cell">
+                {{ item.enrolledAt ? (item.enrolledAt | date:'mediumDate') : 'May 18, 2030' }}
+              </td>
+
+              <!-- Name + Avatar + Email -->
+              <td>
+                <div class="student-profile-cell">
+                  <img
+                    [src]="item.studentAvatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'"
+                    alt="Student Avatar"
+                    class="student-av"
+                  />
+                  <div class="student-info-col">
+                    <span class="student-name">{{ item.studentName || 'Grasiella Lopez' }}</span>
+                    <span class="student-email">{{ item.studentEmail || (item.studentName ? item.studentName.toLowerCase().replace(' ', '.') + '@eduva.com' : 'grasiella.lopez@eduva.com') }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Phone Number -->
+              <td class="phone-cell">
+                {{ item.phoneNumber || '+1 202-555-0142' }}
+              </td>
+
+              <!-- Course Title -->
+              <td class="course-cell">
+                <strong>{{ item.courseTitle || 'UX/UI Design Fundamentals' }}</strong>
+              </td>
+
+              <!-- Category -->
+              <td>
+                <span class="pill-badge" [ngClass]="getCategoryClass(item.courseCategory)">
+                  {{ item.courseCategory || 'Design' }}
+                </span>
+              </td>
+
+              <!-- Batch -->
+              <td class="batch-cell">
+                {{ item.batch || 'Batch 12' }}
+              </td>
+
+              <!-- Status -->
+              <td>
+                <span class="pill-badge" [ngClass]="getStatusClass(item.status)">
+                  {{ getStatusLabel(item.status) }}
+                </span>
+              </td>
+
+              <!-- Fee + Payment Status -->
+              <td>
+                <div class="fee-payment-cell">
+                  <span class="fee-val">${{ item.fee || 42 }}</span>
+                  <span class="pill-badge" [ngClass]="getPaymentClass(item.paymentStatus)">
+                    {{ item.paymentStatus || 'Paid' }}
+                  </span>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Footer & Pagination -->
+    <div class="table-footer-pagination">
+      <div class="page-size-selector">
+        <span>Show</span>
+        <select [(ngModel)]="pageSize" (change)="loadData()" class="size-dropdown">
+          <option [value]="8">8</option>
+          <option [value]="15">15</option>
+          <option [value]="25">25</option>
+        </select>
+        <span>of {{ totalCount.toLocaleString() }} results</span>
+      </div>
+
+      <div class="pagination-controls">
+        <button class="pg-arrow" (click)="setPage(currentPage - 1)" [disabled]="currentPage === 1">&lt;</button>
+        <button class="pg-num" [class.active]="currentPage === 1" (click)="setPage(1)">1</button>
+        <button class="pg-num" [class.active]="currentPage === 2" (click)="setPage(2)">2</button>
+        <button class="pg-num" [class.active]="currentPage === 3" (click)="setPage(3)">3</button>
+        <span class="pg-ellipsis">...</span>
+        <button class="pg-num" (click)="setPage(2317)">2,317</button>
+        <button class="pg-arrow" (click)="setPage(currentPage + 1)">&gt;</button>
+      </div>
+    </div>
+  </div>
+</app-layout>

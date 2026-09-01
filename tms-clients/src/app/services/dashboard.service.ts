@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { AdminDashboardMetrics } from '../models/dashboard.model';
 import { Enrollment } from '../models/enrollment.model';
 
 export interface StudentDashboard {
@@ -19,23 +20,6 @@ export interface InstructorDashboard {
   recentEnrollments: Enrollment[];
 }
 
-export interface AdminDashboard {
-  totalStudents: number;
-  totalInstructors: number;
-  totalCourses: number;
-  activeEnrollments: number;
-  pendingEnrollments: number;
-  totalCertificates: number;
-  pendingApprovalList: Enrollment[];
-  recentActivity: Array<{
-    id: string;
-    title: string;
-    description: string;
-    type: string;
-    timestamp: string;
-  }>;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -52,7 +36,7 @@ export class DashboardService {
     return this.http.get<InstructorDashboard>(`/api/v1/dashboard/instructor${params}`);
   }
 
-  getAdminDashboard(): Observable<AdminDashboard> {
-    return this.http.get<AdminDashboard>('/api/v1/dashboard/admin');
+  getAdminDashboard(): Observable<AdminDashboardMetrics> {
+    return this.http.get<AdminDashboardMetrics>('/api/v1/dashboard/admin');
   }
 }

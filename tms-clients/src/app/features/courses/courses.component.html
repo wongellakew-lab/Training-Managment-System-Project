@@ -1,0 +1,543 @@
+<app-layout pageTitle="Courses">
+  <!-- Analytics Header Row (Top of Picture 5) -->
+  @if (viewMode() === 'grid' || !showDetailsDrawer()) {
+    <div class="courses-analytics-row">
+      <!-- Courses by Category Card -->
+      <div class="eduva-card category-breakdown-card">
+        <div class="card-header-flex">
+          <h3 class="card-title">Courses by Category</h3>
+          <button mat-icon-button class="more-menu-btn" aria-label="Category options">
+            <mat-icon>more_horiz</mat-icon>
+          </button>
+        </div>
+
+        <div class="category-stat-total">
+          <span class="total-big-num">321</span>
+          <span class="total-sub">Courses</span>
+        </div>
+
+        <!-- Segmented Category Bar -->
+        <div class="segmented-bar-wrapper">
+          <div class="seg-bar-container">
+            <div class="seg-item seg-design" style="width: 28%;"></div>
+            <div class="seg-item seg-webdev" style="width: 25%;"></div>
+            <div class="seg-item seg-marketing" style="width: 23%;"></div>
+            <div class="seg-item seg-business" style="width: 18%;"></div>
+            <div class="seg-item seg-others" style="width: 6%;"></div>
+          </div>
+
+          <div class="category-legend-grid">
+            <div class="cat-legend-cell">
+              <span class="legend-box sq-design"></span>
+              <span class="cat-name">Design</span>
+              <span class="cat-pct">28%</span>
+              <span class="cat-count">90</span>
+            </div>
+            <div class="cat-legend-cell">
+              <span class="legend-box sq-webdev"></span>
+              <span class="cat-name">Web Dev</span>
+              <span class="cat-pct">25%</span>
+              <span class="cat-count">80</span>
+            </div>
+            <div class="cat-legend-cell">
+              <span class="legend-box sq-marketing"></span>
+              <span class="cat-name">Marketing</span>
+              <span class="cat-pct">23%</span>
+              <span class="cat-count">74</span>
+            </div>
+            <div class="cat-legend-cell">
+              <span class="legend-box sq-business"></span>
+              <span class="cat-name">Business</span>
+              <span class="cat-pct">18%</span>
+              <span class="cat-count">58</span>
+            </div>
+            <div class="cat-legend-cell">
+              <span class="legend-box sq-others"></span>
+              <span class="cat-name">Others</span>
+              <span class="cat-pct">6%</span>
+              <span class="cat-count">19</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course Ratings Card -->
+      <div class="eduva-card ratings-breakdown-card">
+        <div class="card-header-flex">
+          <h3 class="card-title">Course Ratings</h3>
+          <div class="filter-actions-duo">
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="ratingTimeMenu">
+              <span>Last 6 Months</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #ratingTimeMenu="matMenu">
+              <button mat-menu-item>Last 6 Months</button>
+              <button mat-menu-item>This Year</button>
+            </mat-menu>
+
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="ratingCatMenu">
+              <span>Design</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #ratingCatMenu="matMenu">
+              <button mat-menu-item>Design</button>
+              <button mat-menu-item>Web Dev</button>
+              <button mat-menu-item>Marketing</button>
+            </mat-menu>
+          </div>
+        </div>
+
+        <div class="ratings-content-grid">
+          <!-- Rating Bars Chart -->
+          <div class="rating-bar-chart">
+            <div class="rating-y-axis">
+              <span>5.0</span>
+              <span>4.9</span>
+              <span>4.8</span>
+              <span>4.7</span>
+              <span>4.6</span>
+              <span>4.5</span>
+            </div>
+            <div class="rating-columns">
+              <!-- Design -->
+              <div class="rating-col">
+                <div class="rating-pill-stack">
+                  <div class="rating-block active-navy"></div>
+                  <div class="rating-block active-navy"></div>
+                  <div class="rating-block active-navy"></div>
+                  <div class="rating-block active-navy"></div>
+                  <div class="rating-block active-navy"></div>
+                </div>
+                <span class="col-label">Design</span>
+              </div>
+              <!-- Business -->
+              <div class="rating-col">
+                <div class="rating-pill-stack">
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block active-blue"></div>
+                  <div class="rating-block active-blue"></div>
+                  <div class="rating-block active-blue"></div>
+                  <div class="rating-block active-blue"></div>
+                </div>
+                <span class="col-label">Business</span>
+              </div>
+              <!-- Web Dev -->
+              <div class="rating-col">
+                <div class="rating-pill-stack">
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                </div>
+                <span class="col-label">Web Dev</span>
+              </div>
+              <!-- Marketing -->
+              <div class="rating-col">
+                <div class="rating-pill-stack">
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                  <div class="rating-block inactive-gray"></div>
+                </div>
+                <span class="col-label">Marketing</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top-Rated Design Courses Mini List -->
+          <div class="top-rated-courses-subpanel">
+            <div class="subpanel-header">
+              <span class="subpanel-title">Top-Rated Design Courses</span>
+              <span class="rating-score-badge"><mat-icon>star</mat-icon> 4.9</span>
+            </div>
+
+            <div class="top-rated-list">
+              <div class="top-rated-item">
+                <div class="item-text">
+                  <h5 class="item-title">UX/UI Design Fundamentals</h5>
+                  <span class="item-reviews">298 Reviews</span>
+                </div>
+                <div class="circle-score-gauge">
+                  <svg viewBox="0 0 36 36" class="circular-chart">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="circle-fill" stroke-dasharray="98, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <text x="18" y="20.35" class="gauge-text">4.9</text>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="top-rated-item">
+                <div class="item-text">
+                  <h5 class="item-title">Graphic Design Fundamentals</h5>
+                  <span class="item-reviews">275 Reviews</span>
+                </div>
+                <div class="circle-score-gauge">
+                  <svg viewBox="0 0 36 36" class="circular-chart">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="circle-fill" stroke-dasharray="94, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <text x="18" y="20.35" class="gauge-text">4.8</text>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="top-rated-item">
+                <div class="item-text">
+                  <h5 class="item-title">Visual Identity Design Masterclass</h5>
+                  <span class="item-reviews">236 Reviews</span>
+                </div>
+                <div class="circle-score-gauge">
+                  <svg viewBox="0 0 36 36" class="circular-chart">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="circle-fill" stroke-dasharray="92, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <text x="18" y="20.35" class="gauge-text">4.8</text>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Main Courses Catalog Section -->
+  <div class="courses-catalog-container" [class.drawer-open]="showDetailsDrawer()">
+    <div class="catalog-main-content">
+      <!-- Filter Bar & View Mode Switcher -->
+      <div class="catalog-toolbar">
+        <h3 class="catalog-heading">All Courses</h3>
+
+        <div class="catalog-filters">
+          <!-- Status Filter Tabs -->
+          <div class="status-tab-group">
+            <button class="status-tab" [class.active]="selectedStatus() === 'All'" (click)="filterStatus('All')">All</button>
+            <button class="status-tab" [class.active]="selectedStatus() === 'Active'" (click)="filterStatus('Active')">Active</button>
+            <button class="status-tab" [class.active]="selectedStatus() === 'Draft'" (click)="filterStatus('Draft')">Draft</button>
+            <button class="status-tab" [class.active]="selectedStatus() === 'Archived'" (click)="filterStatus('Archived')">Archived</button>
+          </div>
+
+          <!-- Category Dropdown -->
+          <button class="filter-dropdown-btn" [matMenuTriggerFor]="courseCatMenu">
+            <span>{{ selectedCategory() }}</span>
+            <mat-icon>keyboard_arrow_down</mat-icon>
+          </button>
+          <mat-menu #courseCatMenu="matMenu">
+            <button mat-menu-item (click)="filterCategory('All Category')">All Category</button>
+            <button mat-menu-item (click)="filterCategory('Design')">Design</button>
+            <button mat-menu-item (click)="filterCategory('Marketing')">Marketing</button>
+            <button mat-menu-item (click)="filterCategory('Web Dev')">Web Dev</button>
+            <button mat-menu-item (click)="filterCategory('Language')">Language</button>
+            <button mat-menu-item (click)="filterCategory('Communication')">Communication</button>
+          </mat-menu>
+
+          <!-- View Switcher -->
+          <div class="view-mode-toggle">
+            <button
+              class="view-toggle-btn"
+              [class.active]="viewMode() === 'grid'"
+              (click)="toggleViewMode('grid')"
+              title="Grid View"
+            >
+              <mat-icon>grid_view</mat-icon>
+            </button>
+            <button
+              class="view-toggle-btn"
+              [class.active]="viewMode() === 'list'"
+              (click)="toggleViewMode('list')"
+              title="List View"
+            >
+              <mat-icon>view_list</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= LIST VIEW (Picture 4) ================= -->
+      @if (viewMode() === 'list') {
+        <div class="courses-list-view">
+          @for (course of courses(); track course.id) {
+            <div
+              class="course-list-row-card"
+              [class.active-selected]="selectedCourse()?.id === course.id && showDetailsDrawer()"
+              (click)="openCourseDetails(course)"
+            >
+              <!-- Thumbnail & Status Badge -->
+              <div class="list-thumb-wrapper">
+                <img [src]="course.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80'" alt="Course Thumbnail" class="row-thumb" />
+                <span class="pill-badge status-on-thumb" [ngClass]="getStatusClass(course.status)">
+                  &bull; {{ course.status }}
+                </span>
+              </div>
+
+              <!-- Main Info -->
+              <div class="list-row-info">
+                <div class="row-title-line">
+                  <h4 class="course-row-title">{{ course.title }}</h4>
+                  <div class="row-category-price">
+                    <span class="pill-badge" [ngClass]="getCategoryClass(course.category)">{{ course.category }}</span>
+                    <span class="row-price">${{ course.price }}</span>
+                  </div>
+                </div>
+
+                <!-- Instructor & Course Meta Details -->
+                <div class="row-meta-line">
+                  <div class="instructor-chip">
+                    <img
+                      [src]="course.instructorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
+                      alt="Instructor"
+                      class="inst-avatar"
+                    />
+                    <span class="inst-name">{{ course.instructorName || 'Gina Alexander' }}</span>
+                  </div>
+
+                  <div class="meta-stats-group">
+                    <span class="meta-item"><mat-icon>signal_cellular_alt</mat-icon> {{ course.level }}</span>
+                    <span class="meta-divider">&bull;</span>
+                    <span class="meta-item"><mat-icon>schedule</mat-icon> {{ course.durationHours }}h</span>
+                    <span class="meta-divider">&bull;</span>
+                    <span class="meta-item">{{ course.lessonsCount }} Lessons</span>
+                  </div>
+
+                  <div class="student-counter-group">
+                    @if (course.enrolledStudentsCount > 0) {
+                      <div class="avatar-stack">
+                        <span class="av a1"></span>
+                        <span class="av a2"></span>
+                        <span class="av a3"></span>
+                      </div>
+                      <span class="count-num">{{ course.enrolledStudentsCount }}</span>
+                    } @else {
+                      <span class="meta-item"><mat-icon>group_off</mat-icon> 0</span>
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ================= GRID VIEW (Picture 5) ================= -->
+      @if (viewMode() === 'grid') {
+        <div class="courses-grid-view">
+          @for (course of courses(); track course.id) {
+            <div class="course-grid-card" (click)="openCourseDetails(course)">
+              <!-- Card Image Banner -->
+              <div class="card-image-box">
+                <img [src]="course.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=500&auto=format&fit=crop&q=80'" alt="Course Banner" class="grid-card-img" />
+                <span class="pill-badge card-status-badge" [ngClass]="getStatusClass(course.status)">
+                  &bull; {{ course.status }}
+                </span>
+              </div>
+
+              <!-- Card Body -->
+              <div class="grid-card-body">
+                <div class="category-price-line">
+                  <span class="pill-badge" [ngClass]="getCategoryClass(course.category)">{{ course.category }}</span>
+                  <span class="card-price">${{ course.price }}</span>
+                </div>
+
+                <h4 class="grid-card-title">{{ course.title }}</h4>
+
+                <div class="instructor-level-row">
+                  <div class="instructor-info">
+                    <img
+                      [src]="course.instructorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
+                      alt="Instructor"
+                      class="inst-av"
+                    />
+                    <span class="inst-name">{{ course.instructorName || 'Gina Alexander' }}</span>
+                  </div>
+                  <span class="level-badge"><mat-icon>signal_cellular_alt</mat-icon> {{ course.level }}</span>
+                </div>
+
+                <div class="grid-card-footer">
+                  <div class="student-count-wrapper">
+                    @if (course.enrolledStudentsCount > 0) {
+                      <div class="avatar-stack">
+                        <span class="av a1"></span>
+                        <span class="av a2"></span>
+                        <span class="av a3"></span>
+                      </div>
+                      <span class="count-num">{{ course.enrolledStudentsCount }}</span>
+                    } @else {
+                      <span class="zero-students"><mat-icon>group_off</mat-icon> 0</span>
+                    }
+                  </div>
+
+                  <div class="duration-lessons-meta">
+                    <span><mat-icon>schedule</mat-icon> {{ course.durationHours }}h</span>
+                    <span>{{ course.lessonsCount }} Lessons</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Pagination Footer -->
+      <div class="catalog-pagination">
+        <div class="page-size-selector">
+          <span>Show</span>
+          <select [(ngModel)]="pageSize" (change)="loadCourses()" class="size-dropdown">
+            <option [value]="8">8</option>
+            <option [value]="16">16</option>
+            <option [value]="24">24</option>
+          </select>
+          <span>of {{ totalCount.toLocaleString() }} results</span>
+        </div>
+
+        <div class="pagination-controls">
+          <button class="pg-arrow" (click)="setPage(currentPage - 1)" [disabled]="currentPage === 1">&lt;</button>
+          <button class="pg-num" [class.active]="currentPage === 1" (click)="setPage(1)">1</button>
+          <button class="pg-num" [class.active]="currentPage === 2" (click)="setPage(2)">2</button>
+          <button class="pg-num" [class.active]="currentPage === 3" (click)="setPage(3)">3</button>
+          <span class="pg-ellipsis">...</span>
+          <button class="pg-num" (click)="setPage(40)">40</button>
+          <button class="pg-arrow" (click)="setPage(currentPage + 1)">&gt;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= SLIDE-OVER COURSE DETAILS DRAWER (Picture 4) ================= -->
+    @if (showDetailsDrawer() && selectedCourse()) {
+      <aside class="course-details-drawer">
+        <div class="drawer-header">
+          <h3 class="drawer-title">Course Details</h3>
+          <div class="drawer-actions">
+            <a href="javascript:void(0)" class="view-course-link">View Course</a>
+            <button class="drawer-close-btn" (click)="closeCourseDetails()">✕</button>
+          </div>
+        </div>
+
+        <div class="drawer-scrollable-content">
+          <!-- Hero Video/Banner with Beginner Badge -->
+          <div class="drawer-hero-banner">
+            <img [src]="selectedCourse()!.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80'" alt="Course Hero" class="hero-image" />
+            <span class="hero-level-badge">{{ selectedCourse()!.level }}</span>
+          </div>
+
+          <!-- Title & Price -->
+          <div class="drawer-title-price-row">
+            <h2 class="drawer-course-name">{{ selectedCourse()!.title }}</h2>
+            <span class="drawer-course-price">${{ selectedCourse()!.price }}</span>
+          </div>
+
+          <!-- Instructor Info -->
+          <div class="drawer-instructor-row">
+            <img
+              [src]="selectedCourse()!.instructorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
+              alt="Instructor"
+              class="drawer-inst-av"
+            />
+            <span class="drawer-inst-name">{{ selectedCourse()!.instructorName || 'Gina Alexander' }}</span>
+          </div>
+
+          <!-- Badges & Student Count Row -->
+          <div class="drawer-badges-row">
+            <span class="pill-badge status-active">&bull; {{ selectedCourse()!.status }}</span>
+            <span class="pill-badge category-webdev">{{ selectedCourse()!.category }}</span>
+            <div class="drawer-students-stack">
+              <div class="avatar-stack">
+                <span class="av a1"></span>
+                <span class="av a2"></span>
+                <span class="av a3"></span>
+              </div>
+              <span class="student-num">{{ selectedCourse()!.enrolledStudentsCount || 350 }}</span>
+            </div>
+          </div>
+
+          <!-- Stats 3-Column Box (Duration, Lessons, Rating) -->
+          <div class="drawer-stats-grid">
+            <div class="drawer-stat-item">
+              <span class="stat-lbl">Duration</span>
+              <span class="stat-val">{{ selectedCourse()!.durationHours }} Hours</span>
+            </div>
+            <div class="drawer-stat-item">
+              <span class="stat-lbl">Lessons</span>
+              <span class="stat-val">{{ selectedCourse()!.lessonsCount }} Lessons</span>
+            </div>
+            <div class="drawer-stat-item">
+              <span class="stat-lbl">Rating</span>
+              <span class="stat-val rating-val"><mat-icon>star</mat-icon> {{ selectedCourse()!.rating }} <small>{{ selectedCourse()!.reviewsCount }} Reviews</small></span>
+            </div>
+          </div>
+
+          <!-- About the Course -->
+          <div class="drawer-section">
+            <h4 class="section-title">About the Course</h4>
+            <p class="section-text">
+              {{ selectedCourse()!.about || 'The course focuses on practical coding exercises, problem-solving techniques, and beginner-friendly projects to help students build confidence in writing and understanding code for real-world applications.' }}
+            </p>
+          </div>
+
+          <!-- Features Checklist -->
+          <div class="drawer-section">
+            <h4 class="section-title">Features</h4>
+            <ul class="features-check-list">
+              <li><mat-icon class="check-icon">check_circle</mat-icon> Beginner-friendly coding lessons</li>
+              <li><mat-icon class="check-icon">check_circle</mat-icon> Hands-on Python practice exercises</li>
+              <li><mat-icon class="check-icon">check_circle</mat-icon> Real-world mini projects</li>
+              <li><mat-icon class="check-icon">check_circle</mat-icon> Step-by-step programming tutorials</li>
+              <li><mat-icon class="check-icon">check_circle</mat-icon> Interactive coding challenges</li>
+              <li><mat-icon class="check-icon">check_circle</mat-icon> Certificate of completion</li>
+            </ul>
+          </div>
+
+          <!-- Resources Downloads -->
+          <div class="drawer-section">
+            <h4 class="section-title">Resources</h4>
+            <div class="resources-download-list">
+              <div class="resource-download-card">
+                <div class="res-icon pdf"><mat-icon>picture_as_pdf</mat-icon></div>
+                <div class="res-info">
+                  <span class="res-name">Python Beginner Handbook</span>
+                  <span class="res-size">PDF &bull; 4.1 MB</span>
+                </div>
+                <button class="download-trigger-btn" (click)="downloadResource('Python Beginner Handbook')">
+                  <mat-icon>download</mat-icon>
+                </button>
+              </div>
+
+              <div class="resource-download-card">
+                <div class="res-icon pdf"><mat-icon>picture_as_pdf</mat-icon></div>
+                <div class="res-info">
+                  <span class="res-name">Python Syntax Cheat Sheet</span>
+                  <span class="res-size">PDF &bull; 1.2 MB</span>
+                </div>
+                <button class="download-trigger-btn" (click)="downloadResource('Python Syntax Cheat Sheet')">
+                  <mat-icon>download</mat-icon>
+                </button>
+              </div>
+
+              <div class="resource-download-card">
+                <div class="res-icon ppt"><mat-icon>slideshow</mat-icon></div>
+                <div class="res-info">
+                  <span class="res-name">Variables &amp; Functions Slides</span>
+                  <span class="res-size">PPTX &bull; 3.6 MB</span>
+                </div>
+                <button class="download-trigger-btn" (click)="downloadResource('Variables & Functions Slides')">
+                  <mat-icon>download</mat-icon>
+                </button>
+              </div>
+
+              <div class="resource-download-card">
+                <div class="res-icon zip"><mat-icon>folder_zip</mat-icon></div>
+                <div class="res-info">
+                  <span class="res-name">Beginner Coding Exercises</span>
+                  <span class="res-size">ZIP &bull; 24.3 MB</span>
+                </div>
+                <button class="download-trigger-btn" (click)="downloadResource('Beginner Coding Exercises')">
+                  <mat-icon>download</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    }
+  </div>
+</app-layout>

@@ -3,10 +3,11 @@ import { CourseStore } from './course.store';
 import { CourseService } from '../services/course.service';
 import { of } from 'rxjs';
 import { Course, PagedResult } from '../models/course.model';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('CourseStore', () => {
   let store: any;
-  let courseServiceSpy: jasmine.SpyObj<CourseService>;
+  let courseServiceSpy: { getCourses: any; getCachedCourses: any };
 
   const mockCourses: Course[] = [
     {
@@ -14,10 +15,23 @@ describe('CourseStore', () => {
       code: 'CS101',
       title: 'Intro to CS',
       description: 'Introductory course',
+      department: 'Computer Science',
+      category: 'Web Dev',
+      level: 'Beginner',
+      price: 99,
+      status: 'Active',
+      durationHours: 40,
+      lessonsCount: 20,
+      rating: 4.8,
+      reviewsCount: 150,
+      imageUrl: '',
+      about: '',
+      featuresJson: '[]',
+      resourcesJson: '[]',
+      enrolledStudentsCount: 15,
       credits: 3,
       maxCapacity: 30,
       enrolledCount: 15,
-      department: 'Computer Science',
       isActive: true
     },
     {
@@ -25,10 +39,23 @@ describe('CourseStore', () => {
       code: 'MATH201',
       title: 'Linear Algebra',
       description: 'Matrix theory',
+      department: 'Mathematics',
+      category: 'Design',
+      level: 'Intermediate',
+      price: 89,
+      status: 'Active',
+      durationHours: 30,
+      lessonsCount: 15,
+      rating: 4.7,
+      reviewsCount: 120,
+      imageUrl: '',
+      about: '',
+      featuresJson: '[]',
+      resourcesJson: '[]',
+      enrolledStudentsCount: 25,
       credits: 4,
       maxCapacity: 25,
       enrolledCount: 25,
-      department: 'Mathematics',
       isActive: true
     }
   ];
@@ -44,8 +71,10 @@ describe('CourseStore', () => {
   };
 
   beforeEach(() => {
-    courseServiceSpy = jasmine.createSpyObj('CourseService', ['getCourses', 'getCachedCourses']);
-    courseServiceSpy.getCourses.and.returnValue(of(mockPagedResult));
+    courseServiceSpy = {
+      getCourses: vi.fn().mockReturnValue(of(mockPagedResult)),
+      getCachedCourses: vi.fn().mockReturnValue(of(mockPagedResult))
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -59,15 +88,15 @@ describe('CourseStore', () => {
 
   it('should initialize with default state', () => {
     expect(store.courses()).toEqual([]);
-    expect(store.isLoading()).toBeFalse();
-    expect(store.hasCourses()).toBeFalse();
+    expect(store.isLoading()).toBe(false);
+    expect(store.hasCourses()).toBe(false);
   });
 
   it('should load courses and update computed properties', async () => {
     await store.loadCourses();
 
     expect(store.courses().length).toBe(2);
-    expect(store.hasCourses()).toBeTrue();
+    expect(store.hasCourses()).toBe(true);
     expect(store.activeCoursesCount()).toBe(2);
     expect(store.availableCourses().length).toBe(1); // Only CS101 has open capacity
   });

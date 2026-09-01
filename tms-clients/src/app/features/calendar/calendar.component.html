@@ -1,0 +1,330 @@
+<app-layout pageTitle="Calendar">
+  <!-- Top 4 Summary Cards Row -->
+  <div class="calendar-summary-row">
+    <!-- Total Schedules -->
+    <div class="summary-card">
+      <div class="summary-icon icon-navy">
+        <mat-icon>calendar_today</mat-icon>
+      </div>
+      <span class="summary-label">Total Schedules</span>
+      <span class="summary-value">{{ totalSchedules }}</span>
+    </div>
+
+    <!-- Meetings -->
+    <div class="summary-card">
+      <div class="summary-icon icon-darkblue">
+        <mat-icon>co_present</mat-icon>
+      </div>
+      <span class="summary-label">Meetings</span>
+      <span class="summary-value">{{ totalMeetings }}</span>
+    </div>
+
+    <!-- Workshops -->
+    <div class="summary-card">
+      <div class="summary-icon icon-cyan">
+        <mat-icon>laptop_mac</mat-icon>
+      </div>
+      <span class="summary-label">Workshops</span>
+      <span class="summary-value">{{ totalWorkshops }}</span>
+    </div>
+
+    <!-- Events -->
+    <div class="summary-card">
+      <div class="summary-icon icon-steel">
+        <mat-icon>event</mat-icon>
+      </div>
+      <span class="summary-label">Events</span>
+      <span class="summary-value">{{ totalEvents }}</span>
+    </div>
+  </div>
+
+  <!-- Calendar Main Body with Left Matrix & Right Detail Sidebar -->
+  <div class="calendar-workspace-grid">
+    <!-- Left: Calendar Area -->
+    <div class="calendar-main-pane">
+      <!-- Calendar Toolbar -->
+      <div class="calendar-toolbar">
+        <div class="toolbar-left">
+          <div class="month-selector">
+            <span class="month-title">May 2030</span>
+            <div class="month-arrows">
+              <mat-icon>keyboard_arrow_down</mat-icon>
+              <mat-icon>keyboard_arrow_up</mat-icon>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar-center">
+          <div class="filter-tab-group">
+            <button
+              class="tab-chip"
+              [class.active]="selectedCategory() === 'All'"
+              (click)="filterCategory('All')"
+            >
+              All
+            </button>
+            <button
+              class="tab-chip"
+              [class.active]="selectedCategory() === 'Meetings'"
+              (click)="filterCategory('Meetings')"
+            >
+              Meetings
+            </button>
+            <button
+              class="tab-chip"
+              [class.active]="selectedCategory() === 'Workshops'"
+              (click)="filterCategory('Workshops')"
+            >
+              Workshops
+            </button>
+            <button
+              class="tab-chip"
+              [class.active]="selectedCategory() === 'Events'"
+              (click)="filterCategory('Events')"
+            >
+              Events
+            </button>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <!-- View mode dropdown -->
+          <button class="tool-btn" [matMenuTriggerFor]="viewMenu">
+            <span>Month</span>
+            <mat-icon>keyboard_arrow_down</mat-icon>
+          </button>
+          <mat-menu #viewMenu="matMenu">
+            <button mat-menu-item>Month</button>
+            <button mat-menu-item>Week</button>
+            <button mat-menu-item>Day</button>
+          </mat-menu>
+
+          <!-- Filter button -->
+          <button class="tool-btn">
+            <mat-icon>filter_list</mat-icon>
+            <span>Filter</span>
+            <mat-icon>keyboard_arrow_down</mat-icon>
+          </button>
+
+          <!-- + New Agenda Action -->
+          <button class="new-agenda-btn" (click)="openNewAgendaModal()">
+            <mat-icon>add</mat-icon>
+            <span>New Agenda</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Calendar Month Grid (7 Columns) -->
+      <div class="calendar-grid-card">
+        <!-- Weekday Headers -->
+        <div class="calendar-weekday-headers">
+          <div class="weekday-col">SUN</div>
+          <div class="weekday-col">MON</div>
+          <div class="weekday-col">TUE</div>
+          <div class="weekday-col">WED</div>
+          <div class="weekday-col">THU</div>
+          <div class="weekday-col">FRI</div>
+          <div class="weekday-col">SAT</div>
+        </div>
+
+        <!-- Days Grid -->
+        <div class="calendar-days-matrix">
+          @for (cell of calendarDays; track $index) {
+            <div class="cal-matrix-cell" [class.other-month]="!cell.isCurrentMonth">
+              <div class="cell-day-num">{{ cell.day }}</div>
+
+              <!-- Schedules in Cell -->
+              <div class="cell-events-list">
+                @for (sch of cell.schedules; track sch.id) {
+                  <div
+                    class="agenda-card-pill"
+                    [class.pill-meetings]="sch.category.toLowerCase() === 'meetings'"
+                    [class.pill-workshops]="sch.category.toLowerCase() === 'workshops'"
+                    [class.pill-events]="sch.category.toLowerCase() === 'events'"
+                    [class.is-selected]="selectedSchedule()?.id === sch.id"
+                    (click)="selectSchedule(sch)"
+                  >
+                    <div class="agenda-pill-time">{{ sch.startTime }} - {{ sch.endTime }}</div>
+                    <div class="agenda-pill-title">{{ sch.title }}</div>
+                    <div class="agenda-pill-footer">
+                      <mat-icon class="footer-icon">event</mat-icon>
+                      <div class="pic-mini-avatars">
+                        <span class="mini-pic"></span>
+                        <span class="mini-pic"></span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Schedules Detail Panel -->
+    <div class="calendar-sidebar-pane">
+      <div class="eduva-card right-schedules-card">
+        <div class="card-header-flex">
+          <h3 class="card-title">Schedules</h3>
+          <button mat-icon-button class="more-menu-btn" aria-label="Schedule options">
+            <mat-icon>more_horiz</mat-icon>
+          </button>
+        </div>
+
+        <div class="detailed-schedules-list">
+          <!-- Schedule Card 1: Creative Portfolio Review Session -->
+          <div class="detailed-schedule-card">
+            <div class="detail-card-header">
+              <div class="date-tag-row">
+                <span class="date-pill">May 15</span>
+                <span class="category-pill-cyan">Workshops</span>
+              </div>
+              <div class="schedule-icon-box cyan-bg">
+                <mat-icon>laptop_mac</mat-icon>
+              </div>
+            </div>
+
+            <div class="schedule-time-label">09:30 AM - 12:00 PM</div>
+            <h4 class="detail-schedule-title">Creative Portfolio Review Session</h4>
+
+            <div class="pic-section">
+              <div class="pic-label">PIC</div>
+              <div class="pic-row">
+                <span class="pic-name">James Ocampo</span>
+                <div class="pic-avatars-group">
+                  <span class="pic-av av1"></span>
+                  <span class="pic-av av2"></span>
+                  <span class="attendee-plus">+11</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="location-row">
+              <mat-icon>location_on</mat-icon>
+              <span>Eduva Creative Studio Room</span>
+            </div>
+
+            <div class="notes-box">
+              <div class="notes-header">
+                <span>Notes</span>
+                <mat-icon>sticky_note_2</mat-icon>
+              </div>
+              <p class="notes-text">
+                Participants are encouraged to bring their latest portfolio projects for live feedback and discussion.
+              </p>
+            </div>
+          </div>
+
+          <!-- Schedule Card 2: Eduva Community Networking Night -->
+          <div class="detailed-schedule-card">
+            <div class="detail-card-header">
+              <div class="date-tag-row">
+                <span class="date-pill">May 15</span>
+                <span class="category-pill-steel">Events</span>
+              </div>
+              <div class="schedule-icon-box steel-bg">
+                <mat-icon>event</mat-icon>
+              </div>
+            </div>
+
+            <div class="schedule-time-label">06:30 - 08:30 PM</div>
+            <h4 class="detail-schedule-title">Eduva Community Networking Night</h4>
+
+            <div class="pic-section">
+              <div class="pic-label">PIC</div>
+              <div class="pic-row">
+                <span class="pic-name">Marcus Delgado</span>
+                <div class="pic-avatars-group">
+                  <span class="pic-av av1"></span>
+                  <span class="pic-av av2"></span>
+                  <span class="attendee-plus">+8</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="location-row">
+              <mat-icon>location_on</mat-icon>
+              <span>Eduva Main Hall &amp; Lounge Area</span>
+            </div>
+
+            <div class="notes-box">
+              <div class="notes-header">
+                <span>Notes</span>
+                <mat-icon>sticky_note_2</mat-icon>
+              </div>
+              <p class="notes-text">
+                Casual networking session with mentors, students, and guest speakers. Snacks and refreshments provided.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Agenda Modal -->
+  @if (showNewAgendaModal()) {
+    <div class="eduva-modal-overlay" (click)="closeNewAgendaModal()">
+      <div class="eduva-modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">+ Add New Agenda</h3>
+          <button class="modal-close-btn" (click)="closeNewAgendaModal()">✕</button>
+        </div>
+
+        <form (ngSubmit)="submitNewAgenda()" class="modal-form">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" [(ngModel)]="newAgenda.title" name="title" required placeholder="e.g. UX Design Workshop" class="modal-input" />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Category</label>
+              <select [(ngModel)]="newAgenda.category" name="category" class="modal-input">
+                <option value="Meetings">Meetings</option>
+                <option value="Workshops">Workshops</option>
+                <option value="Events">Events</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" [(ngModel)]="newAgenda.date" name="date" class="modal-input" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Start Time</label>
+              <input type="text" [(ngModel)]="newAgenda.startTime" name="startTime" placeholder="09:00 AM" class="modal-input" />
+            </div>
+            <div class="form-group">
+              <label>End Time</label>
+              <input type="text" [(ngModel)]="newAgenda.endTime" name="endTime" placeholder="10:30 AM" class="modal-input" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Person In Charge (PIC)</label>
+            <input type="text" [(ngModel)]="newAgenda.picName" name="picName" placeholder="e.g. James Ocampo" class="modal-input" />
+          </div>
+
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" [(ngModel)]="newAgenda.location" name="location" placeholder="e.g. Eduva Creative Studio Room" class="modal-input" />
+          </div>
+
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea [(ngModel)]="newAgenda.notes" name="notes" rows="3" placeholder="Add session description and notes..." class="modal-input"></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeNewAgendaModal()">Cancel</button>
+            <button type="submit" class="btn-submit">Create Agenda</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</app-layout>

@@ -1,232 +1,645 @@
-<div class="admin-page">
-  <app-navbar></app-navbar>
+<app-layout [showGreeting]="true">
+  <div class="dashboard-grid-layout">
+    <!-- Main Center Content Area -->
+    <div class="dashboard-main-col">
 
-  <!-- Welcome Header Banner -->
-  <mat-card class="welcome-card glass-panel">
-    <div class="welcome-content">
-      <div class="welcome-left">
-        <div class="role-chip-container">
-          <mat-chip-set>
-            <mat-chip class="role-chip" highlighted>System Administration</mat-chip>
-          </mat-chip-set>
-          <span class="welcome-prefix">Administrative Hub</span>
-        </div>
-        <h1 class="admin-title">Enterprise TMS Administration</h1>
-        <p class="admin-desc">
-          Live oversight of platform metrics, user accounts, course offerings, and enrollment approvals.
-        </p>
-      </div>
-
-      <div class="welcome-actions">
-        <button mat-stroked-button (click)="loadDashboard()" [disabled]="isLoading()" class="action-btn">
-          <mat-icon [class.animate-spin]="isLoading()">refresh</mat-icon>
-          <span>Sync Real-Time Metrics</span>
-        </button>
-        <a mat-flat-button color="primary" routerLink="/admin/courses" class="action-btn">
-          <mat-icon>library_books</mat-icon>
-          <span>Manage Courses</span>
-        </a>
-      </div>
-    </div>
-  </mat-card>
-
-  <!-- KPI Metrics Grid -->
-  @if (dashboard()) {
-    <div class="metrics-grid">
-      <mat-card class="metric-card glass-card">
-        <mat-card-header>
-          <div class="metric-icon-box students-icon">
-            <mat-icon>person</mat-icon>
-          </div>
-          <mat-card-title class="metric-value">{{ dashboard()!.totalStudents }}</mat-card-title>
-          <mat-card-subtitle class="metric-label">Total Students</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-footer">Registered users</div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="metric-card glass-card">
-        <mat-card-header>
-          <div class="metric-icon-box instructors-icon">
-            <mat-icon>school</mat-icon>
-          </div>
-          <mat-card-title class="metric-value">{{ dashboard()!.totalInstructors }}</mat-card-title>
-          <mat-card-subtitle class="metric-label">Instructors</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-footer">Faculty instructors</div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="metric-card glass-card">
-        <mat-card-header>
-          <div class="metric-icon-box courses-icon">
+      <!-- Top 3 Stat Cards Row -->
+      <div class="stats-cards-row">
+        <!-- Total Courses -->
+        <div class="stat-card">
+          <div class="stat-icon-wrapper blue-icon">
             <mat-icon>menu_book</mat-icon>
           </div>
-          <mat-card-title class="metric-value">{{ dashboard()!.totalCourses }}</mat-card-title>
-          <mat-card-subtitle class="metric-label">Courses</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-footer">Active catalog entries</div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="metric-card glass-card">
-        <mat-card-header>
-          <div class="metric-icon-box active-icon">
-            <mat-icon>trending_up</mat-icon>
+          <div class="stat-info">
+            <span class="stat-label">Total Courses</span>
+            <div class="stat-value">{{ dashboard()?.totalCourses || 320 }}+</div>
           </div>
-          <mat-card-title class="metric-value">{{ dashboard()!.activeEnrollments }}</mat-card-title>
-          <mat-card-subtitle class="metric-label">Active Enrollments</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-footer">In training sessions</div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="metric-card glass-card">
-        <mat-card-header>
-          <div class="metric-icon-box pending-icon">
-            <mat-icon>pending_actions</mat-icon>
-          </div>
-          <mat-card-title class="metric-value">{{ dashboard()!.pendingEnrollments }}</mat-card-title>
-          <mat-card-subtitle class="metric-label">Pending Approval</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-footer">Requires admin action</div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="metric-card glass-card">
-        <mat-card-header>
-          <div class="metric-icon-box cert-icon">
-            <mat-icon>workspace_premium</mat-icon>
-          </div>
-          <mat-card-title class="metric-value">{{ dashboard()!.totalCertificates }}</mat-card-title>
-          <mat-card-subtitle class="metric-label">Certificates</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-footer">Awarded credentials</div>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  }
-
-  <!-- Split Grid: Approvals Queue & System Activity -->
-  <div class="content-split-grid">
-    <!-- Approvals Queue -->
-    <mat-card class="queue-card glass-panel">
-      <div class="queue-header-bar">
-        <div>
-          <h2 class="section-title">Pending Enrollment Approvals</h2>
-          <p class="section-subtitle">Real-time applications awaiting administrative verification</p>
         </div>
-        @if (dashboard()?.pendingApprovalList?.length) {
-          <span class="badge badge-warning">
-            {{ dashboard()!.pendingApprovalList.length }} Pending
-          </span>
-        }
+
+        <!-- Total Mentors -->
+        <div class="stat-card">
+          <div class="stat-icon-wrapper navy-icon">
+            <mat-icon>co_present</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Total Mentors</span>
+            <div class="stat-value">{{ dashboard()?.totalInstructors || 85 }}+</div>
+          </div>
+        </div>
+
+        <!-- Total Current Students -->
+        <div class="stat-card">
+          <div class="stat-icon-wrapper cyan-icon">
+            <mat-icon>school</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Total Current Students</span>
+            <div class="stat-value">18,500+</div>
+          </div>
+        </div>
       </div>
 
-      @if (isLoading()) {
-        <div class="loading-state">
-          <mat-spinner diameter="36"></mat-spinner>
-          <span>Loading approval requests...</span>
-        </div>
-      } @else if (!dashboard()?.pendingApprovalList?.length) {
-        <div class="empty-state">
-          <mat-icon class="empty-icon success-icon">task_alt</mat-icon>
-          <h3 class="empty-title">All Caught Up</h3>
-          <p class="empty-desc">There are no pending enrollment applications requiring approval.</p>
-        </div>
-      } @else {
-        <div class="table-container">
-          <table mat-table [dataSource]="dashboard()!.pendingApprovalList" class="tms-table">
-            <!-- Student Column -->
-            <ng-container matColumnDef="student">
-              <th mat-header-cell *matHeaderCellDef>Applicant</th>
-              <td mat-cell *matCellDef="let item" class="student-cell">
-                <span class="student-name">{{ item.studentName || 'Student #' + item.studentId }}</span>
-                <span class="student-id font-mono">ID: {{ item.studentId }}</span>
-              </td>
-            </ng-container>
-
-            <!-- Course Column -->
-            <ng-container matColumnDef="course">
-              <th mat-header-cell *matHeaderCellDef>Course</th>
-              <td mat-cell *matCellDef="let item" class="course-cell">
-                <span class="course-code font-mono">{{ item.courseCode || 'CS' }}</span>
-                <span class="course-title">{{ item.courseTitle }}</span>
-              </td>
-            </ng-container>
-
-            <!-- Date Column -->
-            <ng-container matColumnDef="date">
-              <th mat-header-cell *matHeaderCellDef>Submitted</th>
-              <td mat-cell *matCellDef="let item" class="date-cell">
-                {{ item.enrolledAt || item.enrollmentDate | date:'mediumDate' }}
-              </td>
-            </ng-container>
-
-            <!-- Actions Column -->
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef class="text-right">Decision</th>
-              <td mat-cell *matCellDef="let item" class="text-right actions-cell">
-                <button
-                  mat-flat-button
-                  color="primary"
-                  (click)="approveEnrollment(item.id)"
-                  class="approve-btn"
-                >
-                  Approve
-                </button>
-                <button
-                  mat-stroked-button
-                  color="warn"
-                  (click)="rejectEnrollment(item.id)"
-                  class="reject-btn"
-                >
-                  Reject
-                </button>
-              </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
-          </table>
-        </div>
-      }
-    </mat-card>
-
-    <!-- Real-time Activity Log -->
-    <mat-card class="activity-card glass-panel">
-      <div class="activity-header-bar">
-        <h2 class="section-title">Audit & Activity Feed</h2>
-        <p class="section-subtitle">Real-time system events</p>
-      </div>
-
-      <div class="activity-feed">
-        @if (!dashboard()?.recentActivity?.length) {
-          <div class="empty-state">
-            <mat-icon class="empty-icon">history</mat-icon>
-            <p class="empty-desc">No recent activity logged.</p>
+      <!-- Charts Row 1: Revenue & Enrollment Trends -->
+      <div class="charts-row-two-col">
+        <!-- Revenue Card -->
+        <div class="eduva-card chart-card">
+          <div class="card-header-flex">
+            <div>
+              <h3 class="card-title">Revenue</h3>
+              <div class="main-metric">$294,500</div>
+            </div>
+            <div class="card-header-actions">
+              <button class="filter-dropdown-btn" [matMenuTriggerFor]="revenueMenu">
+                <span>Last 6 Months</span>
+                <mat-icon>keyboard_arrow_down</mat-icon>
+              </button>
+              <mat-menu #revenueMenu="matMenu">
+                <button mat-menu-item>Last 30 Days</button>
+                <button mat-menu-item>Last 6 Months</button>
+                <button mat-menu-item>This Year</button>
+              </mat-menu>
+            </div>
           </div>
-        } @else {
-          @for (act of dashboard()!.recentActivity; track act.id) {
-            <div class="activity-item">
-              <div class="activity-icon-box">
-                <mat-icon>notifications</mat-icon>
+
+          <!-- Legend -->
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot dot-revenue"></span>Revenue</span>
+            <span class="legend-item"><span class="legend-dot dot-profit"></span>Profit</span>
+            <span class="legend-item"><span class="legend-dot dot-expense"></span>Expense</span>
+          </div>
+
+          <!-- Revenue Interactive Bar Chart -->
+          <div class="revenue-chart-container">
+            <div class="y-axis-labels">
+              <span>$60K</span>
+              <span>$45K</span>
+              <span>$30K</span>
+              <span>$15K</span>
+              <span>$0K</span>
+            </div>
+            <div class="bars-wrapper">
+              <!-- Dec -->
+              <div class="bar-col">
+                <div class="bar-pill-group" style="height: 60%;">
+                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
+                </div>
+                <span class="x-label">Dec</span>
               </div>
-              <div class="activity-body">
-                <div class="activity-title">{{ act.title }}</div>
-                <div class="activity-desc">{{ act.description }}</div>
-                <div class="activity-time font-mono">{{ act.timestamp | date:'short' }}</div>
+              <!-- Jan -->
+              <div class="bar-col">
+                <div class="bar-pill-group" style="height: 70%;">
+                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
+                </div>
+                <span class="x-label">Jan</span>
+              </div>
+              <!-- Feb (Active with breakdown popup) -->
+              <div class="bar-col active-month">
+                <div class="breakdown-tooltip">
+                  <div class="tooltip-title">February</div>
+                  <div class="tooltip-row"><span class="tooltip-dot dot-revenue"></span> Revenue <strong>$50K</strong></div>
+                  <div class="tooltip-row"><span class="tooltip-dot dot-profit"></span> Profit <strong>$35K</strong></div>
+                  <div class="tooltip-row"><span class="tooltip-dot dot-expense"></span> Expense <strong>$15K</strong></div>
+                </div>
+                <div class="bar-pill-group" style="height: 85%;">
+                  <div class="bar-segment bar-profit" style="height: 100%;"></div>
+                </div>
+                <span class="x-label active">Feb</span>
+              </div>
+              <!-- Mar -->
+              <div class="bar-col">
+                <div class="bar-pill-group" style="height: 78%;">
+                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
+                </div>
+                <span class="x-label">Mar</span>
+              </div>
+              <!-- Apr -->
+              <div class="bar-col">
+                <div class="bar-pill-group" style="height: 88%;">
+                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
+                </div>
+                <span class="x-label">Apr</span>
+              </div>
+              <!-- May -->
+              <div class="bar-col">
+                <div class="bar-pill-group" style="height: 98%;">
+                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
+                </div>
+                <span class="x-label">May</span>
               </div>
             </div>
-          }
-        }
+          </div>
+        </div>
+
+        <!-- Enrollment Trends Card -->
+        <div class="eduva-card chart-card">
+          <div class="card-header-flex">
+            <div>
+              <h3 class="card-title">Enrollment trends</h3>
+              <div class="metric-with-badge">
+                <span class="main-metric">$12,480</span>
+                <span class="growth-pill">↑ +12.5%</span>
+              </div>
+            </div>
+            <div class="card-header-actions">
+              <button class="filter-dropdown-btn" [matMenuTriggerFor]="trendMenu">
+                <span>Last 6 Months</span>
+                <mat-icon>keyboard_arrow_down</mat-icon>
+              </button>
+              <mat-menu #trendMenu="matMenu">
+                <button mat-menu-item>Last 6 Months</button>
+                <button mat-menu-item>Last 12 Months</button>
+              </mat-menu>
+            </div>
+          </div>
+
+          <!-- SVG Spline Trend Area Chart with Callout -->
+          <div class="trend-chart-container">
+            <div class="trend-y-axis">
+              <span>2.5K</span>
+              <span>2.0K</span>
+              <span>1.5K</span>
+              <span>1.0K</span>
+              <span>500</span>
+              <span>0</span>
+            </div>
+            <div class="svg-chart-wrapper">
+              <svg viewBox="0 0 500 200" preserveAspectRatio="none" class="spline-svg">
+                <defs>
+                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25" />
+                    <stop offset="100%" stop-color="#0284C7" stop-opacity="0.0" />
+                  </linearGradient>
+                </defs>
+                <!-- Area fill -->
+                <path
+                  d="M 0 160 Q 60 130 100 135 T 200 65 T 300 120 T 400 95 T 500 80 L 500 200 L 0 200 Z"
+                  fill="url(#areaGradient)"
+                />
+                <!-- Stroke line -->
+                <path
+                  d="M 0 160 Q 60 130 100 135 T 200 65 T 300 120 T 400 95 T 500 80"
+                  fill="none"
+                  stroke="#0284C7"
+                  stroke-width="3"
+                />
+                <!-- Active peak bar line -->
+                <line x1="200" y1="65" x2="200" y2="200" stroke="#0284C7" stroke-width="6" stroke-linecap="round" />
+              </svg>
+
+              <!-- Peak indicator bubble -->
+              <div class="peak-badge" style="left: 40%; top: 22%;">
+                <span>1,920</span>
+              </div>
+
+              <!-- X-Axis Labels -->
+              <div class="trend-x-axis">
+                <span>Jan</span>
+                <span>Feb</span>
+                <span>Mar</span>
+                <span>Apr</span>
+                <span>May</span>
+                <span>Jun</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </mat-card>
+
+      <!-- Charts Row 2: Top Courses & Learning Activity Heatmap -->
+      <div class="charts-row-two-col">
+        <!-- Top Courses Donut Card -->
+        <div class="eduva-card chart-card">
+          <div class="card-header-flex">
+            <h3 class="card-title">Top Courses</h3>
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="topCoursesMenu">
+              <span>All Time</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #topCoursesMenu="matMenu">
+              <button mat-menu-item>All Time</button>
+              <button mat-menu-item>This Year</button>
+              <button mat-menu-item>This Month</button>
+            </mat-menu>
+          </div>
+
+          <!-- Donut SVG & Breakdown -->
+          <div class="donut-chart-container">
+            <div class="donut-svg-wrapper">
+              <svg viewBox="0 0 200 200" class="donut-svg">
+                <!-- Outer Arc 1: UX/UI (38%) -->
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#172b4d" stroke-width="26"
+                        stroke-dasharray="167 440" stroke-dashoffset="0" stroke-linecap="round" />
+                <!-- Outer Arc 2: Analytics (32%) -->
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#0284c7" stroke-width="26"
+                        stroke-dasharray="140 440" stroke-dashoffset="-175" stroke-linecap="round" />
+                <!-- Outer Arc 3: Full Stack (24%) -->
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#38bdf8" stroke-width="26"
+                        stroke-dasharray="105 440" stroke-dashoffset="-325" stroke-linecap="round" />
+                <!-- Outer Arc 4: Others (8%) -->
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#e0f2fe" stroke-width="26"
+                        stroke-dasharray="35 440" stroke-dashoffset="-435" stroke-linecap="round" />
+              </svg>
+              <div class="donut-center-text">
+                <span class="donut-total">320+</span>
+                <span class="donut-sub">Total Courses</span>
+              </div>
+            </div>
+
+            <!-- List Legend -->
+            <div class="donut-legend-list">
+              <div class="legend-row">
+                <div class="legend-label"><span class="legend-sq sq-navy"></span> UX/UI Design Fundamentals</div>
+                <div class="legend-numbers"><strong>1,450</strong> <span class="pct-pill pill-navy">38%</span></div>
+              </div>
+              <div class="legend-row">
+                <div class="legend-label"><span class="legend-sq sq-blue"></span> Business Analytics Essentials</div>
+                <div class="legend-numbers"><strong>1,180</strong> <span class="pct-pill pill-blue">32%</span></div>
+              </div>
+              <div class="legend-row">
+                <div class="legend-label"><span class="legend-sq sq-sky"></span> Full Stack Web Development</div>
+                <div class="legend-numbers"><strong>960</strong> <span class="pct-pill pill-sky">24%</span></div>
+              </div>
+              <div class="legend-row">
+                <div class="legend-label"><span class="legend-sq sq-light"></span> Others</div>
+                <div class="legend-numbers"><strong>229</strong> <span class="pct-pill pill-light">8%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Learning Activity Heatmap Card -->
+        <div class="eduva-card chart-card">
+          <div class="card-header-flex">
+            <h3 class="card-title">Learning Activity</h3>
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="activityMenu">
+              <span>This Week</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #activityMenu="matMenu">
+              <button mat-menu-item>This Week</button>
+              <button mat-menu-item>Last Week</button>
+            </mat-menu>
+          </div>
+
+          <!-- Heatmap Matrix -->
+          <div class="heatmap-matrix-container">
+            <div class="heatmap-body">
+              <div class="heatmap-y-labels">
+                <span>6pm</span>
+                <span>3pm</span>
+                <span>1pm</span>
+                <span>11am</span>
+                <span>9am</span>
+                <span>7am</span>
+              </div>
+              <div class="heatmap-grid">
+                <!-- 6 rows x 7 cols matching Picture 1 -->
+                <div class="heatmap-row">
+                  <div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-1"></div>
+                </div>
+                <div class="heatmap-row">
+                  <div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-4"></div><div class="cell level-1"></div><div class="cell level-0"></div>
+                </div>
+                <div class="heatmap-row">
+                  <div class="cell level-3"></div><div class="cell level-2"></div><div class="cell level-4"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-2"></div><div class="cell level-0"></div>
+                </div>
+                <div class="heatmap-row">
+                  <div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-1"></div><div class="cell level-0"></div>
+                </div>
+                <div class="heatmap-row">
+                  <div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-2"></div><div class="cell level-0"></div><div class="cell level-0"></div>
+                </div>
+                <div class="heatmap-row">
+                  <div class="cell level-2"></div><div class="cell level-4"></div><div class="cell level-2"></div><div class="cell level-3"></div><div class="cell level-1"></div><div class="cell level-0"></div><div class="cell level-0"></div>
+                </div>
+                <!-- X-Axis Labels -->
+                <div class="heatmap-x-labels">
+                  <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Heatmap Scale Legend -->
+            <div class="heatmap-scale-legend">
+              <span class="scale-text">Very Low</span>
+              <div class="scale-boxes">
+                <span class="cell level-0"></span>
+                <span class="cell level-1"></span>
+                <span class="cell level-2"></span>
+                <span class="cell level-3"></span>
+                <span class="cell level-4"></span>
+              </div>
+              <span class="scale-text">Very High</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row: Student Demographic & New Courses -->
+      <div class="charts-row-two-col">
+        <!-- Student Demographic Card -->
+        <div class="eduva-card demographic-card">
+          <div class="card-header-flex">
+            <h3 class="card-title">Student Demographic</h3>
+            <button class="export-btn" (click)="exportReport()">
+              <span>Export Report</span>
+              <mat-icon>download</mat-icon>
+            </button>
+          </div>
+
+          <!-- Stylized Interactive World Map -->
+          <div class="demographic-map-wrapper">
+            <svg viewBox="0 0 600 260" class="world-map-svg">
+              <path d="M 50 80 Q 90 60 140 70 T 220 120 T 160 210 T 80 160 Z" fill="#E2E8F0" opacity="0.8" />
+              <path d="M 120 50 Q 180 40 210 60 T 230 110 T 160 140 Z" fill="#38BDF8" opacity="0.85" />
+              <path d="M 280 45 Q 340 30 380 60 T 360 110 T 290 80 Z" fill="#0284C7" opacity="0.9" />
+              <path d="M 290 120 Q 360 110 390 170 T 330 240 T 280 180 Z" fill="#E2E8F0" opacity="0.8" />
+              <path d="M 400 50 Q 520 40 570 90 T 520 160 T 430 120 Z" fill="#E2E8F0" opacity="0.8" />
+              <path d="M 460 170 Q 530 160 550 210 T 480 240 Z" fill="#0284C7" opacity="0.85" />
+            </svg>
+
+            <!-- Country Flag Markers -->
+            <div class="map-marker marker-canada" title="Canada: 1,125 students">🇨🇦</div>
+            <div class="map-marker marker-usa" title="USA: 1,875 students">🇺🇸</div>
+            <div class="map-marker marker-uk" title="UK: 1,650 students">🇬🇧</div>
+            <div class="map-marker marker-germany" title="Germany: 900 students">🇩🇪</div>
+            <div class="map-marker marker-australia" title="Australia: 1,350 students">🇦🇺</div>
+          </div>
+
+          <!-- Country List Breakdown -->
+          <div class="demographic-country-grid">
+            <div class="country-cell">
+              <span class="country-flag">🇺🇸</span>
+              <span class="country-name">USA</span>
+              <span class="country-count">1,875</span>
+              <span class="country-pct">25%</span>
+            </div>
+            <div class="country-cell">
+              <span class="country-flag">🇨🇦</span>
+              <span class="country-name">Canada</span>
+              <span class="country-count">1,125</span>
+              <span class="country-pct">15%</span>
+            </div>
+            <div class="country-cell">
+              <span class="country-flag">🇬🇧</span>
+              <span class="country-name">UK</span>
+              <span class="country-count">1,650</span>
+              <span class="country-pct">22%</span>
+            </div>
+            <div class="country-cell">
+              <span class="country-flag">🇩🇪</span>
+              <span class="country-name">Germany</span>
+              <span class="country-count">900</span>
+              <span class="country-pct">12%</span>
+            </div>
+            <div class="country-cell">
+              <span class="country-flag">🇦🇺</span>
+              <span class="country-name">Australia</span>
+              <span class="country-count">1,350</span>
+              <span class="country-pct">18%</span>
+            </div>
+            <div class="country-cell">
+              <span class="country-flag">🌐</span>
+              <span class="country-name">Others</span>
+              <span class="country-count">500</span>
+              <span class="country-pct">8%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- New Courses Card -->
+        <div class="eduva-card new-courses-card">
+          <div class="card-header-flex">
+            <h3 class="card-title">New Courses</h3>
+            <button mat-icon-button class="more-menu-btn" aria-label="Course options">
+              <mat-icon>more_horiz</mat-icon>
+            </button>
+          </div>
+
+          <div class="new-courses-list">
+            <!-- Item 1: UI/UX Design for Beginners -->
+            <div class="new-course-item" routerLink="/courses">
+              <div class="course-thumb">
+                <img src="https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=200&auto=format&fit=crop&q=80" alt="UI/UX Design" />
+              </div>
+              <div class="course-item-info">
+                <div class="course-tag tag-design">Design</div>
+                <h4 class="course-item-title">UI/UX Design for Beginners</h4>
+                <div class="course-item-footer">
+                  <span class="course-price">$99</span>
+                  <div class="student-avatar-stack">
+                    <span class="avatar a1"></span>
+                    <span class="avatar a2"></span>
+                    <span class="avatar a3"></span>
+                    <span class="student-count">320</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Item 2: Social Media Marketing Strategies -->
+            <div class="new-course-item" routerLink="/courses">
+              <div class="course-thumb">
+                <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=200&auto=format&fit=crop&q=80" alt="Social Media Marketing" />
+              </div>
+              <div class="course-item-info">
+                <div class="course-tag tag-marketing">Marketing</div>
+                <h4 class="course-item-title">Social Media Marketing Strategies</h4>
+                <div class="course-item-footer">
+                  <span class="course-price">$79</span>
+                  <div class="student-avatar-stack">
+                    <span class="avatar a1"></span>
+                    <span class="avatar a2"></span>
+                    <span class="avatar a3"></span>
+                    <span class="student-count">280</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Item 3: JavaScript Essentials -->
+            <div class="new-course-item" routerLink="/courses">
+              <div class="course-thumb">
+                <img src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80" alt="JavaScript Essentials" />
+              </div>
+              <div class="course-item-info">
+                <div class="course-tag tag-webdev">Web Dev</div>
+                <h4 class="course-item-title">JavaScript Essentials</h4>
+                <div class="course-item-footer">
+                  <span class="course-price">$89</span>
+                  <div class="student-avatar-stack">
+                    <span class="avatar a1"></span>
+                    <span class="avatar a2"></span>
+                    <span class="avatar a3"></span>
+                    <span class="student-count">350</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar Content Column -->
+    <div class="dashboard-sidebar-col">
+      <!-- Mini Calendar Widget -->
+      <div class="eduva-card mini-calendar-card">
+        <div class="calendar-header-flex">
+          <span class="calendar-month-year">May 2030</span>
+          <div class="month-nav-arrows">
+            <button class="nav-arrow-btn" aria-label="Previous Month"><mat-icon>keyboard_arrow_down</mat-icon></button>
+            <button class="nav-arrow-btn" aria-label="Next Month"><mat-icon>keyboard_arrow_up</mat-icon></button>
+          </div>
+        </div>
+
+        <div class="mini-calendar-grid">
+          <div class="cal-day-header">S</div>
+          <div class="cal-day-header">M</div>
+          <div class="cal-day-header">T</div>
+          <div class="cal-day-header">W</div>
+          <div class="cal-day-header">T</div>
+          <div class="cal-day-header">F</div>
+          <div class="cal-day-header">S</div>
+
+          @for (d of calendarDays; track $index) {
+            <div
+              class="cal-day-cell"
+              [class.other-month]="!d.isCurrentMonth"
+              [class.selected-day]="d.day === selectedCalendarDay() && d.isCurrentMonth"
+              (click)="d.isCurrentMonth && selectDay(d.day)"
+            >
+              {{ d.day }}
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Upcoming Schedules Section -->
+      <div class="eduva-card schedules-card">
+        <div class="card-header-flex">
+          <h3 class="card-title">Schedules</h3>
+          <button mat-icon-button class="more-menu-btn" aria-label="Schedule options">
+            <mat-icon>more_horiz</mat-icon>
+          </button>
+        </div>
+
+        <div class="schedules-list">
+          <!-- Item 1 -->
+          <div class="schedule-item">
+            <div class="date-badge">
+              <span class="date-num">21</span>
+              <span class="date-month">May</span>
+            </div>
+            <div class="schedule-details">
+              <div class="schedule-meta">
+                <span class="schedule-pill pill-meetings">Meetings</span>
+                <span class="schedule-time">09:00 - 10:00 AM</span>
+              </div>
+              <h4 class="schedule-title">Weekly Mentor Coordination</h4>
+            </div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="schedule-item">
+            <div class="date-badge date-cyan">
+              <span class="date-num">21</span>
+              <span class="date-month">May</span>
+            </div>
+            <div class="schedule-details">
+              <div class="schedule-meta">
+                <span class="schedule-pill pill-workshops">Workshops</span>
+                <span class="schedule-time">01:00 - 03:00 PM</span>
+              </div>
+              <h4 class="schedule-title">Student Success and Career Webinar</h4>
+            </div>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="schedule-item">
+            <div class="date-badge date-cyan">
+              <span class="date-num">21</span>
+              <span class="date-month">May</span>
+            </div>
+            <div class="schedule-details">
+              <div class="schedule-meta">
+                <span class="schedule-pill pill-workshops">Workshops</span>
+                <span class="schedule-time">09:30 AM - 12:00 PM</span>
+              </div>
+              <h4 class="schedule-title">Public Speaking Essentials Workshop</h4>
+            </div>
+          </div>
+
+          <!-- Item 4 -->
+          <div class="schedule-item">
+            <div class="date-badge date-steel">
+              <span class="date-num">24</span>
+              <span class="date-month">May</span>
+            </div>
+            <div class="schedule-details">
+              <div class="schedule-meta">
+                <span class="schedule-pill pill-events">Events</span>
+                <span class="schedule-time">06:30 - 08:00 PM</span>
+              </div>
+              <h4 class="schedule-title">Learning Community Meetup</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activities Section -->
+      <div class="eduva-card activities-card">
+        <div class="card-header-flex">
+          <h3 class="card-title">Recent Activities</h3>
+          <button mat-icon-button class="more-menu-btn" aria-label="Activity options">
+            <mat-icon>more_horiz</mat-icon>
+          </button>
+        </div>
+
+        <div class="activities-timeline">
+          <!-- Activity 1 -->
+          <div class="activity-timeline-item">
+            <div class="activity-icon-badge">
+              <mat-icon>person_outline</mat-icon>
+            </div>
+            <div class="activity-body">
+              <span class="activity-tag">Profile Updated</span>
+              <p class="activity-text">
+                <strong>Daniel Lowie</strong> updated account information and learning preferences.
+              </p>
+              <span class="activity-time">May 19, 2030 &bull; 10:30 AM</span>
+            </div>
+          </div>
+
+          <!-- Activity 2 -->
+          <div class="activity-timeline-item">
+            <div class="activity-icon-badge badge-dark">
+              <mat-icon>workspace_premium</mat-icon>
+            </div>
+            <div class="activity-body">
+              <span class="activity-tag">Course Completed</span>
+              <p class="activity-text">
+                <strong>Claire Manne</strong> completed "Business Analytics Essentials" and received a certificate.
+              </p>
+              <span class="activity-time">May 19, 2030 &bull; 6:45 PM</span>
+            </div>
+          </div>
+
+          <!-- Activity 3 -->
+          <div class="activity-timeline-item">
+            <div class="activity-icon-badge">
+              <mat-icon>rate_review</mat-icon>
+            </div>
+            <div class="activity-body">
+              <span class="activity-tag">User Feedback Submitted</span>
+              <p class="activity-text">
+                <strong>Benedict Ritche</strong> rated "Python Programming for Beginners" 5 stars and left a review.
+              </p>
+              <span class="activity-time">May 18, 2030 &bull; 12:15 PM</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+</app-layout>

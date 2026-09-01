@@ -1,0 +1,126 @@
+.eduva-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: transparent;
+  min-height: 72px;
+
+  .header-left {
+    .greeting-box {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .header-title-highlight {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .search-bar {
+      width: 280px;
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 8px 18px;
+    }
+
+    .icon-action-btn {
+      width: 42px;
+      height: 42px;
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 50%;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+      &:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+    }
+
+    .user-profile-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 12px 4px 4px;
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: var(--bg-subtle);
+      }
+
+      .profile-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+
+      .profile-info {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+
+        .profile-name {
+          font-size: 0.875rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .profile-role {
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: var(--text-muted);
+        }
+      }
+    }
+  }
+}
+
+.menu-header {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+  }
+
+  small {
+    color: var(--text-muted);
+  }
+}

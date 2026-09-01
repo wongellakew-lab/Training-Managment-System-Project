@@ -2,14 +2,15 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AuthService } from './auth.service';
 import { Router } from '@angular/router';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
-  let routerSpy: jasmine.SpyObj<Router>;
+  let routerSpy: { navigate: any };
 
   beforeEach(() => {
-    routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    routerSpy = { navigate: vi.fn() };
     localStorage.clear();
 
     TestBed.configureTestingModule({
@@ -31,7 +32,7 @@ describe('AuthService', () => {
 
   it('should be created with initial unauthenticated state', () => {
     expect(service).toBeTruthy();
-    expect(service.isAuthenticated()).toBeFalse();
+    expect(service.isAuthenticated()).toBe(false);
     expect(service.currentUser()).toBeNull();
   });
 
@@ -52,8 +53,8 @@ describe('AuthService', () => {
 
     service.login({ email: 'student@tms.com', password: 'Password123!' }).subscribe((res) => {
       expect(res.token).toBe('jwt-access-token');
-      expect(service.isAuthenticated()).toBeTrue();
-      expect(service.isStudent()).toBeTrue();
+      expect(service.isAuthenticated()).toBe(true);
+      expect(service.isStudent()).toBe(true);
       expect(service.currentUser()?.firstName).toBe('Jane');
     });
 
@@ -66,7 +67,7 @@ describe('AuthService', () => {
     localStorage.setItem('tms_access_token', 'test-token');
     service.logout();
 
-    expect(service.isAuthenticated()).toBeFalse();
+    expect(service.isAuthenticated()).toBe(false);
     expect(service.currentUser()).toBeNull();
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
   });

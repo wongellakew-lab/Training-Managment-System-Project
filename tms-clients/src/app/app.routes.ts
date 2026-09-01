@@ -6,7 +6,7 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'login'
+    redirectTo: 'admin/dashboard'
   },
   {
     path: 'login',
@@ -17,6 +17,58 @@ export const routes: Routes = [
     path: 'unauthorized',
     loadComponent: () =>
       import('./features/unauthorized/unauthorized.component').then((m) => m.UnauthorizedComponent)
+  },
+
+  // Eduva Global & Admin Routes
+  {
+    path: 'dashboard',
+    redirectTo: 'admin/dashboard',
+    pathMatch: 'full'
+  },
+  {
+    path: 'admin',
+    pathMatch: 'full',
+    redirectTo: 'admin/dashboard'
+  },
+  {
+    path: 'admin/dashboard',
+    loadComponent: () =>
+      import('./features/admin-dashboard/admin-dashboard.component').then((m) => m.AdminDashboardComponent)
+  },
+  {
+    path: 'calendar',
+    loadComponent: () =>
+      import('./features/calendar/calendar.component').then((m) => m.CalendarComponent)
+  },
+  {
+    path: 'enrollments',
+    loadComponent: () =>
+      import('./features/enrollments/enrollments.component').then((m) => m.EnrollmentsComponent)
+  },
+  {
+    path: 'courses',
+    loadComponent: () =>
+      import('./features/courses/courses.component').then((m) => m.CoursesComponent)
+  },
+  {
+    path: 'admin/courses',
+    loadComponent: () =>
+      import('./features/courses/courses.component').then((m) => m.CoursesComponent)
+  },
+  {
+    path: 'instructors',
+    loadComponent: () =>
+      import('./features/instructors/instructors.component').then((m) => m.InstructorsComponent)
+  },
+  {
+    path: 'students',
+    loadComponent: () =>
+      import('./features/students/students.component').then((m) => m.StudentsComponent)
+  },
+  {
+    path: 'financials',
+    loadComponent: () =>
+      import('./features/financials/financials.component').then((m) => m.FinancialsComponent)
   },
 
   // Student Routes
@@ -32,7 +84,7 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard],
     data: { roles: ['Student', 'Admin'] },
     loadComponent: () =>
-      import('./features/student-dashboard/course-browser.component').then((m) => m.CourseBrowserComponent)
+      import('./features/courses/courses.component').then((m) => m.CoursesComponent)
   },
   {
     path: 'student/courses/:id',
@@ -57,30 +109,9 @@ export const routes: Routes = [
       import('./features/instructor-dashboard/instructor-dashboard.component').then((m) => m.InstructorDashboardComponent)
   },
 
-  // Admin Routes
-  {
-    path: 'admin',
-    pathMatch: 'full',
-    redirectTo: 'admin/dashboard'
-  },
-  {
-    path: 'admin/dashboard',
-    canActivate: [authGuard, roleGuard],
-    data: { roles: ['Admin'] },
-    loadComponent: () =>
-      import('./features/admin-dashboard/admin-dashboard.component').then((m) => m.AdminDashboardComponent)
-  },
-  {
-    path: 'admin/courses',
-    canActivate: [authGuard, roleGuard],
-    data: { roles: ['Admin'] },
-    loadComponent: () =>
-      import('./features/admin-course-list/admin-course-list.component').then((m) => m.AdminCourseListComponent)
-  },
-
   // Catch-all
   {
     path: '**',
-    redirectTo: 'login'
+    redirectTo: 'admin/dashboard'
   }
 ];
