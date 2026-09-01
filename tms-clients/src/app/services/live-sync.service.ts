@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
 import { AuthService } from './auth.service';
+import { NotificationService } from './notification.service';
 
 export interface LiveNotification {
   id: string;
@@ -9,7 +10,7 @@ export interface LiveNotification {
   title: string;
   message: string;
   timestamp: Date;
-  data?: any;
+  data?: unknown;
 }
 
 @Injectable({
@@ -17,12 +18,11 @@ export interface LiveNotification {
 })
 export class LiveSyncService {
   private authService = inject(AuthService);
+  private notificationService = inject(NotificationService);
   private hubConnection: signalR.HubConnection | null = null;
 
   // Reactive state
   readonly isConnected = signal<boolean>(false);
-  readonly notifications = signal<LiveNotification[]>([]);
-  readonly unreadCount = signal<number>(0);
 
   // Event streams
   readonly enrollmentUpdated$ = new Subject<{ studentId: number; courseId: number; status: string }>();
@@ -30,7 +30,7 @@ export class LiveSyncService {
   readonly transcriptCompleted$ = new Subject<{ jobId: string; studentId: number; downloadUrl: string }>();
 
   constructor() {
-    // If authenticated, automatically connect
+    // If authenticated, automatically connect and load notifications
     if (this.authService.isAuthenticated()) {
       this.connect();
     }
@@ -57,6 +57,9 @@ export class LiveSyncService {
       .start()
       .then(() => {
         this.isConnected.set(true);
+        this.joinUserGroups();
+        // Load real notifications from DB on connect
+        this.loadInitialNotifications();
       })
       .catch((err) => {
         console.warn('SignalR Hub Connection error:', err);
@@ -65,6 +68,7 @@ export class LiveSyncService {
 
     this.hubConnection.onreconnected(() => {
       this.isConnected.set(true);
+      this.joinUserGroups();
     });
 
     this.hubConnection.onreconnecting(() => {
@@ -84,67 +88,68 @@ export class LiveSyncService {
     }
   }
 
+  private joinUserGroups(): void {
+    if (!this.hubConnection) return;
+
+    const user = this.authService.currentUser();
+    if (!user) return;
+
+    // Join user's private notification group
+    this.hubConnection.invoke('JoinUserGroup', user.id).catch(console.warn);
+
+    // If student, also join student group
+    if (user.studentId) {
+      this.hubConnection.invoke('JoinStudentGroup', String(user.studentId)).catch(console.warn);
+    }
+
+    // If admin, join admin broadcast group
+    if (user.role === 'Admin') {
+      this.hubConnection.invoke('JoinAdminGroup').catch(console.warn);
+    }
+  }
+
+  private loadInitialNotifications(): void {
+    // Load real notifications from API on connect
+    this.notificationService.loadNotifications(1, 20).subscribe({ error: console.warn });
+    this.notificationService.loadUnreadCount().subscribe({ error: console.warn });
+  }
+
   private registerEventHandlers(): void {
     if (!this.hubConnection) return;
 
-    this.hubConnection.on('ReceiveEnrollmentNotification', (data: any) => {
+    // Handle enrollment notifications (pushed after approve/reject)
+    this.hubConnection.on('ReceiveNotification', (title: string, message: string) => {
+      this.notificationService.addRealtimeNotification(title, message, 'Enrollment');
+    });
+
+    // Enrollment updates (e.g., capacity change events)
+    this.hubConnection.on('ReceiveEnrollmentNotification', (data: { studentId: number; courseId: number; status: string }) => {
       this.enrollmentUpdated$.next(data);
-      this.addNotification({
-        id: crypto.randomUUID(),
-        type: 'enrollment',
-        title: 'Enrollment Update',
-        message: data.message || `Enrollment updated for course #${data.courseId}`,
-        timestamp: new Date(),
-        data
-      });
     });
 
-    this.hubConnection.on('ReceiveCapacityAlert', (data: any) => {
+    this.hubConnection.on('ReceiveCapacityAlert', (data: { courseId: number; enrolledCount: number; maxCapacity: number }) => {
       this.courseCapacityChanged$.next(data);
-      this.addNotification({
-        id: crypto.randomUUID(),
-        type: 'capacity',
-        title: 'Course Capacity Alert',
-        message: `Course #${data.courseId} is near or at capacity (${data.enrolledCount}/${data.maxCapacity})`,
-        timestamp: new Date(),
-        data
-      });
+      this.notificationService.addRealtimeNotification(
+        'Course Capacity Alert',
+        `Course is near capacity (${data.enrolledCount}/${data.maxCapacity} students)`,
+        'Course'
+      );
     });
 
-    this.hubConnection.on('ReceiveTranscriptReady', (data: any) => {
-      this.transcriptCompleted$.next(data);
-      this.addNotification({
-        id: crypto.randomUUID(),
-        type: 'transcript',
-        title: 'Transcript Ready',
-        message: 'Your official transcript generation is complete and ready for download.',
-        timestamp: new Date(),
-        data
-      });
+    this.hubConnection.on('ReceiveTranscriptStatus', (requestId: string, status: string, downloadUrl: string | null) => {
+      if (status === 'Completed' && downloadUrl) {
+        this.transcriptCompleted$.next({ jobId: requestId, studentId: 0, downloadUrl });
+        this.notificationService.addRealtimeNotification(
+          'Transcript Ready',
+          'Your transcript has been generated and is ready for download.',
+          'Transcript'
+        );
+      }
     });
 
+    // Generic system message
     this.hubConnection.on('ReceiveMessage', (user: string, message: string) => {
-      this.addNotification({
-        id: crypto.randomUUID(),
-        type: 'info',
-        title: user || 'System Notification',
-        message,
-        timestamp: new Date()
-      });
+      this.notificationService.addRealtimeNotification(user || 'System', message, 'System');
     });
-  }
-
-  private addNotification(notification: LiveNotification): void {
-    this.notifications.update((list) => [notification, ...list.slice(0, 19)]);
-    this.unreadCount.update((count) => count + 1);
-  }
-
-  clearNotifications(): void {
-    this.notifications.set([]);
-    this.unreadCount.set(0);
-  }
-
-  markAllAsRead(): void {
-    this.unreadCount.set(0);
   }
 }

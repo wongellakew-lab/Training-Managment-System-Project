@@ -10,11 +10,12 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
-import { NavbarComponent } from '../../ui/navbar/navbar.component';
+import { LayoutComponent } from '../../ui/layout/layout.component';
 import { CourseService } from '../../services/course.service';
 import { EnrollmentService } from '../../services/enrollment.service';
 import { GradeService } from '../../services/grade.service';
 import { CertificateService } from '../../services/certificate.service';
+import { DashboardService, InstructorDashboard } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
 import { Course } from '../../models/course.model';
 import { Enrollment } from '../../models/enrollment.model';
@@ -34,7 +35,7 @@ export interface GradeRow {
   imports: [
     CommonModule,
     FormsModule,
-    NavbarComponent,
+    LayoutComponent,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -54,7 +55,9 @@ export class InstructorDashboardComponent implements OnInit {
   enrollmentService = inject(EnrollmentService);
   gradeService = inject(GradeService);
   certificateService = inject(CertificateService);
+  dashboardService = inject(DashboardService);
 
+  dashboardData = signal<InstructorDashboard | null>(null);
   courses = signal<Course[]>([]);
   selectedCourseId = signal<number | null>(null);
   gradeRows = signal<GradeRow[]>([]);
@@ -66,7 +69,7 @@ export class InstructorDashboardComponent implements OnInit {
   displayedColumns = ['student', 'status', 'numericScore', 'letterGrade', 'certificate', 'actions'];
 
   readonly pendingCount = computed(() =>
-    this.gradeRows().filter((r) => !r.enrollment.grade && r.enrollment.status === 'Active').length
+    this.gradeRows().filter((r) => !r.enrollment.grade && (r.enrollment.status === 'Active' || r.enrollment.status === 'Approved')).length
   );
 
   readonly issuedCount = computed(() =>
@@ -74,16 +77,28 @@ export class InstructorDashboardComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    this.loadInstructorCourses();
+    const instructorId = this.authService.currentUser()?.instructorId || 1;
+    this.loadDashboardData(instructorId);
+    this.loadInstructorCourses(instructorId);
   }
 
-  loadInstructorCourses(): void {
+  loadDashboardData(instructorId: number): void {
+    this.dashboardService.getInstructorDashboard(instructorId).subscribe({
+      next: (data) => this.dashboardData.set(data),
+      error: () => {}
+    });
+  }
+
+  loadInstructorCourses(instructorId: number): void {
     this.courseService.getCourses({ pageSize: 50 }).subscribe({
       next: (res) => {
-        this.courses.set(res.items);
-        if (res.items.length > 0) {
-          this.selectedCourseId.set(res.items[0].id);
-          this.loadRoster(res.items[0].id);
+        // If instructor has specific assigned courses, filter; otherwise keep available
+        const assigned = res.items.filter(c => !c.instructorId || c.instructorId === instructorId);
+        const listToUse = assigned.length > 0 ? assigned : res.items;
+        this.courses.set(listToUse);
+        if (listToUse.length > 0) {
+          this.selectedCourseId.set(listToUse[0].id);
+          this.loadRoster(listToUse[0].id);
         }
       }
     });
@@ -127,6 +142,34 @@ export class InstructorDashboardComponent implements OnInit {
     return 'F';
   }
 
+  approveEnrollment(row: GradeRow): void {
+    this.enrollmentService.approveEnrollment(row.enrollment.id).subscribe({
+      next: () => {
+        row.enrollment.status = 'Active';
+        this.isFeedbackSuccess.set(true);
+        this.feedbackMessage.set(`Enrollment approved for ${row.enrollment.studentName || 'Student'}!`);
+      },
+      error: (err) => {
+        this.isFeedbackSuccess.set(false);
+        this.feedbackMessage.set(err.message || 'Failed to approve enrollment.');
+      }
+    });
+  }
+
+  rejectEnrollment(row: GradeRow): void {
+    this.enrollmentService.rejectEnrollment(row.enrollment.id).subscribe({
+      next: () => {
+        row.enrollment.status = 'Rejected';
+        this.isFeedbackSuccess.set(true);
+        this.feedbackMessage.set(`Enrollment rejected for ${row.enrollment.studentName || 'Student'}.`);
+      },
+      error: (err) => {
+        this.isFeedbackSuccess.set(false);
+        this.feedbackMessage.set(err.message || 'Failed to reject enrollment.');
+      }
+    });
+  }
+
   saveSingleGrade(row: GradeRow): void {
     row.isSaving = true;
     this.gradeService.assignGrade({
@@ -136,6 +179,8 @@ export class InstructorDashboardComponent implements OnInit {
     }).subscribe({
       next: () => {
         row.isSaving = false;
+        row.enrollment.grade = row.letterGrade;
+        row.enrollment.numericScore = row.numericScore;
         this.isFeedbackSuccess.set(true);
         this.feedbackMessage.set(`Grade saved successfully for ${row.enrollment.studentName || 'Student'}!`);
       },

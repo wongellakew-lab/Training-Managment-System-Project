@@ -2,7 +2,6 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,7 +17,6 @@ import { UserRole } from '../../models/user.model';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatCardModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -51,6 +49,7 @@ export class LoginComponent {
   setMode(register: boolean) {
     this.isRegisterMode.set(register);
     this.errorMessage.set(null);
+    this.form.reset({ role: 'Student' });
 
     const firstNameControl = this.form.get('firstName');
     const lastNameControl = this.form.get('lastName');
@@ -64,13 +63,6 @@ export class LoginComponent {
     }
     firstNameControl?.updateValueAndValidity();
     lastNameControl?.updateValueAndValidity();
-  }
-
-  fillCredentials(email: string, pass: string) {
-    this.form.patchValue({
-      email,
-      password: pass
-    });
   }
 
   onSubmit() {
@@ -95,7 +87,9 @@ export class LoginComponent {
         next: () => this.navigateAfterAuth(),
         error: (err) => {
           this.isLoading.set(false);
-          this.errorMessage.set(err.error?.message || err.message || 'Registration failed.');
+          this.errorMessage.set(
+            err.error?.message || err.error?.errors?.[0]?.description || 'Registration failed. Please try again.'
+          );
         }
       });
     } else {
@@ -106,7 +100,9 @@ export class LoginComponent {
         next: () => this.navigateAfterAuth(),
         error: (err) => {
           this.isLoading.set(false);
-          this.errorMessage.set(err.error?.message || 'Invalid email or password.');
+          this.errorMessage.set(
+            err.error?.message || 'Invalid email or password. Please check your credentials.'
+          );
         }
       });
     }

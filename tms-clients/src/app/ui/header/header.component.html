@@ -3,8 +3,8 @@
   <div class="header-left">
     @if (showGreeting) {
       <div class="greeting-box">
-        <h1 class="header-title">Good Morning,</h1>
-        <h1 class="header-title-highlight">Noah!</h1>
+        <h1 class="header-greeting">{{ greeting() }},</h1>
+        <h1 class="header-name">{{ getUserName() }}!</h1>
       </div>
     } @else {
       <h1 class="header-title">{{ pageTitle }}</h1>
@@ -15,51 +15,102 @@
   <div class="header-right">
     <!-- Omni Search Bar -->
     <div class="eduva-input-group search-bar">
-      <input type="text" placeholder="Search anything" aria-label="Search anything" />
       <mat-icon>search</mat-icon>
+      <input type="text" placeholder="Search anything" aria-label="Search anything" />
+    </div>
+
+    <!-- Live Sync Indicator -->
+    <div
+      class="live-indicator"
+      [class.live]="isConnected()"
+      [matTooltip]="isConnected() ? 'Live sync active' : 'Connecting...'"
+    >
+      <span class="live-dot"></span>
+      <span class="live-text">{{ isConnected() ? 'Live' : '...' }}</span>
     </div>
 
     <!-- Notification Bell -->
-    <button mat-icon-button class="icon-action-btn" [matBadge]="'3'" matBadgeColor="primary" matBadgeSize="small" aria-label="Notifications">
+    <button
+      mat-icon-button
+      id="notification-bell-btn"
+      class="icon-action-btn notif-btn"
+      aria-label="Notifications"
+      [matMenuTriggerFor]="notifMenu"
+      [matBadge]="notificationService.unreadCount() > 0 ? notificationService.unreadCount() : null"
+      matBadgeColor="warn"
+      matBadgeSize="small"
+    >
       <mat-icon>notifications</mat-icon>
     </button>
 
+    <!-- Notification Dropdown -->
+    <mat-menu #notifMenu="matMenu" class="notif-menu-panel" xPosition="before">
+      <div class="notif-header" (click)="$event.stopPropagation()">
+        <span class="notif-title">Notifications</span>
+        @if (notificationService.unreadCount() > 0) {
+          <button type="button" class="mark-all-btn" (click)="markAllRead()">
+            Mark all read
+          </button>
+        }
+      </div>
+      <mat-divider></mat-divider>
+      <div class="notif-list" (click)="$event.stopPropagation()">
+        @if (notificationService.notifications().length === 0) {
+          <div class="notif-empty">
+            <mat-icon>notifications_none</mat-icon>
+            <span>No notifications yet</span>
+          </div>
+        }
+        @for (n of notificationService.notifications().slice(0, 8); track n.id) {
+          <div class="notif-item" [class.unread]="!n.isRead" (click)="notificationService.markAsRead(n.id).subscribe()">
+            <div class="notif-dot" [class.unread]="!n.isRead"></div>
+            <div class="notif-content">
+              <p class="notif-item-title">{{ n.title }}</p>
+              <p class="notif-item-msg">{{ n.message }}</p>
+              <span class="notif-time">{{ n.createdAt | date:'short' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </mat-menu>
+
     <!-- Settings Button -->
-    <button mat-icon-button class="icon-action-btn" aria-label="Settings">
+    <button mat-icon-button class="icon-action-btn" aria-label="Settings" [matTooltip]="'Settings'">
       <mat-icon>settings</mat-icon>
     </button>
 
     <!-- User Profile Chip -->
-    <div class="user-profile-chip" [matMenuTriggerFor]="userMenu">
-      <img
-        src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
-        alt="User Avatar"
-        class="profile-avatar"
-      />
+    <div class="user-profile-chip" [matMenuTriggerFor]="userMenu" id="user-profile-menu-trigger">
+      <div class="profile-avatar-initials">{{ getUserInitials() }}</div>
       <div class="profile-info">
         <span class="profile-name">{{ getUserName() }}</span>
         <span class="profile-role">{{ getUserRole() }}</span>
       </div>
+      <mat-icon class="chevron-icon">expand_more</mat-icon>
     </div>
 
-    <mat-menu #userMenu="matMenu" class="eduva-dropdown-menu">
-      <div class="menu-header">
-        <strong>{{ getUserName() }}</strong>
-        <small>{{ currentUser()?.email || 'noah.hansen@eduva.com' }}</small>
+    <mat-menu #userMenu="matMenu" class="eduva-dropdown-menu" xPosition="before">
+      <div class="menu-user-header" (click)="$event.stopPropagation()">
+        <div class="menu-avatar">{{ getUserInitials() }}</div>
+        <div>
+          <strong class="menu-name">{{ getUserName() }}</strong>
+          <small class="menu-email">{{ currentUser()?.email }}</small>
+          <span class="menu-role-badge">{{ getUserRole() }}</span>
+        </div>
       </div>
       <mat-divider></mat-divider>
-      <button mat-menu-item routerLink="/admin/dashboard">
+      <button mat-menu-item [routerLink]="dashboardPath()">
         <mat-icon>dashboard</mat-icon>
-        <span>Dashboard</span>
+        <span>My Dashboard</span>
       </button>
-      <button mat-menu-item routerLink="/calendar">
-        <mat-icon>calendar_today</mat-icon>
-        <span>Calendar</span>
+      <button mat-menu-item routerLink="/profile">
+        <mat-icon>person_outline</mat-icon>
+        <span>Profile</span>
       </button>
       <mat-divider></mat-divider>
-      <button mat-menu-item (click)="currentUser()">
-        <mat-icon>person</mat-icon>
-        <span>Account Profile</span>
+      <button mat-menu-item (click)="logout()" class="logout-menu-item">
+        <mat-icon>logout</mat-icon>
+        <span>Sign out</span>
       </button>
     </mat-menu>
   </div>

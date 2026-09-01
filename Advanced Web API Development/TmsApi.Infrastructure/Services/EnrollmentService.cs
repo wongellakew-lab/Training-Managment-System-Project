@@ -36,21 +36,20 @@ public class EnrollmentService : IEnrollmentService
             .AsNoTracking();
 
         if (studentId.HasValue)
-        {
             query = query.Where(e => e.StudentId == studentId.Value);
-        }
 
         if (courseId.HasValue)
-        {
             query = query.Where(e => e.CourseId == courseId.Value);
-        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim().ToLower();
             query = query.Where(e =>
-                (e.Student != null && (e.Student.FirstName.ToLower().Contains(s) || e.Student.LastName.ToLower().Contains(s) || e.Student.Email.ToLower().Contains(s))) ||
-                (e.Course != null && (e.Course.Title.ToLower().Contains(s) || e.Course.Code.ToLower().Contains(s))) ||
+                (e.Student != null && (e.Student.FirstName.ToLower().Contains(s) ||
+                                       e.Student.LastName.ToLower().Contains(s) ||
+                                       e.Student.Email.ToLower().Contains(s))) ||
+                (e.Course != null && (e.Course.Title.ToLower().Contains(s) ||
+                                      e.Course.Code.ToLower().Contains(s))) ||
                 e.Batch.ToLower().Contains(s) ||
                 e.PhoneNumber.Contains(s));
         }
@@ -59,17 +58,17 @@ public class EnrollmentService : IEnrollmentService
         {
             var s = status.Trim().ToLower();
             if (s == "enrolled" || s == "active" || s == "approved")
-            {
                 query = query.Where(e => e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed);
-            }
             else if (s == "applied" || s == "pending")
-            {
                 query = query.Where(e => e.Status == EnrollmentStatus.Pending);
-            }
             else if (s == "waitlisted")
-            {
                 query = query.Where(e => e.Status == EnrollmentStatus.Waitlisted);
-            }
+            else if (s == "completed")
+                query = query.Where(e => e.Status == EnrollmentStatus.Completed);
+            else if (s == "dropped")
+                query = query.Where(e => e.Status == EnrollmentStatus.Dropped);
+            else if (s == "rejected")
+                query = query.Where(e => e.Status == EnrollmentStatus.Rejected);
         }
 
         if (!string.IsNullOrWhiteSpace(category) && category != "All" && category != "All Category")
@@ -90,53 +89,55 @@ public class EnrollmentService : IEnrollmentService
 
     public async Task<PaymentStatusBreakdownDto> GetPaymentBreakdownAsync(CancellationToken cancellationToken = default)
     {
-        var totalEnrollments = await _context.Enrollments.CountAsync(cancellationToken);
-        if (totalEnrollments == 0)
-        {
+        var allEnrollments = await _context.Enrollments
+            .AsNoTracking()
+            .Select(e => new { e.Status, e.PaymentStatus, e.Fee })
+            .ToListAsync(cancellationToken);
+
+        if (!allEnrollments.Any())
             return new PaymentStatusBreakdownDto();
-        }
 
-        var paidCount = await _context.Enrollments.CountAsync(e => e.PaymentStatus == "Paid", cancellationToken);
-        var pendingCount = await _context.Enrollments.CountAsync(e => e.PaymentStatus == "Pending", cancellationToken);
-        var unpaidCount = await _context.Enrollments.CountAsync(e => e.PaymentStatus == "Unpaid", cancellationToken);
+        var totalCount = allEnrollments.Count;
 
-        var enrolledPaid = await _context.Enrollments.CountAsync(e => (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && e.PaymentStatus == "Paid", cancellationToken);
-        var enrolledPending = await _context.Enrollments.CountAsync(e => (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && e.PaymentStatus == "Pending", cancellationToken);
-        var enrolledUnpaid = await _context.Enrollments.CountAsync(e => (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && e.PaymentStatus == "Unpaid", cancellationToken);
+        // Aggregate by payment status
+        var paidEnrollments = allEnrollments.Where(e => e.PaymentStatus == "Paid").ToList();
+        var pendingEnrollments = allEnrollments.Where(e => e.PaymentStatus == "Pending").ToList();
+        var unpaidEnrollments = allEnrollments.Where(e => e.PaymentStatus == "Unpaid").ToList();
 
-        var appliedPaid = await _context.Enrollments.CountAsync(e => e.Status == EnrollmentStatus.Pending && e.PaymentStatus == "Paid", cancellationToken);
-        var appliedPending = await _context.Enrollments.CountAsync(e => e.Status == EnrollmentStatus.Pending && e.PaymentStatus == "Pending", cancellationToken);
-        var appliedUnpaid = await _context.Enrollments.CountAsync(e => e.Status == EnrollmentStatus.Pending && e.PaymentStatus == "Unpaid", cancellationToken);
+        var totalPaidAmount = paidEnrollments.Sum(e => e.Fee);
+        var totalPendingAmount = pendingEnrollments.Sum(e => e.Fee);
+        var totalUnpaidAmount = unpaidEnrollments.Sum(e => e.Fee);
 
-        var waitlistedPaid = await _context.Enrollments.CountAsync(e => e.Status == EnrollmentStatus.Waitlisted && e.PaymentStatus == "Paid", cancellationToken);
-        var waitlistedPending = await _context.Enrollments.CountAsync(e => e.Status == EnrollmentStatus.Waitlisted && e.PaymentStatus == "Pending", cancellationToken);
-        var waitlistedUnpaid = await _context.Enrollments.CountAsync(e => e.Status == EnrollmentStatus.Waitlisted && e.PaymentStatus == "Unpaid", cancellationToken);
+        // Active/Completed = "Enrolled" category
+        var activeStatuses = new[] { EnrollmentStatus.Active, EnrollmentStatus.Completed };
+        // Pending = "Applied" category
+        // Waitlisted = "Waitlisted" category
 
         return new PaymentStatusBreakdownDto
         {
-            TotalPaid = 946210m,
-            PaidStudentsCount = Math.Max(paidCount, 13180),
-            PaidPercentage = 70.3m,
+            TotalPaid = totalPaidAmount,
+            PaidStudentsCount = paidEnrollments.Count,
+            PaidPercentage = totalCount > 0 ? Math.Round((paidEnrollments.Count / (decimal)totalCount) * 100, 1) : 0m,
 
-            TotalPending = 268340m,
-            PendingStudentsCount = Math.Max(pendingCount, 3900),
-            PendingPercentage = 20.8m,
+            TotalPending = totalPendingAmount,
+            PendingStudentsCount = pendingEnrollments.Count,
+            PendingPercentage = totalCount > 0 ? Math.Round((pendingEnrollments.Count / (decimal)totalCount) * 100, 1) : 0m,
 
-            TotalUnpaid = 96179m,
-            UnpaidStudentsCount = Math.Max(unpaidCount, 1660),
-            UnpaidPercentage = 8.9m,
+            TotalUnpaid = totalUnpaidAmount,
+            UnpaidStudentsCount = unpaidEnrollments.Count,
+            UnpaidPercentage = totalCount > 0 ? Math.Round((unpaidEnrollments.Count / (decimal)totalCount) * 100, 1) : 0m,
 
-            EnrolledPaid = Math.Max(enrolledPaid, 12800),
-            EnrolledPending = Math.Max(enrolledPending, 1200),
-            EnrolledUnpaid = Math.Max(enrolledUnpaid, 280),
+            EnrolledPaid = allEnrollments.Count(e => activeStatuses.Contains(e.Status) && e.PaymentStatus == "Paid"),
+            EnrolledPending = allEnrollments.Count(e => activeStatuses.Contains(e.Status) && e.PaymentStatus == "Pending"),
+            EnrolledUnpaid = allEnrollments.Count(e => activeStatuses.Contains(e.Status) && e.PaymentStatus == "Unpaid"),
 
-            AppliedPaid = Math.Max(appliedPaid, 200),
-            AppliedPending = Math.Max(appliedPending, 2400),
-            AppliedUnpaid = Math.Max(appliedUnpaid, 520),
+            AppliedPaid = allEnrollments.Count(e => e.Status == EnrollmentStatus.Pending && e.PaymentStatus == "Paid"),
+            AppliedPending = allEnrollments.Count(e => e.Status == EnrollmentStatus.Pending && e.PaymentStatus == "Pending"),
+            AppliedUnpaid = allEnrollments.Count(e => e.Status == EnrollmentStatus.Pending && e.PaymentStatus == "Unpaid"),
 
-            WaitlistedPaid = Math.Max(waitlistedPaid, 180),
-            WaitlistedPending = Math.Max(waitlistedPending, 300),
-            WaitlistedUnpaid = Math.Max(waitlistedUnpaid, 660)
+            WaitlistedPaid = allEnrollments.Count(e => e.Status == EnrollmentStatus.Waitlisted && e.PaymentStatus == "Paid"),
+            WaitlistedPending = allEnrollments.Count(e => e.Status == EnrollmentStatus.Waitlisted && e.PaymentStatus == "Pending"),
+            WaitlistedUnpaid = allEnrollments.Count(e => e.Status == EnrollmentStatus.Waitlisted && e.PaymentStatus == "Unpaid"),
         };
     }
 
@@ -155,15 +156,17 @@ public class EnrollmentService : IEnrollmentService
     {
         var student = await _context.Students.FindAsync(new object[] { dto.StudentId }, cancellationToken);
         if (student == null)
-        {
             throw new InvalidOperationException($"Student with ID {dto.StudentId} not found.");
-        }
 
         var course = await _context.Courses.FindAsync(new object[] { dto.CourseId }, cancellationToken);
         if (course == null)
-        {
             throw new InvalidOperationException($"Course with ID {dto.CourseId} not found.");
-        }
+
+        // Check if already enrolled
+        var existing = await _context.Enrollments
+            .FirstOrDefaultAsync(e => e.StudentId == dto.StudentId && e.CourseId == dto.CourseId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected, cancellationToken);
+        if (existing != null)
+            throw new InvalidOperationException($"Student is already enrolled or has a pending enrollment in this course.");
 
         var enrollment = new Enrollment
         {
@@ -171,18 +174,18 @@ public class EnrollmentService : IEnrollmentService
             CourseId = dto.CourseId,
             Batch = string.IsNullOrWhiteSpace(dto.Batch) ? "Batch 1" : dto.Batch,
             Fee = dto.Fee > 0 ? dto.Fee : course.Price,
-            PaymentStatus = string.IsNullOrWhiteSpace(dto.PaymentStatus) ? "Paid" : dto.PaymentStatus,
+            PaymentStatus = string.IsNullOrWhiteSpace(dto.PaymentStatus) ? "Pending" : dto.PaymentStatus,
             PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? "+1 202-555-0142" : dto.PhoneNumber,
             Country = string.IsNullOrWhiteSpace(dto.Country) ? "USA" : dto.Country,
             EnrolledAt = DateTime.UtcNow,
-            Status = dto.Status
+            Status = dto.Status == EnrollmentStatus.Active ? EnrollmentStatus.Active : EnrollmentStatus.Pending
         };
 
         await _context.Enrollments.AddAsync(enrollment, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
         return await GetEnrollmentByIdAsync(enrollment.Id, cancellationToken)
-            ?? _mapper.Map<EnrollmentDto>(enrollment);
+               ?? _mapper.Map<EnrollmentDto>(enrollment);
     }
 
     public async Task<bool> UpdateEnrollmentStatusAsync(int id, EnrollmentStatus status, string? paymentStatus = null, CancellationToken cancellationToken = default)
@@ -192,9 +195,7 @@ public class EnrollmentService : IEnrollmentService
 
         enrollment.Status = status;
         if (!string.IsNullOrWhiteSpace(paymentStatus))
-        {
             enrollment.PaymentStatus = paymentStatus;
-        }
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;

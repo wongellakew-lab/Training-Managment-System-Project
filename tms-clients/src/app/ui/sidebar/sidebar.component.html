@@ -8,19 +8,29 @@
         <circle cx="16" cy="16" r="3" fill="#0284C7" />
       </svg>
     </div>
-    <span class="brand-title">eduva</span>
+    <span class="brand-title">TMS<span class="brand-accent">Pro</span></span>
+  </div>
+
+  <!-- User Mini Profile -->
+  <div class="sidebar-user-card">
+    <div class="user-avatar">{{ getUserInitials() }}</div>
+    <div class="user-info">
+      <span class="user-name">{{ getUserName() }}</span>
+      <span class="user-role-badge" [class]="'role-' + (userRole() | lowercase)">{{ userRole() }}</span>
+    </div>
   </div>
 
   <!-- Navigation Menu -->
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Main navigation">
     <ul class="nav-list">
-      @for (item of navItems; track item.path) {
+      @for (item of navItems(); track item.path) {
         <li class="nav-item">
           <a
             [routerLink]="item.path"
             routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: false }"
+            [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
             class="nav-link"
+            [attr.aria-label]="item.label"
           >
             <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
             <span class="nav-label">{{ item.label }}</span>
@@ -30,24 +40,22 @@
     </ul>
   </nav>
 
-  <!-- Bottom Promo & Signout -->
+  <!-- Bottom Actions -->
   <div class="sidebar-footer-section">
-    <!-- Upgrade to Eduva Pro Card -->
+    <!-- Upgrade Card -->
     <div class="upgrade-card">
       <div class="upgrade-illustration">
-        <div class="illustration-avatar">
-          <span class="avatar-emoji">🌍</span>
-          <span class="avatar-pencil">✏️</span>
-          <div class="avatar-book">📚</div>
-        </div>
+        <span class="avatar-emoji">🌍</span>
+        <span class="avatar-pencil">✏️</span>
+        <div class="avatar-book">📚</div>
       </div>
-      <h4 class="upgrade-title">Upgrade to Eduva Pro</h4>
+      <h4 class="upgrade-title">Upgrade to Pro</h4>
       <p class="upgrade-desc">Unlock analytics, premium courses, and collaboration tools.</p>
       <button class="upgrade-btn" type="button">Upgrade Now</button>
     </div>
 
     <!-- Sign Out Action -->
-    <button class="signout-btn" (click)="logout()" type="button">
+    <button class="signout-btn" (click)="logout()" type="button" id="sidebar-signout-btn">
       <mat-icon>logout</mat-icon>
       <span>Sign out</span>
     </button>

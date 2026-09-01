@@ -1,145 +1,215 @@
-<div class="login-container">
-  <div class="glow-bg top-glow"></div>
-  <div class="glow-bg bottom-glow"></div>
-
-  <mat-card class="login-card">
-    <mat-card-header class="login-header">
-      <div class="brand-badge">
-        <mat-icon>school</mat-icon>
+<div class="login-page">
+  <!-- Left Panel — Visual Identity -->
+  <div class="brand-panel" aria-hidden="true">
+    <div class="brand-overlay"></div>
+    <div class="brand-content">
+      <div class="brand-logo">
+        <div class="logo-icon">
+          <mat-icon>school</mat-icon>
+        </div>
+        <span class="logo-text">TMS<span class="logo-accent">Pro</span></span>
       </div>
-      <mat-card-title class="title">Training Management System</mat-card-title>
-      <mat-card-subtitle class="subtitle">Enterprise Course Administration & Live Sync</mat-card-subtitle>
-    </mat-card-header>
+      <h1 class="brand-headline">Elevate Your<br />Learning Experience</h1>
+      <p class="brand-sub">A professional training management platform designed for modern enterprises and educational institutions.</p>
+      <div class="brand-stats">
+        <div class="stat-item">
+          <span class="stat-num">18K+</span>
+          <span class="stat-label">Active Learners</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">320+</span>
+          <span class="stat-label">Courses</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">85+</span>
+          <span class="stat-label">Instructors</span>
+        </div>
+      </div>
+      <div class="feature-pills">
+        <span class="feature-pill"><mat-icon>bolt</mat-icon> Real-time updates</span>
+        <span class="feature-pill"><mat-icon>verified</mat-icon> Certified courses</span>
+        <span class="feature-pill"><mat-icon>trending_up</mat-icon> Progress tracking</span>
+      </div>
+    </div>
+    <div class="brand-decoration">
+      <div class="deco-ring ring-1"></div>
+      <div class="deco-ring ring-2"></div>
+      <div class="deco-ring ring-3"></div>
+    </div>
+  </div>
 
-    <mat-card-content>
-      <!-- Mode Tabs -->
-      <div class="mode-toggle">
+  <!-- Right Panel — Auth Form -->
+  <div class="auth-panel">
+    <div class="auth-container">
+      <!-- Mobile Logo -->
+      <div class="mobile-logo">
+        <div class="logo-icon-sm"><mat-icon>school</mat-icon></div>
+        <span class="logo-text-sm">TMS<span class="logo-accent">Pro</span></span>
+      </div>
+
+      <div class="auth-header">
+        <h2 class="auth-title">{{ isRegisterMode() ? 'Create Account' : 'Welcome back' }}</h2>
+        <p class="auth-subtitle">
+          {{ isRegisterMode() ? 'Join the TMS platform to start learning' : 'Sign in to your training portal' }}
+        </p>
+      </div>
+
+      <!-- Mode Toggle -->
+      <div class="mode-switcher" role="tablist">
         <button
           type="button"
-          mat-button
-          [class.active-mode]="!isRegisterMode()"
+          role="tab"
+          [class.active]="!isRegisterMode()"
+          [attr.aria-selected]="!isRegisterMode()"
           (click)="setMode(false)"
+          id="signin-tab"
         >
           Sign In
         </button>
         <button
           type="button"
-          mat-button
-          [class.active-mode]="isRegisterMode()"
+          role="tab"
+          [class.active]="isRegisterMode()"
+          [attr.aria-selected]="isRegisterMode()"
           (click)="setMode(true)"
+          id="register-tab"
         >
           Register
         </button>
+        <div class="mode-indicator" [class.right]="isRegisterMode()"></div>
       </div>
 
       <!-- Error Alert -->
       @if (errorMessage()) {
-        <div class="error-alert">
+        <div class="error-banner" role="alert">
           <mat-icon>error_outline</mat-icon>
           <span>{{ errorMessage() }}</span>
         </div>
       }
 
-      <!-- Quick Demo Credentials -->
-      @if (!isRegisterMode()) {
-        <div class="demo-section">
-          <div class="demo-title">Quick Demo Login:</div>
-          <div class="demo-buttons">
-            <button mat-stroked-button (click)="fillCredentials('student@tms.local', 'Student123!')">
-              Student
-            </button>
-            <button mat-stroked-button (click)="fillCredentials('instructor@tms.local', 'Instructor123!')">
-              Instructor
-            </button>
-            <button mat-stroked-button (click)="fillCredentials('admin@tms.local', 'Admin123!')">
-              Admin
-            </button>
-          </div>
-        </div>
-      }
+      <!-- Form -->
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form" novalidate>
 
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
         @if (isRegisterMode()) {
-          <div class="form-row">
-            <mat-form-field appearance="outline" class="half-width">
-              <mat-label>First Name</mat-label>
-              <input matInput formControlName="firstName" placeholder="Jane" />
-              @if (form.get('firstName')?.hasError('required') && form.get('firstName')?.touched) {
-                <mat-error>First name is required</mat-error>
-              }
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="half-width">
-              <mat-label>Last Name</mat-label>
-              <input matInput formControlName="lastName" placeholder="Doe" />
-              @if (form.get('lastName')?.hasError('required') && form.get('lastName')?.touched) {
-                <mat-error>Last name is required</mat-error>
-              }
-            </mat-form-field>
+          <div class="form-row-2">
+            <div class="field-group">
+              <label for="firstName" class="field-label">First Name</label>
+              <mat-form-field appearance="outline" class="tms-field">
+                <input matInput id="firstName" formControlName="firstName" placeholder="Jane" autocomplete="given-name" />
+                <mat-icon matPrefix>person_outline</mat-icon>
+                @if (form.get('firstName')?.hasError('required') && form.get('firstName')?.touched) {
+                  <mat-error>First name is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
+            <div class="field-group">
+              <label for="lastName" class="field-label">Last Name</label>
+              <mat-form-field appearance="outline" class="tms-field">
+                <input matInput id="lastName" formControlName="lastName" placeholder="Doe" autocomplete="family-name" />
+                @if (form.get('lastName')?.hasError('required') && form.get('lastName')?.touched) {
+                  <mat-error>Last name is required</mat-error>
+                }
+              </mat-form-field>
+            </div>
           </div>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Account Role</mat-label>
-            <mat-select formControlName="role">
-              <mat-option value="Student">Student</mat-option>
-              <mat-option value="Instructor">Instructor</mat-option>
-              <mat-option value="Admin">Administrator</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <div class="field-group">
+            <label for="role" class="field-label">Account Role</label>
+            <mat-form-field appearance="outline" class="tms-field full">
+              <mat-select id="role" formControlName="role">
+                <mat-option value="Student">
+                  <div class="role-option"><mat-icon>school</mat-icon> Student</div>
+                </mat-option>
+                <mat-option value="Instructor">
+                  <div class="role-option"><mat-icon>co_present</mat-icon> Instructor</div>
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>badge</mat-icon>
+            </mat-form-field>
+          </div>
         }
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Email Address</mat-label>
-          <input matInput formControlName="email" type="email" placeholder="user@tms.local" />
-          <mat-icon matPrefix>email</mat-icon>
-          @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
-            <mat-error>Email is required</mat-error>
-          } @else if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
-            <mat-error>Please enter a valid email address</mat-error>
-          }
-        </mat-form-field>
+        <div class="field-group">
+          <label for="email" class="field-label">Email Address</label>
+          <mat-form-field appearance="outline" class="tms-field full">
+            <input
+              matInput
+              id="email"
+              formControlName="email"
+              type="email"
+              placeholder="you@company.com"
+              autocomplete="email"
+            />
+            <mat-icon matPrefix>email</mat-icon>
+            @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
+              <mat-error>Email address is required</mat-error>
+            } @else if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
+              <mat-error>Please enter a valid email address</mat-error>
+            }
+          </mat-form-field>
+        </div>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Password</mat-label>
-          <input
-            matInput
-            [type]="hidePassword() ? 'password' : 'text'"
-            formControlName="password"
-            placeholder="••••••••"
-          />
-          <mat-icon matPrefix>lock</mat-icon>
-          <button
-            mat-icon-button
-            matSuffix
-            type="button"
-            (click)="hidePassword.set(!hidePassword())"
-            [attr.aria-label]="'Hide password'"
-            [attr.aria-pressed]="hidePassword()"
-          >
-            <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
-            <mat-error>Password is required</mat-error>
-          } @else if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
-            <mat-error>Password must be at least 6 characters</mat-error>
-          }
-        </mat-form-field>
+        <div class="field-group">
+          <div class="password-header">
+            <label for="password" class="field-label">Password</label>
+            @if (!isRegisterMode()) {
+              <a href="#" class="forgot-link" tabindex="-1" (click)="$event.preventDefault()">Forgot password?</a>
+            }
+          </div>
+          <mat-form-field appearance="outline" class="tms-field full">
+            <input
+              matInput
+              id="password"
+              [type]="hidePassword() ? 'password' : 'text'"
+              formControlName="password"
+              placeholder="••••••••"
+              [autocomplete]="isRegisterMode() ? 'new-password' : 'current-password'"
+            />
+            <mat-icon matPrefix>lock_outline</mat-icon>
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="hidePassword.set(!hidePassword())"
+              [attr.aria-label]="hidePassword() ? 'Show password' : 'Hide password'"
+              [attr.aria-pressed]="!hidePassword()"
+            >
+              <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+              <mat-error>Password is required</mat-error>
+            } @else if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
+              <mat-error>Password must be at least 6 characters</mat-error>
+            }
+          </mat-form-field>
+        </div>
 
         <button
           mat-flat-button
-          color="primary"
+          id="auth-submit-btn"
           type="submit"
           class="submit-btn"
-          [disabled]="isLoading() || form.invalid"
+          [disabled]="isLoading()"
+          aria-label="Submit authentication form"
         >
           @if (isLoading()) {
-            <mat-spinner diameter="20" class="btn-spinner"></mat-spinner>
-            <span>Authenticating...</span>
+            <mat-spinner diameter="18" class="btn-spinner"></mat-spinner>
+            <span>{{ isRegisterMode() ? 'Creating account...' : 'Signing in...' }}</span>
           } @else {
-            <span>{{ isRegisterMode() ? 'Create Account' : 'Sign In to Portal' }}</span>
+            <mat-icon>{{ isRegisterMode() ? 'person_add' : 'login' }}</mat-icon>
+            <span>{{ isRegisterMode() ? 'Create Account' : 'Sign In' }}</span>
           }
         </button>
       </form>
-    </mat-card-content>
-  </mat-card>
+
+      <p class="auth-footer">
+        {{ isRegisterMode() ? 'Already have an account?' : 'New to TMS Pro?' }}
+        <button type="button" class="switch-link" (click)="setMode(!isRegisterMode())">
+          {{ isRegisterMode() ? 'Sign in' : 'Create one' }}
+        </button>
+      </p>
+    </div>
+  </div>
 </div>

@@ -3,11 +3,15 @@ using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using TmsApi.Application.DTOs.EnrollmentDtos;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Enrollments.Queries;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
+using TmsApi.Infrastructure.Hubs;
+using TmsApi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using static TmsApi.Api.Diagnostics.Diagnostics;
 
 namespace TmsApi.Api.Controllers.V1;
@@ -19,11 +23,22 @@ public class EnrollmentsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IEnrollmentService _enrollmentService;
+    private readonly INotificationService _notificationService;
+    private readonly IHubContext<TmsHub, ITmsClient> _hubContext;
+    private readonly TmsDbContext _context;
 
-    public EnrollmentsController(IMediator mediator, IEnrollmentService enrollmentService)
+    public EnrollmentsController(
+        IMediator mediator,
+        IEnrollmentService enrollmentService,
+        INotificationService notificationService,
+        IHubContext<TmsHub, ITmsClient> hubContext,
+        TmsDbContext context)
     {
         _mediator = mediator;
         _enrollmentService = enrollmentService;
+        _notificationService = notificationService;
+        _hubContext = hubContext;
+        _context = context;
     }
 
     private int? GetCurrentStudentId()
@@ -49,9 +64,7 @@ public class EnrollmentsController : ControllerBase
         {
             var currentStudentId = GetCurrentStudentId();
             if (currentStudentId.HasValue)
-            {
                 studentId = currentStudentId.Value;
-            }
         }
 
         var response = await _enrollmentService.GetEnrollmentsAsync(page, pageSize, studentId, courseId, search, status, category, cancellationToken);
@@ -78,9 +91,7 @@ public class EnrollmentsController : ControllerBase
         {
             var currentStudentId = GetCurrentStudentId();
             if (currentStudentId.HasValue && enrollment.StudentId != currentStudentId.Value)
-            {
                 return Forbid();
-            }
         }
 
         return Ok(enrollment);
@@ -94,15 +105,19 @@ public class EnrollmentsController : ControllerBase
         {
             var currentStudentId = GetCurrentStudentId();
             if (currentStudentId.HasValue)
-            {
                 dto.StudentId = currentStudentId.Value;
-            }
         }
 
-        var created = await _enrollmentService.CreateEnrollmentAsync(dto, cancellationToken);
-        EnrollmentsCounter.Add(1);
-
-        return CreatedAtAction(nameof(GetEnrollmentById), new { version = "1.0", id = created.Id }, created);
+        try
+        {
+            var created = await _enrollmentService.CreateEnrollmentAsync(dto, cancellationToken);
+            EnrollmentsCounter.Add(1);
+            return CreatedAtAction(nameof(GetEnrollmentById), new { version = "1.0", id = created.Id }, created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [Authorize(Roles = "Admin,Instructor")]
@@ -111,7 +126,6 @@ public class EnrollmentsController : ControllerBase
     {
         var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, dto.Status, dto.PaymentStatus, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
-
         return NoContent();
     }
 
@@ -121,6 +135,9 @@ public class EnrollmentsController : ControllerBase
     {
         var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Active, "Paid", cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
+
+        await NotifyStudentOnStatusChange(id, "Enrollment Approved",
+            "Your course enrollment has been approved! You are now an active student.", "Enrollment", cancellationToken);
 
         return Ok(new { message = "Enrollment approved successfully." });
     }
@@ -132,6 +149,9 @@ public class EnrollmentsController : ControllerBase
         var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Rejected, null, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
+        await NotifyStudentOnStatusChange(id, "Enrollment Rejected",
+            "Your enrollment request was not approved. Please contact your instructor for details.", "Enrollment", cancellationToken);
+
         return Ok(new { message = "Enrollment rejected." });
     }
 
@@ -141,7 +161,38 @@ public class EnrollmentsController : ControllerBase
     {
         var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Dropped, null, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
-
         return Ok(new { message = "Course enrollment dropped." });
+    }
+
+    /// <summary>
+    /// Helper: find the student's TmsUser, create a DB notification, and push a SignalR event.
+    /// </summary>
+    private async Task NotifyStudentOnStatusChange(int enrollmentId, string title, string message, string type, CancellationToken cancellationToken)
+    {
+        var enrollment = await _context.Enrollments
+            .Include(e => e.Course)
+            .FirstOrDefaultAsync(e => e.Id == enrollmentId, cancellationToken);
+        if (enrollment == null) return;
+
+        var tmsUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.StudentId == enrollment.StudentId, cancellationToken);
+
+        if (tmsUser != null)
+        {
+            // Persist to DB
+            await _notificationService.CreateNotificationAsync(
+                tmsUser.Id,
+                title,
+                $"{message} Course: {enrollment.Course?.Title ?? ""}",
+                type,
+                enrollmentId,
+                "Enrollment",
+                cancellationToken);
+
+            // Push via SignalR to the student's user group
+            await _hubContext.Clients
+                .Group($"User_{tmsUser.Id}")
+                .ReceiveNotification(title, $"{message} Course: {enrollment.Course?.Title ?? ""}");
+        }
     }
 }

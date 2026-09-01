@@ -1,4 +1,4 @@
-export type EnrollmentStatus = 'Pending' | 'Active' | 'Approved' | 'Completed' | 'Dropped' | 'Waitlisted' | 'Applied' | 'Enrolled';
+export type EnrollmentStatus = 'Pending' | 'Active' | 'Approved' | 'Rejected' | 'Completed' | 'Dropped' | 'Waitlisted' | 'Applied' | 'Enrolled';
 
 export interface Enrollment {
   id: number;

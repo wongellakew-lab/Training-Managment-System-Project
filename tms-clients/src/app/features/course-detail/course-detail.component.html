@@ -1,58 +1,90 @@
-<div class="detail-page">
-  <app-navbar></app-navbar>
-
-  @if (isLoading()) {
-    <div class="loading-state">
-      <mat-spinner diameter="36"></mat-spinner>
-      <span>Loading course syllabus and specifications...</span>
-    </div>
-  } @else if (course()) {
-    <mat-card class="course-detail-card glass-panel">
-      <!-- Top badges -->
-      <div class="detail-top-row">
-        <mat-chip-set>
-          <mat-chip class="code-chip font-mono" highlighted>{{ course()?.code }}</mat-chip>
-          <mat-chip class="credits-chip">{{ course()?.credits }} Academic Credits</mat-chip>
-        </mat-chip-set>
+<app-layout pageTitle="Course Overview">
+  <div class="course-detail-page">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading course syllabus and specifications...</span>
       </div>
+    } @else if (course()) {
+      <mat-card class="course-detail-card eduva-card">
+        <!-- Top badges -->
+        <div class="detail-top-row">
+          <div class="chip-group">
+            <span class="code-badge font-mono">{{ course()?.code }}</span>
+            <span class="category-badge">{{ course()?.category || 'General' }}</span>
+            <span class="credits-badge">{{ course()?.credits }} Academic Credits</span>
+          </div>
+          @if (course()?.price) {
+            <div class="price-tag">${{ course()?.price }}</div>
+          }
+        </div>
 
-      <h1 class="course-title">{{ course()?.title }}</h1>
-      <div class="dept-row">
-        <mat-icon>domain</mat-icon>
-        <span>{{ course()?.department }}</span>
-      </div>
+        <h1 class="course-title">{{ course()?.title }}</h1>
+        <div class="dept-row">
+          <mat-icon>domain</mat-icon>
+          <span>{{ course()?.department }}</span>
+        </div>
 
-      <!-- Description box -->
-      <div class="desc-box">
-        <div class="desc-label">Description & Syllabus Overview</div>
-        <p class="desc-text">{{ course()?.description }}</p>
-      </div>
+        <!-- Description box -->
+        <div class="desc-box">
+          <div class="desc-label">Description & Syllabus Overview</div>
+          <p class="desc-text">{{ course()?.description }}</p>
+        </div>
 
-      <!-- Statistics grid -->
-      <div class="stats-grid">
-        <mat-card class="stat-card glass-card">
-          <div class="stat-label">Maximum Class Capacity</div>
-          <div class="stat-val">{{ course()?.maxCapacity }} Students</div>
-        </mat-card>
+        <!-- Statistics grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Maximum Class Capacity</div>
+            <div class="stat-val">{{ course()?.maxCapacity }} Students</div>
+          </div>
 
-        <mat-card class="stat-card glass-card">
-          <div class="stat-label">Currently Enrolled</div>
-          <div class="stat-val text-primary-val">{{ course()?.enrolledCount }} Students</div>
-        </mat-card>
+          <div class="stat-card">
+            <div class="stat-label">Currently Enrolled</div>
+            <div class="stat-val text-primary-val">{{ course()?.enrolledCount }} Students</div>
+          </div>
 
-        <mat-card class="stat-card glass-card">
-          <div class="stat-label">Lead Faculty Instructor</div>
-          <div class="stat-val text-accent-val">{{ course()?.instructorName || 'Department Faculty' }}</div>
-        </mat-card>
-      </div>
+          <div class="stat-card">
+            <div class="stat-label">Lead Faculty Instructor</div>
+            <div class="stat-val text-accent-val">{{ course()?.instructorName || 'Department Faculty' }}</div>
+          </div>
+        </div>
 
-      <!-- Bottom action bar -->
-      <div class="action-footer">
-        <a mat-stroked-button routerLink="/student/courses">
-          <mat-icon>arrow_back</mat-icon>
-          <span>Back to Catalog</span>
-        </a>
-      </div>
-    </mat-card>
-  }
-</div>
+        <!-- Feedback Alert Banner -->
+        @if (enrollmentMessage()) {
+          <div class="enrollment-banner" [class.success]="isEnrollSuccess()" [class.error]="!isEnrollSuccess()">
+            <mat-icon>{{ isEnrollSuccess() ? 'check_circle' : 'error' }}</mat-icon>
+            <span>{{ enrollmentMessage() }}</span>
+          </div>
+        }
+
+        <!-- Bottom action bar -->
+        <div class="action-footer">
+          <button mat-stroked-button (click)="goBack()" class="btn-back">
+            <mat-icon>arrow_back</mat-icon>
+            <span>Back</span>
+          </button>
+
+          @if (isStudent()) {
+            @if (userEnrollment()) {
+              <div class="enrolled-status-badge">
+                <mat-icon>{{ userEnrollment()?.status === 'Active' || userEnrollment()?.status === 'Approved' ? 'check_circle' : 'schedule' }}</mat-icon>
+                <span>Status: {{ userEnrollment()?.status }}</span>
+              </div>
+            } @else {
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="enroll()"
+                [disabled]="isEnrolling() || (course()?.enrolledCount ?? 0) >= (course()?.maxCapacity ?? 999)"
+                class="btn-enroll"
+              >
+                <mat-icon>school</mat-icon>
+                <span>{{ isEnrolling() ? 'Enrolling...' : 'Enroll in this Course' }}</span>
+              </button>
+            }
+          }
+        </div>
+      </mat-card>
+    }
+  </div>
+</app-layout>

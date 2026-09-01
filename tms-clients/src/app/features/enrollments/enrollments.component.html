@@ -13,7 +13,7 @@
         </div>
         <div class="kpi-body">
           <span class="kpi-label">Total Students</span>
-          <div class="kpi-value">18,540</div>
+          <div class="kpi-value">{{ totalCount | number }}</div>
         </div>
       </div>
 
@@ -27,7 +27,7 @@
         </div>
         <div class="kpi-body">
           <span class="kpi-label">Enrolled</span>
-          <div class="kpi-value">14,280</div>
+          <div class="kpi-value">{{ ((breakdown()?.enrolledPaid ?? 0) + (breakdown()?.enrolledPending ?? 0) + (breakdown()?.enrolledUnpaid ?? 0)) || totalCount | number }}</div>
         </div>
       </div>
 
@@ -41,7 +41,7 @@
         </div>
         <div class="kpi-body">
           <span class="kpi-label">Applied</span>
-          <div class="kpi-value">3,120</div>
+          <div class="kpi-value">{{ ((breakdown()?.appliedPaid ?? 0) + (breakdown()?.appliedPending ?? 0) + (breakdown()?.appliedUnpaid ?? 0)) | number }}</div>
         </div>
       </div>
 
@@ -55,7 +55,7 @@
         </div>
         <div class="kpi-body">
           <span class="kpi-label">Waitlisted</span>
-          <div class="kpi-value">1,140</div>
+          <div class="kpi-value">{{ ((breakdown()?.waitlistedPaid ?? 0) + (breakdown()?.waitlistedPending ?? 0) + (breakdown()?.waitlistedUnpaid ?? 0)) | number }}</div>
         </div>
       </div>
     </div>
