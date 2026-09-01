@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs.StudentDtos;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
@@ -12,6 +13,7 @@ namespace TmsApi.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly UserManager<TmsUser> _userManager;
@@ -52,7 +54,9 @@ public class AuthController : ControllerBase
             LastName = request.LastName
         };
 
-        if (string.Equals(request.Role, "Student", StringComparison.OrdinalIgnoreCase))
+        var roleToAssign = request.Role is "Admin" or "Instructor" or "Student" ? request.Role : "Student";
+
+        if (string.Equals(roleToAssign, "Student", StringComparison.OrdinalIgnoreCase))
         {
             var studentDto = await _studentService.CreateStudentAsync(new CreateStudentDto
             {
@@ -63,6 +67,21 @@ public class AuthController : ControllerBase
             });
             user.StudentId = studentDto.Id;
         }
+        else if (string.Equals(roleToAssign, "Instructor", StringComparison.OrdinalIgnoreCase))
+        {
+            var instructor = new Instructor
+            {
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                Email = request.Email,
+                EmployeeNumber = $"EMP-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                Department = "Computer Science",
+                HireDate = DateTime.UtcNow
+            };
+            await _context.Instructors.AddAsync(instructor);
+            await _context.SaveChangesAsync();
+            user.InstructorId = instructor.Id;
+        }
 
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
@@ -70,7 +89,6 @@ public class AuthController : ControllerBase
             return BadRequest(result.Errors);
         }
 
-        var roleToAssign = request.Role is "Admin" or "Instructor" or "Student" ? request.Role : "Student";
         await _userManager.AddToRoleAsync(user, roleToAssign);
 
         var roles = await _userManager.GetRolesAsync(user);
@@ -86,8 +104,10 @@ public class AuthController : ControllerBase
                 user.LastName,
                 user.StudentId,
                 user.InstructorId,
+                role = roles.FirstOrDefault() ?? roleToAssign,
                 roles
             },
+            token = accessToken,
             accessToken,
             refreshToken
         });
@@ -115,8 +135,10 @@ public class AuthController : ControllerBase
                 user.LastName,
                 user.StudentId,
                 user.InstructorId,
+                role = roles.FirstOrDefault() ?? "Student",
                 roles
             },
+            token = accessToken,
             accessToken,
             refreshToken
         });
@@ -133,6 +155,7 @@ public class AuthController : ControllerBase
 
         return Ok(new
         {
+            token = tokens.Value.AccessToken,
             accessToken = tokens.Value.AccessToken,
             refreshToken = tokens.Value.RefreshToken
         });
@@ -155,6 +178,7 @@ public class AuthController : ControllerBase
             user.LastName,
             user.StudentId,
             user.InstructorId,
+            role = roles.FirstOrDefault() ?? "Student",
             roles
         });
     }
