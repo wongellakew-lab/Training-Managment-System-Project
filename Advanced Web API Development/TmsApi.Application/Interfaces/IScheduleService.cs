@@ -1,0 +1,12 @@
+using TmsApi.Application.DTOs.ScheduleDtos;
+
+namespace TmsApi.Application.Interfaces;
+
+public interface IScheduleService
+{
+    Task<IEnumerable<ScheduleDto>> GetSchedulesAsync(string? category = null, int? month = null, int? year = null, CancellationToken cancellationToken = default);
+    Task<ScheduleDto?> GetScheduleByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<ScheduleDto> CreateScheduleAsync(CreateScheduleDto dto, CancellationToken cancellationToken = default);
+    Task<bool> UpdateScheduleAsync(int id, UpdateScheduleDto dto, CancellationToken cancellationToken = default);
+    Task<bool> DeleteScheduleAsync(int id, CancellationToken cancellationToken = default);
+}

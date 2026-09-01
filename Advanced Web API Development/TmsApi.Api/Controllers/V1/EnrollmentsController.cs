@@ -39,6 +39,9 @@ public class EnrollmentsController : ControllerBase
         [FromQuery] int pageSize = 50,
         [FromQuery] int? studentId = null,
         [FromQuery] int? courseId = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? category = null,
         CancellationToken cancellationToken = default)
     {
         // If caller is student, constrain to their own studentId
@@ -51,8 +54,16 @@ public class EnrollmentsController : ControllerBase
             }
         }
 
-        var response = await _enrollmentService.GetEnrollmentsAsync(page, pageSize, studentId, courseId, cancellationToken);
+        var response = await _enrollmentService.GetEnrollmentsAsync(page, pageSize, studentId, courseId, search, status, category, cancellationToken);
         return Ok(response);
+    }
+
+    [Authorize]
+    [HttpGet("breakdown")]
+    public async Task<IActionResult> GetPaymentBreakdown(CancellationToken cancellationToken)
+    {
+        var result = await _enrollmentService.GetPaymentBreakdownAsync(cancellationToken);
+        return Ok(result);
     }
 
     [Authorize]
@@ -88,19 +99,17 @@ public class EnrollmentsController : ControllerBase
             }
         }
 
-        var command = new EnrollStudentCommand(dto.StudentId, dto.CourseId);
-        var result = await _mediator.Send(command, cancellationToken);
-
+        var created = await _enrollmentService.CreateEnrollmentAsync(dto, cancellationToken);
         EnrollmentsCounter.Add(1);
 
-        return CreatedAtAction(nameof(GetEnrollmentById), new { version = "1.0", id = result.Id }, result);
+        return CreatedAtAction(nameof(GetEnrollmentById), new { version = "1.0", id = created.Id }, created);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateEnrollmentStatus(int id, [FromBody] UpdateEnrollmentStatusDto dto, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, dto.Status, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, dto.Status, dto.PaymentStatus, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         return NoContent();
@@ -110,7 +119,7 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/approve")]
     public async Task<IActionResult> ApproveEnrollment(int id, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Active, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Active, "Paid", cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         return Ok(new { message = "Enrollment approved successfully." });
@@ -120,7 +129,7 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/reject")]
     public async Task<IActionResult> RejectEnrollment(int id, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Rejected, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Rejected, null, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         return Ok(new { message = "Enrollment rejected." });
@@ -130,7 +139,7 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/drop")]
     public async Task<IActionResult> DropEnrollment(int id, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Dropped, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Dropped, null, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         return Ok(new { message = "Course enrollment dropped." });

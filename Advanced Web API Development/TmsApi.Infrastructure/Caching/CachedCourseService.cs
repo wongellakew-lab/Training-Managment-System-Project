@@ -20,7 +20,7 @@ public class CachedCourseService : ICachedCourseService
 
     public async Task<PagedResponse<CourseDto>> GetCoursesAsync(PagedRequest request, CancellationToken cancellationToken = default)
     {
-        var cacheKey = $"courses_{request.Page}_{request.PageSize}_{request.SearchTerm}_{request.Department}_{request.SortBy}_{request.SortDescending}";
+        var cacheKey = $"courses_{request.Page}_{request.PageSize}_{request.SearchTerm}_{request.Department}_{request.Category}_{request.Status}_{request.SortBy}_{request.SortDescending}";
         return await _hybridCache.GetOrCreateAsync(
             cacheKey,
             async cancel => await _innerService.GetCoursesAsync(request, cancel),

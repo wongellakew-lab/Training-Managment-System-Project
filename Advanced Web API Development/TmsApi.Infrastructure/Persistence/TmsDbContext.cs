@@ -19,6 +19,7 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
     public DbSet<Certificate> Certificates => Set<Certificate>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Schedule> Schedules => Set<Schedule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
