@@ -32,7 +32,14 @@ public class CourseService : ICourseService
             var search = request.SearchTerm.ToLower();
             query = query.Where(c =>
                 c.Title.ToLower().Contains(search) ||
-                c.Code.ToLower().Contains(search));
+                c.Code.ToLower().Contains(search) ||
+                c.Department.ToLower().Contains(search));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Department))
+        {
+            var dept = request.Department.ToLower();
+            query = query.Where(c => c.Department.ToLower() == dept);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

@@ -19,7 +19,8 @@ public class MappingProfile : Profile
         CreateMap<CreateInstructorDto, Instructor>();
 
         CreateMap<Course, CourseDto>()
-            .ForMember(dest => dest.EnrolledCount, opt => opt.MapFrom(src => src.Enrollments.Count));
+            .ForMember(dest => dest.EnrolledCount, opt => opt.MapFrom(src => src.Enrollments.Count))
+            .ForMember(dest => dest.InstructorName, opt => opt.MapFrom(src => src.Instructor != null ? $"{src.Instructor.FirstName} {src.Instructor.LastName}" : string.Empty));
         CreateMap<CreateCourseDto, Course>();
         CreateMap<UpdateCourseDto, Course>();
 

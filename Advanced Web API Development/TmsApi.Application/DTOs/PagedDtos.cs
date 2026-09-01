@@ -2,10 +2,21 @@ namespace TmsApi.Application.DTOs;
 
 public class PagedRequest
 {
-    private const int MaxPageSize = 50;
+    private const int MaxPageSize = 100;
     private int _pageSize = 10;
+    private int _page = 1;
 
-    public int Page { get; set; } = 1;
+    public int Page
+    {
+        get => _page;
+        set => _page = value < 1 ? 1 : value;
+    }
+
+    public int PageNumber
+    {
+        get => _page;
+        set => _page = value < 1 ? 1 : value;
+    }
 
     public int PageSize
     {
@@ -14,6 +25,13 @@ public class PagedRequest
     }
 
     public string? SearchTerm { get; set; }
+    public string? Search
+    {
+        get => SearchTerm;
+        set => SearchTerm = value;
+    }
+
+    public string? Department { get; set; }
     public string? SortBy { get; set; }
     public bool SortDescending { get; set; } = false;
     public string? Fields { get; set; }
@@ -23,9 +41,10 @@ public class PagedResponse<T>
 {
     public IEnumerable<T> Items { get; set; } = new List<T>();
     public int Page { get; set; }
+    public int PageNumber => Page;
     public int PageSize { get; set; }
     public int TotalCount { get; set; }
-    public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+    public int TotalPages => (int)Math.Ceiling((double)TotalCount / (PageSize > 0 ? PageSize : 1));
     public bool HasPreviousPage => Page > 1;
     public bool HasNextPage => Page < TotalPages;
 

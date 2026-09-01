@@ -5,7 +5,14 @@ using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Application.Courses.Commands;
 
-public record CreateCourseCommand(string Code, string Title, int MaxCapacity, string? InstructorId) : IRequest<CourseDto>;
+public record CreateCourseCommand(
+    string Code,
+    string Title,
+    int MaxCapacity,
+    int? InstructorId = null,
+    string Description = "",
+    string Department = "Computer Science",
+    int Credits = 3) : IRequest<CourseDto>;
 
 public class CreateCourseValidator : AbstractValidator<CreateCourseCommand>
 {
@@ -32,9 +39,13 @@ public class CreateCourseHandler : IRequestHandler<CreateCourseCommand, CourseDt
         {
             Code = request.Code,
             Title = request.Title,
+            Description = request.Description,
+            Department = request.Department,
+            Credits = request.Credits,
             MaxCapacity = request.MaxCapacity,
             InstructorId = request.InstructorId
         };
         return await _courseService.CreateCourseAsync(dto, cancellationToken);
     }
 }
+
