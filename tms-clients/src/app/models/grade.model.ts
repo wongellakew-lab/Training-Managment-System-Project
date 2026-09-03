@@ -14,14 +14,29 @@ export interface BulkAssignGradesRequest {
   grades: BulkGradeItem[];
 }
 
+export interface AssessmentGradeItem {
+  id: number;
+  title: string;
+  maxScore: number;
+  scoredPoints?: number;
+  dueDate: string;
+  status: string;
+  feedback?: string;
+  gradedAt?: string;
+  rubricScoresJson?: string;
+}
+
 export interface StudentGradeRecord {
   enrollmentId: number;
+  courseId?: number;
   courseTitle: string;
   courseCode: string;
-  letterGrade: string;
-  numericScore: number;
-  gradePoints: number;
+  letterGrade?: string;
+  numericScore?: number;
+  gradePoints?: number;
   credits: number;
+  status?: string;
+  assessments?: AssessmentGradeItem[];
 }
 
 export interface StudentAcademicRecord {
@@ -29,5 +44,6 @@ export interface StudentAcademicRecord {
   studentName: string;
   gpa: number;
   totalCredits: number;
-  records: StudentGradeRecord[];
+  completedCoursesCount?: number;
+  grades: StudentGradeRecord[];
 }

@@ -151,6 +151,13 @@ export const routes: Routes = [
           import('./features/student-dashboard/student-dashboard.component').then((m) => m.StudentDashboardComponent)
       },
       {
+        path: 'catalog',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/courses/courses.component').then((m) => m.CoursesComponent)
+      },
+      {
         path: 'courses',
         canActivate: [authGuard, roleGuard],
         data: { roles: ['Student', 'Admin'] },
@@ -164,6 +171,34 @@ export const routes: Routes = [
           import('./features/course-detail/course-detail.component').then((m) => m.CourseDetailComponent)
       },
       {
+        path: 'schedule',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/student-schedule/student-schedule.component').then((m) => m.StudentScheduleComponent)
+      },
+      {
+        path: 'gradebook',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/student-gradebook/student-gradebook.component').then((m) => m.StudentGradebookComponent)
+      },
+      {
+        path: 'progress',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/student-progress/student-progress.component').then((m) => m.StudentProgressComponent)
+      },
+      {
+        path: 'profile',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/student-profile/student-profile.component').then((m) => m.StudentProfileComponent)
+      },
+      {
         path: 'enrollments',
         canActivate: [authGuard, roleGuard],
         data: { roles: ['Student', 'Admin'] },
@@ -175,7 +210,7 @@ export const routes: Routes = [
         canActivate: [authGuard, roleGuard],
         data: { roles: ['Student', 'Admin'] },
         loadComponent: () =>
-          import('./features/student-dashboard/student-dashboard.component').then((m) => m.StudentDashboardComponent)
+          import('./features/student-gradebook/student-gradebook.component').then((m) => m.StudentGradebookComponent)
       },
       {
         path: 'certificates',

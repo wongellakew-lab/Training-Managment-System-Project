@@ -25,8 +25,14 @@ export interface Course {
   resourcesJson: string;
   enrolledStudentsCount: number;
   credits: number;
-  maxCapacity: number;
   enrolledCount: number;
+  availableSeats?: number;
+  maxCapacity: number;
+  prerequisites?: string;
+  enrollmentDeadline?: string;
+  isStudentEnrolled?: boolean;
+  studentEnrollmentStatus?: string;
+  studentProgress?: number;
   instructorId?: number;
   instructorName?: string;
   instructorAvatar?: string;

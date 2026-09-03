@@ -10,6 +10,10 @@ export interface Schedule {
   location: string;
   notes: string;
   attendeesCount: number;
+  courseId?: number;
+  courseTitle?: string;
+  courseCode?: string;
+  scheduleType?: string;
   createdAt?: string;
 }
 

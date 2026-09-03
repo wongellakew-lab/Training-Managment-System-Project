@@ -32,6 +32,26 @@ export class CourseService {
     return this.http.get<PagedResult<Course>>(this.baseUrlV1, { params });
   }
 
+  getCatalog(filter: CourseFilterParams = {}): Observable<PagedResult<Course>> {
+    let params = new HttpParams();
+    const page = filter.pageNumber || filter.page || 1;
+    params = params.set('pageNumber', page.toString());
+    if (filter.pageSize) params = params.set('pageSize', filter.pageSize.toString());
+    if (filter.search) params = params.set('search', filter.search);
+    if (filter.searchTerm) params = params.set('searchTerm', filter.searchTerm);
+    if (filter.department) params = params.set('department', filter.department);
+    if (filter.category && filter.category !== 'All' && filter.category !== 'All Category') {
+      params = params.set('category', filter.category);
+    }
+    if (filter.status && filter.status !== 'All') {
+      params = params.set('status', filter.status);
+    }
+    if (filter.sortBy) params = params.set('sortBy', filter.sortBy);
+    if (filter.sortDescending !== undefined) params = params.set('sortDescending', filter.sortDescending.toString());
+
+    return this.http.get<PagedResult<Course>>(`${this.baseUrlV1}/catalog`, { params });
+  }
+
   getCachedCourses(filter: CourseFilterParams = {}): Observable<PagedResult<Course>> {
     return this.getCourses(filter);
   }

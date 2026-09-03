@@ -426,6 +426,50 @@
             <span class="drawer-course-price">${{ selectedCourse()!.price }}</span>
           </div>
 
+          <!-- Capacity & Enrollment CTA -->
+          @if (isStudent()) {
+            <div class="drawer-enrollment-action-bar">
+              <div class="seat-info">
+                <span class="seats-val font-mono">
+                  {{ selectedCourse()!.availableSeats !== undefined ? selectedCourse()!.availableSeats : (selectedCourse()!.maxCapacity - selectedCourse()!.enrolledCount) }}
+                </span>
+                <span class="seats-lbl">Seats Available (of {{ selectedCourse()!.maxCapacity }})</span>
+              </div>
+
+              @if (selectedCourse()!.isStudentEnrolled) {
+                <div class="enrolled-indicator">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>Enrolled ({{ selectedCourse()!.studentEnrollmentStatus || 'Active' }})</span>
+                </div>
+              } @else if ((selectedCourse()!.availableSeats !== undefined && selectedCourse()!.availableSeats! <= 0) || (selectedCourse()!.maxCapacity - selectedCourse()!.enrolledCount <= 0)) {
+                <button mat-flat-button disabled class="enroll-btn full">
+                  Course Full
+                </button>
+              } @else {
+                <button
+                  mat-flat-button
+                  color="primary"
+                  class="enroll-btn"
+                  [disabled]="isEnrolling()"
+                  (click)="enrollInCourse(selectedCourse()!)"
+                >
+                  @if (isEnrolling()) {
+                    <span>Enrolling...</span>
+                  } @else {
+                    <span>Self Enroll Now</span>
+                  }
+                </button>
+              }
+            </div>
+
+            @if (selectedCourse()!.prerequisites && selectedCourse()!.prerequisites !== 'None') {
+              <div class="prereq-alert">
+                <mat-icon>info</mat-icon>
+                <span><strong>Prerequisites:</strong> {{ selectedCourse()!.prerequisites }}</span>
+              </div>
+            }
+          }
+
           <!-- Instructor Info -->
           <div class="drawer-instructor-row">
             <img

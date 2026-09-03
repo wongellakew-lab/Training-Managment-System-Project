@@ -1,0 +1,85 @@
+<app-layout pageTitle="Course Progress & Milestones" [showGreeting]="false">
+  <div class="progress-page-container">
+    <!-- Top Progress Summary Banner -->
+    <mat-card class="summary-banner eduva-card">
+      <div class="banner-left">
+        <span class="badge-pill">Academic Analytics</span>
+        <h2 class="banner-title">Program Milestone Completion</h2>
+        <p class="banner-desc">
+          Live progress tracking calculated from all submitted and graded course assignments stored in PostgreSQL.
+        </p>
+      </div>
+
+      <div class="banner-right">
+        <div class="overall-circle-box">
+          <span class="circle-val font-mono">{{ getOverallProgress() }}%</span>
+          <span class="circle-label">Avg. Progress</span>
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- Course Milestone Breakdown Cards -->
+    <div class="courses-progress-section">
+      <div class="section-title-wrap">
+        <h3 class="section-title">Course Modules & Milestones</h3>
+        <span class="section-sub">Detailed breakdown per enrolled course</span>
+      </div>
+
+      @if (isLoading()) {
+        <div class="loading-state eduva-card">
+          <mat-spinner diameter="36"></mat-spinner>
+          <span>Calculating course completion percentages...</span>
+        </div>
+      } @else if (!dashboardData()?.courseProgress || dashboardData()!.courseProgress.length === 0) {
+        <div class="empty-state eduva-card">
+          <mat-icon>trending_up</mat-icon>
+          <h3>No Course Progress Yet</h3>
+          <p>Enroll in courses and submit assessments to see your milestone progression.</p>
+          <a mat-flat-button color="primary" routerLink="/student/catalog">Explore Courses</a>
+        </div>
+      } @else {
+        <div class="progress-cards-grid">
+          @for (course of dashboardData()!.courseProgress; track course.courseId) {
+            <mat-card class="course-prog-card eduva-card">
+              <div class="card-head">
+                <div>
+                  <span class="code-pill font-mono">{{ course.courseCode }}</span>
+                  <h4 class="card-title">{{ course.courseTitle }}</h4>
+                </div>
+                <span class="percent-badge font-mono">{{ course.completionPercentage }}%</span>
+              </div>
+
+              <div class="progress-bar-wrap">
+                <mat-progress-bar mode="determinate" [value]="course.completionPercentage" color="primary"></mat-progress-bar>
+              </div>
+
+              <div class="card-stats-row">
+                <div class="stat-col">
+                  <span class="stat-val font-mono">{{ course.completedAssignments }} / {{ course.totalAssignments }}</span>
+                  <span class="stat-label">Milestones Met</span>
+                </div>
+                <div class="stat-col">
+                  <span class="stat-val">{{ course.status }}</span>
+                  <span class="stat-label">Enrollment Status</span>
+                </div>
+                @if (course.currentGrade !== null && course.currentGrade !== undefined) {
+                  <div class="stat-col">
+                    <span class="stat-val font-mono">{{ (course.currentGrade * 25) | number:'1.0-1' }}%</span>
+                    <span class="stat-label">Current Average</span>
+                  </div>
+                }
+              </div>
+
+              <div class="card-footer">
+                <a mat-stroked-button color="primary" routerLink="/student/gradebook" class="view-btn">
+                  <mat-icon>task_alt</mat-icon>
+                  <span>View Assignments</span>
+                </a>
+              </div>
+            </mat-card>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</app-layout>

@@ -1,0 +1,218 @@
+.progress-page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.summary-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .banner-left {
+    .badge-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff;
+      background: var(--eduva-blue);
+      padding: 0.25rem 0.625rem;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: inline-block;
+      margin-bottom: 0.5rem;
+    }
+
+    .banner-title {
+      font-size: 1.625rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .banner-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin: 0.35rem 0 0;
+      max-width: 600px;
+      line-height: 1.5;
+    }
+  }
+
+  .banner-right {
+    .overall-circle-box {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: var(--bg-subtle);
+      border: 3px solid var(--eduva-blue);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+      .circle-val {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--eduva-blue);
+        line-height: 1;
+      }
+
+      .circle-label {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-top: 0.25rem;
+      }
+    }
+  }
+}
+
+.courses-progress-section {
+  .section-title-wrap {
+    margin-bottom: 1.25rem;
+
+    .section-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .section-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+  }
+
+  .progress-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+
+    .course-prog-card {
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+
+      .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+
+        .code-pill {
+          font-size: 0.75rem;
+          color: var(--eduva-blue);
+          font-weight: 700;
+        }
+
+        .card-title {
+          font-size: 1.125rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0.25rem 0 0;
+        }
+
+        .percent-badge {
+          font-size: 1.25rem;
+          font-weight: 800;
+          color: var(--eduva-blue);
+          background: rgba(2, 132, 199, 0.1);
+          padding: 0.25rem 0.625rem;
+          border-radius: var(--radius-sm);
+        }
+      }
+
+      .progress-bar-wrap {
+        margin: 0.5rem 0 1.25rem;
+      }
+
+      .card-stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        gap: 0.75rem;
+        padding: 0.875rem;
+        background: var(--bg-subtle);
+        border-radius: var(--radius-md);
+        margin-bottom: 1.25rem;
+
+        .stat-col {
+          display: flex;
+          flex-direction: column;
+
+          .stat-val {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--text-primary);
+          }
+
+          .stat-label {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+          }
+        }
+      }
+
+      .card-footer {
+        margin-top: auto;
+        display: flex;
+        justify-content: flex-end;
+
+        .view-btn {
+          font-size: 0.8125rem;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+        }
+      }
+    }
+  }
+}
+
+.empty-state, .loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: var(--eduva-blue);
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  p {
+    font-size: 0.8125rem;
+    margin: 0 0 0.5rem;
+  }
+}

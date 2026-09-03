@@ -65,10 +65,13 @@ export class SidebarComponent {
     // Student
     return [
       { label: 'Dashboard', path: '/student/dashboard', icon: 'grid_view', exact: true },
-      { label: 'My Courses', path: '/student/courses', icon: 'menu_book' },
+      { label: 'Course Catalog', path: '/student/catalog', icon: 'menu_book' },
+      { label: 'Class Schedule', path: '/student/schedule', icon: 'calendar_today' },
+      { label: 'Gradebook', path: '/student/gradebook', icon: 'school' },
+      { label: 'Progress Tracking', path: '/student/progress', icon: 'trending_up' },
       { label: 'My Enrollments', path: '/student/enrollments', icon: 'people' },
-      { label: 'Grades', path: '/student/grades', icon: 'grade' },
-      { label: 'Certificates', path: '/student/certificates', icon: 'verified' }
+      { label: 'Certificates', path: '/student/certificates', icon: 'verified' },
+      { label: 'My Profile', path: '/student/profile', icon: 'person' }
     ];
   });
 

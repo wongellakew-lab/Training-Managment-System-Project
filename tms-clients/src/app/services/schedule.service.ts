@@ -25,6 +25,14 @@ export class ScheduleService {
     return this.http.get<Schedule[]>(this.baseUrl, { params });
   }
 
+  getMySchedule(view?: string, date?: string): Observable<Schedule[]> {
+    let params = new HttpParams();
+    if (view) params = params.set('view', view);
+    if (date) params = params.set('date', date);
+
+    return this.http.get<Schedule[]>(`${this.baseUrl}/my-schedule`, { params });
+  }
+
   getScheduleById(id: number): Observable<Schedule> {
     return this.http.get<Schedule>(`${this.baseUrl}/${id}`);
   }

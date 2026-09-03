@@ -25,7 +25,9 @@ export class LiveSyncService {
   readonly isConnected = signal<boolean>(false);
 
   // Event streams
-  readonly enrollmentUpdated$ = new Subject<{ studentId: number; courseId: number; status: string }>();
+  readonly enrollmentUpdated$ = new Subject<{ studentId: number; courseId: number; status?: string; grade?: number; letterGrade?: string }>();
+  readonly gradePublished$ = new Subject<{ studentId: number; courseId: number; grade: number; letterGrade: string }>();
+  readonly scheduleUpdated$ = new Subject<void>();
   readonly courseCapacityChanged$ = new Subject<{ courseId: number; enrolledCount: number; maxCapacity: number }>();
   readonly transcriptCompleted$ = new Subject<{ jobId: string; studentId: number; downloadUrl: string }>();
 

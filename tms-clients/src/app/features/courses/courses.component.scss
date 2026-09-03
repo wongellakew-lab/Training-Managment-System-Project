@@ -1037,3 +1037,81 @@
     }
   }
 }
+
+.drawer-enrollment-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 1.25rem;
+
+  .seat-info {
+    display: flex;
+    flex-direction: column;
+
+    .seats-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--eduva-blue);
+      line-height: 1;
+    }
+
+    .seats-lbl {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+  }
+
+  .enrolled-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--eduva-green);
+    background: rgba(16, 185, 129, 0.15);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .enroll-btn {
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+
+    &.full {
+      opacity: 0.6;
+    }
+  }
+}
+
+.prereq-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--eduva-orange);
+  margin-bottom: 1.25rem;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--eduva-orange);
+  }
+}
+

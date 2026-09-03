@@ -1,36 +1,41 @@
 <app-layout pageTitle="Student Workspace" [showGreeting]="true">
   <div class="student-dashboard-content">
-    <!-- Welcome Banner -->
+    <!-- Welcome Banner with Academic Overview -->
     <mat-card class="welcome-card eduva-card">
       <div class="welcome-content">
         <div class="welcome-left">
           <div class="role-chip-container">
-            <span class="role-badge">Student Workspace</span>
-            <span class="welcome-prefix">Academic Portal</span>
+            <span class="role-badge">Student Portal</span>
+            <span class="welcome-prefix">{{ dashboardData()?.currentSemester || 'Academic Session' }}</span>
           </div>
           <h1 class="student-name">
             {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}
           </h1>
           <p class="student-desc">
-            Track your enrolled courses, monitor cumulative GPA, and manage degree credits in real-time.
+            Access your personalized learning timeline, track cumulative GPA and earned credits, and review published assignments in real-time.
           </p>
         </div>
 
         <div class="welcome-actions">
-          <a mat-flat-button color="primary" routerLink="/student/courses" class="action-btn">
-            <mat-icon>search</mat-icon>
+          <a mat-flat-button color="primary" routerLink="/student/catalog" class="action-btn">
+            <mat-icon>menu_book</mat-icon>
             <span>Course Catalog</span>
           </a>
-          <a mat-stroked-button routerLink="/student/certificates" class="action-btn">
-            <mat-icon>workspace_premium</mat-icon>
-            <span>Certificates</span>
+          <a mat-stroked-button routerLink="/student/schedule" class="action-btn">
+            <mat-icon>calendar_today</mat-icon>
+            <span>Class Timetable</span>
+          </a>
+          <a mat-stroked-button routerLink="/student/gradebook" class="action-btn">
+            <mat-icon>school</mat-icon>
+            <span>Gradebook</span>
           </a>
         </div>
       </div>
     </mat-card>
 
-    <!-- KPI Analytics Cards -->
+    <!-- KPI Analytics Cards (GPA, Credits, Active Courses, Unread Notifications) -->
     <div class="metrics-grid">
+      <!-- Cumulative GPA -->
       <mat-card class="metric-card eduva-card">
         <div class="metric-header">
           <div class="metric-icon-box gpa-icon">
@@ -43,62 +48,252 @@
         </div>
         <div class="metric-body">
           <mat-progress-bar mode="determinate" [value]="gpaPercent()" color="primary"></mat-progress-bar>
-          <div class="metric-footer">Scale: 4.0 Max GPA</div>
+          <div class="metric-footer">Based on 4.0 weighted scale</div>
         </div>
       </mat-card>
 
-      <mat-card class="metric-card eduva-card">
-        <div class="metric-header">
-          <div class="metric-icon-box courses-icon">
-            <mat-icon>school</mat-icon>
-          </div>
-          <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.activeEnrollmentsCount ?? enrollmentStore.activeEnrollmentsCount() }}</div>
-            <div class="metric-label">Active Courses</div>
-          </div>
-        </div>
-        <div class="metric-body">
-          <div class="metric-footer">Current semester enrolled</div>
-        </div>
-      </mat-card>
-
+      <!-- Earned Credits -->
       <mat-card class="metric-card eduva-card">
         <div class="metric-header">
           <div class="metric-icon-box credits-icon">
             <mat-icon>military_tech</mat-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.earnedCredits ?? (academicRecord()?.totalCredits || 0) }}</div>
+            <div class="metric-value">{{ dashboardData()?.earnedCredits ?? 0 }}</div>
             <div class="metric-label">Earned Credits</div>
           </div>
         </div>
         <div class="metric-body">
-          <div class="metric-footer">Towards degree completion</div>
+          <div class="metric-footer">Completed course units</div>
         </div>
       </mat-card>
 
+      <!-- Active Courses -->
       <mat-card class="metric-card eduva-card">
         <div class="metric-header">
-          <div class="metric-icon-box cert-icon">
-            <mat-icon>verified</mat-icon>
+          <div class="metric-icon-box courses-icon">
+            <mat-icon>school</mat-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.certificatesCount ?? (academicRecord()?.records?.length || 0) }}</div>
-            <div class="metric-label">Certificates</div>
+            <div class="metric-value">{{ dashboardData()?.activeEnrollmentsCount ?? 0 }}</div>
+            <div class="metric-label">Active Courses</div>
           </div>
         </div>
         <div class="metric-body">
-          <div class="metric-footer">Verified credentials</div>
+          <div class="metric-footer">{{ dashboardData()?.currentSemester || 'Current semester' }}</div>
+        </div>
+      </mat-card>
+
+      <!-- Unread Alerts & Notifications -->
+      <mat-card class="metric-card eduva-card">
+        <div class="metric-header">
+          <div class="metric-icon-box notif-icon">
+            <mat-icon>notifications_active</mat-icon>
+          </div>
+          <div class="metric-info">
+            <div class="metric-value">{{ dashboardData()?.unreadNotificationCount ?? 0 }}</div>
+            <div class="metric-label">Unread Alerts</div>
+          </div>
+        </div>
+        <div class="metric-body">
+          <div class="metric-footer">Real-time system events</div>
         </div>
       </mat-card>
     </div>
 
-    <!-- Course Registrations Table Section -->
+    <!-- Middle Grid: Upcoming Classes Timeline & Pending Assignments -->
+    <div class="dashboard-two-col">
+      <!-- Upcoming Classes Timeline -->
+      <mat-card class="schedule-card eduva-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="section-title">Upcoming Classes</h2>
+            <p class="section-subtitle">Real-time timetable from enrolled courses</p>
+          </div>
+          <a mat-button color="primary" routerLink="/student/schedule" class="view-all-link">
+            <span>View Full Timetable</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading schedule...</span>
+          </div>
+        } @else if (!dashboardData()?.upcomingClasses || dashboardData()!.upcomingClasses.length === 0) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">event_available</mat-icon>
+            <h4 class="empty-title">No upcoming classes scheduled</h4>
+            <p class="empty-desc">Check back soon or browse the catalog to enroll in upcoming sessions.</p>
+          </div>
+        } @else {
+          <div class="class-timeline">
+            @for (cls of dashboardData()!.upcomingClasses; track cls.scheduleId) {
+              <div class="timeline-item">
+                <div class="timeline-time-badge">
+                  <span class="time-main">{{ cls.startTime }}</span>
+                  <span class="time-date">{{ cls.date | date:'EEE, MMM d' }}</span>
+                </div>
+                <div class="timeline-content">
+                  <div class="timeline-top">
+                    <span class="class-type-badge" [class]="'type-' + (cls.scheduleType | lowercase)">{{ cls.scheduleType }}</span>
+                    <span class="course-code-pill font-mono">{{ cls.courseCode }}</span>
+                  </div>
+                  <h4 class="class-title">{{ cls.title }}</h4>
+                  <div class="class-meta">
+                    <span class="meta-item"><mat-icon>location_on</mat-icon> {{ cls.location }}</span>
+                    <span class="meta-item"><mat-icon>person</mat-icon> {{ cls.instructorName }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </mat-card>
+
+      <!-- Pending Assignments & Action Items -->
+      <mat-card class="assignments-card eduva-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="section-title">Pending Assignments</h2>
+            <p class="section-subtitle">Upcoming deliverables requiring your attention</p>
+          </div>
+          <a mat-button color="primary" routerLink="/student/gradebook" class="view-all-link">
+            <span>Gradebook</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading assignments...</span>
+          </div>
+        } @else if (!dashboardData()?.pendingAssignments || dashboardData()!.pendingAssignments.length === 0) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">task_alt</mat-icon>
+            <h4 class="empty-title">All caught up!</h4>
+            <p class="empty-desc">No outstanding assignments or unsubmitted assessments at this time.</p>
+          </div>
+        } @else {
+          <div class="assignment-list">
+            @for (asg of dashboardData()!.pendingAssignments; track asg.id) {
+              <div class="assignment-item">
+                <div class="asg-info">
+                  <span class="asg-course-tag font-mono">{{ asg.courseCode }}</span>
+                  <h4 class="asg-title">{{ asg.title }}</h4>
+                  <span class="asg-due"><mat-icon>schedule</mat-icon> Due: {{ asg.dueDate | date:'mediumDate' }}</span>
+                </div>
+                <div class="asg-meta">
+                  <span class="asg-points">{{ asg.maxScore }} pts</span>
+                  <span class="status-chip pending">{{ asg.status }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </mat-card>
+    </div>
+
+    <!-- Course Progress & Recent Grades Cards -->
+    <div class="dashboard-two-col">
+      <!-- Course Progress Visualization -->
+      <mat-card class="progress-card eduva-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="section-title">Course Progress</h2>
+            <p class="section-subtitle">Real-time module and assignment milestone completion</p>
+          </div>
+          <a mat-button color="primary" routerLink="/student/progress" class="view-all-link">
+            <span>Detailed Progress</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading progress metrics...</span>
+          </div>
+        } @else if (!dashboardData()?.courseProgress || dashboardData()!.courseProgress.length === 0) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">trending_up</mat-icon>
+            <h4 class="empty-title">No course progress data yet</h4>
+            <p class="empty-desc">Enroll in courses to start tracking milestones and assessments.</p>
+          </div>
+        } @else {
+          <div class="course-progress-list">
+            @for (prog of dashboardData()!.courseProgress; track prog.courseId) {
+              <div class="progress-item">
+                <div class="prog-header">
+                  <div>
+                    <h4 class="prog-title">{{ prog.courseTitle }}</h4>
+                    <span class="prog-sub">{{ prog.completedAssignments }} of {{ prog.totalAssignments }} assessments completed</span>
+                  </div>
+                  <span class="prog-percentage">{{ prog.completionPercentage }}%</span>
+                </div>
+                <mat-progress-bar mode="determinate" [value]="prog.completionPercentage" color="primary"></mat-progress-bar>
+              </div>
+            }
+          </div>
+        }
+      </mat-card>
+
+      <!-- Recently Published Grades & Instructor Feedback -->
+      <mat-card class="grades-card eduva-card">
+        <div class="card-header-row">
+          <div>
+            <h2 class="section-title">Recent Grades & Feedback</h2>
+            <p class="section-subtitle">Instructor evaluations from PostgreSQL</p>
+          </div>
+          <a mat-button color="primary" routerLink="/student/gradebook" class="view-all-link">
+            <span>Full Gradebook</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading grades...</span>
+          </div>
+        } @else if (!dashboardData()?.recentGrades || dashboardData()!.recentGrades.length === 0) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">verified_user</mat-icon>
+            <h4 class="empty-title">No published grades yet</h4>
+            <p class="empty-desc">Your grades will appear here as soon as instructors publish evaluation results.</p>
+          </div>
+        } @else {
+          <div class="recent-grades-list">
+            @for (rg of dashboardData()!.recentGrades; track rg.assessmentId) {
+              <div class="grade-item">
+                <div class="grade-left">
+                  <div class="grade-letter-badge">{{ rg.letterGrade }}</div>
+                  <div class="grade-details">
+                    <h4 class="grade-title">{{ rg.assessmentTitle }}</h4>
+                    <span class="grade-course font-mono">{{ rg.courseCode }} · {{ rg.courseTitle }}</span>
+                    @if (rg.feedback) {
+                      <blockquote class="grade-feedback-quote">"{{ rg.feedback }}"</blockquote>
+                    }
+                  </div>
+                </div>
+                <div class="grade-score-pill font-mono">
+                  {{ rg.scoredPoints }} / {{ rg.maxScore }} pts
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </mat-card>
+    </div>
+
+    <!-- Active Course Registrations Table -->
     <mat-card class="enrollments-card eduva-card">
       <div class="card-header-bar">
         <div>
           <h2 class="section-title">My Course Registrations</h2>
-          <p class="section-subtitle">Real-time schedule and published academic scores</p>
+          <p class="section-subtitle">Real-time schedule and enrollment statuses</p>
         </div>
 
         <div class="filter-chips">
@@ -136,7 +331,7 @@
           <mat-icon class="empty-icon">menu_book</mat-icon>
           <h3 class="empty-title">No course enrollments found</h3>
           <p class="empty-desc">You are not currently registered in any courses matching this filter.</p>
-          <a mat-flat-button color="primary" routerLink="/student/courses">Browse Available Courses</a>
+          <a mat-flat-button color="primary" routerLink="/student/catalog">Browse Course Catalog</a>
         </div>
       } @else {
         <div class="table-container">

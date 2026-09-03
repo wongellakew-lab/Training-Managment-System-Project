@@ -21,4 +21,8 @@ export class GradeService {
   getStudentAcademicRecord(studentId: number): Observable<StudentAcademicRecord> {
     return this.http.get<StudentAcademicRecord>(`${this.baseUrl}/student/${studentId}`);
   }
+
+  getMyAcademicRecord(): Observable<StudentAcademicRecord> {
+    return this.http.get<StudentAcademicRecord>(`${this.baseUrl}/my-grades`);
+  }
 }

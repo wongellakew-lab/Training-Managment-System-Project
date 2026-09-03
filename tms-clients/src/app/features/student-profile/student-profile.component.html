@@ -1,0 +1,142 @@
+<app-layout pageTitle="My Student Profile" [showGreeting]="false">
+  <div class="profile-page-container">
+    @if (isLoading()) {
+      <div class="loading-state eduva-card">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Retrieving your profile data...</span>
+      </div>
+    } @else {
+      <!-- Top Profile Overview Card -->
+      <mat-card class="profile-header-card eduva-card">
+        <div class="avatar-section">
+          <div class="avatar-wrapper">
+            <img
+              [src]="profile()?.profilePictureUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'"
+              alt="Avatar"
+              class="avatar-img"
+            />
+            <label class="avatar-upload-btn" title="Change profile photo">
+              <mat-icon>camera_alt</mat-icon>
+              <input type="file" (change)="onFileSelected($event)" accept="image/*" class="file-input" />
+            </label>
+          </div>
+          @if (isUploadingAvatar()) {
+            <span class="uploading-pill">Uploading...</span>
+          }
+        </div>
+
+        <div class="header-details">
+          <div class="header-tags">
+            <span class="role-badge">Student</span>
+            <span class="reg-number font-mono">{{ profile()?.registrationNumber }}</span>
+          </div>
+          <h2 class="user-fullname">{{ profile()?.firstName }} {{ profile()?.lastName }}</h2>
+          <p class="user-email font-mono">{{ profile()?.email }}</p>
+          <p class="user-bio">{{ profile()?.bio }}</p>
+
+          <div class="quick-stats">
+            <div class="stat-pill">
+              <span class="label">Cumulative GPA</span>
+              <span class="val font-mono">{{ profile()?.gpa?.toFixed(2) }}</span>
+            </div>
+            <div class="stat-pill">
+              <span class="label">Department</span>
+              <span class="val">{{ profile()?.department }}</span>
+            </div>
+            <div class="stat-pill">
+              <span class="label">Enrolled Since</span>
+              <span class="val font-mono">{{ profile()?.enrollmentDate | date:'mediumDate' }}</span>
+            </div>
+          </div>
+        </div>
+      </mat-card>
+
+      <!-- Profile Edit & Password Change Layout -->
+      <div class="forms-grid">
+        <!-- Edit Personal Information -->
+        <mat-card class="form-card eduva-card">
+          <div class="card-header">
+            <h3 class="card-title">Personal Information</h3>
+            <span class="card-sub">Update your contact information and student bio</span>
+          </div>
+
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="form-body">
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-label>First Name</mat-label>
+                <input matInput formControlName="firstName" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-label>Last Name</mat-label>
+                <input matInput formControlName="lastName" />
+              </mat-form-field>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-label>Phone Number</mat-label>
+                <input matInput formControlName="phoneNumber" placeholder="+1 (555) 000-0000" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-label>Department</mat-label>
+                <input matInput formControlName="department" placeholder="e.g. Design & Technology" />
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="form-field full-width">
+              <mat-label>Student Bio</mat-label>
+              <textarea matInput formControlName="bio" rows="3" placeholder="Tell instructors about your learning goals..."></textarea>
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-flat-button color="primary" type="submit" [disabled]="isSavingProfile() || profileForm.invalid">
+                @if (isSavingProfile()) {
+                  <span>Saving...</span>
+                } @else {
+                  <span>Save Profile</span>
+                }
+              </button>
+            </div>
+          </form>
+        </mat-card>
+
+        <!-- Change Password -->
+        <mat-card class="form-card eduva-card">
+          <div class="card-header">
+            <h3 class="card-title">Security & Password</h3>
+            <span class="card-sub">Update your authentication credentials securely</span>
+          </div>
+
+          <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="form-body">
+            <mat-form-field appearance="outline" class="form-field full-width">
+              <mat-label>Current Password</mat-label>
+              <input matInput type="password" formControlName="currentPassword" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field full-width">
+              <mat-label>New Password</mat-label>
+              <input matInput type="password" formControlName="newPassword" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field full-width">
+              <mat-label>Confirm New Password</mat-label>
+              <input matInput type="password" formControlName="confirmNewPassword" />
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-flat-button color="primary" type="submit" [disabled]="isChangingPassword() || passwordForm.invalid">
+                @if (isChangingPassword()) {
+                  <span>Updating Password...</span>
+                } @else {
+                  <span>Change Password</span>
+                }
+              </button>
+            </div>
+          </form>
+        </mat-card>
+      </div>
+    }
+  </div>
+</app-layout>

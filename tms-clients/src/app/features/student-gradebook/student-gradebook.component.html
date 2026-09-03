@@ -1,0 +1,162 @@
+<app-layout pageTitle="Academic Gradebook" [showGreeting]="false">
+  <div class="gradebook-container">
+    <!-- Academic Overview Cards -->
+    <div class="gradebook-kpi-row">
+      <mat-card class="kpi-card eduva-card">
+        <div class="kpi-icon-wrap gpa-icon">
+          <mat-icon>auto_awesome</mat-icon>
+        </div>
+        <div class="kpi-text">
+          <span class="kpi-value font-mono">{{ academicRecord()?.gpa?.toFixed(2) || '0.00' }}</span>
+          <span class="kpi-label">Cumulative GPA</span>
+        </div>
+      </mat-card>
+
+      <mat-card class="kpi-card eduva-card">
+        <div class="kpi-icon-wrap credits-icon">
+          <mat-icon>military_tech</mat-icon>
+        </div>
+        <div class="kpi-text">
+          <span class="kpi-value font-mono">{{ academicRecord()?.totalCredits || 0 }}</span>
+          <span class="kpi-label">Earned Credits</span>
+        </div>
+      </mat-card>
+
+      <mat-card class="kpi-card eduva-card">
+        <div class="kpi-icon-wrap courses-icon">
+          <mat-icon>school</mat-icon>
+        </div>
+        <div class="kpi-text">
+          <span class="kpi-value font-mono">{{ academicRecord()?.completedCoursesCount || 0 }}</span>
+          <span class="kpi-label">Completed Courses</span>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- Main Two-Column Layout -->
+    <div class="gradebook-main-layout">
+      <!-- Course List Column -->
+      <div class="courses-grade-list">
+        <div class="section-header">
+          <h3 class="section-title">Enrolled Courses</h3>
+          <span class="sub-label">Select course to view assessments & rubric feedback</span>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state eduva-card">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading grade record...</span>
+          </div>
+        } @else if (!academicRecord()?.grades || academicRecord()!.grades.length === 0) {
+          <div class="empty-state eduva-card">
+            <mat-icon>menu_book</mat-icon>
+            <h4>No Course Grades Found</h4>
+            <p>Enroll in courses to begin recording academic evaluations.</p>
+          </div>
+        } @else {
+          <div class="course-cards-stack">
+            @for (rec of academicRecord()!.grades; track rec.enrollmentId) {
+              <div
+                class="course-grade-card eduva-card"
+                [class.selected]="selectedCourseGrade()?.enrollmentId === rec.enrollmentId"
+                (click)="selectCourse(rec)"
+              >
+                <div class="course-grade-left">
+                  <span class="course-code font-mono">{{ rec.courseCode }}</span>
+                  <h4 class="course-title">{{ rec.courseTitle }}</h4>
+                  <div class="course-meta">
+                    <span>{{ rec.credits }} Credits</span>
+                    <span class="status-pill">{{ rec.status }}</span>
+                  </div>
+                </div>
+
+                <div class="course-grade-right">
+                  <div class="grade-letter font-mono" [class.no-grade]="!rec.letterGrade">
+                    {{ rec.letterGrade || '—' }}
+                  </div>
+                  @if (rec.numericScore !== null && rec.numericScore !== undefined) {
+                    <span class="score-percent font-mono">{{ rec.numericScore | number:'1.0-1' }}%</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Detailed Assessments & Instructor Feedback Column -->
+      <div class="assessments-detail-view">
+        <mat-card class="detail-card eduva-card">
+          @if (selectedCourseGrade()) {
+            <div class="detail-header">
+              <div>
+                <span class="code-pill font-mono">{{ selectedCourseGrade()!.courseCode }}</span>
+                <h2 class="course-title-lg">{{ selectedCourseGrade()!.courseTitle }}</h2>
+              </div>
+              <div class="course-overall-badge">
+                <span class="grade-pill-lg font-mono">{{ selectedCourseGrade()!.letterGrade || 'Pending' }}</span>
+              </div>
+            </div>
+
+            <h4 class="sub-heading">Assessment Breakdown & Instructor Feedback</h4>
+
+            @if (!selectedCourseGrade()!.assessments || selectedCourseGrade()!.assessments!.length === 0) {
+              <div class="no-assessments-box">
+                <mat-icon>assignment</mat-icon>
+                <p>No published assessments or evaluations for this course yet.</p>
+              </div>
+            } @else {
+              <div class="assessments-list">
+                @for (asg of selectedCourseGrade()!.assessments; track asg.id) {
+                  <div class="assessment-item eduva-card">
+                    <div class="asg-header">
+                      <div class="asg-title-block">
+                        <h4 class="asg-title">{{ asg.title }}</h4>
+                        <span class="asg-date font-mono">Due: {{ asg.dueDate | date:'mediumDate' }}</span>
+                      </div>
+                      <div class="asg-score-box font-mono">
+                        {{ asg.scoredPoints ?? '—' }} / {{ asg.maxScore }} pts
+                      </div>
+                    </div>
+
+                    @if (asg.feedback) {
+                      <div class="asg-feedback-box">
+                        <div class="feedback-header">
+                          <mat-icon>rate_review</mat-icon>
+                          <span>Instructor Written Feedback</span>
+                          @if (asg.gradedAt) {
+                            <span class="graded-date font-mono">Graded {{ asg.gradedAt | date:'mediumDate' }}</span>
+                          }
+                        </div>
+                        <p class="feedback-text">"{{ asg.feedback }}"</p>
+                      </div>
+                    }
+
+                    @if (getRubricItems(asg.rubricScoresJson).length > 0) {
+                      <div class="rubric-breakdown">
+                        <span class="rubric-label">Rubric Criteria Breakdown:</span>
+                        <div class="rubric-items-grid">
+                          @for (rub of getRubricItems(asg.rubricScoresJson); track rub.criterion) {
+                            <div class="rubric-pill">
+                              <span class="criterion">{{ rub.criterion }}</span>
+                              <span class="points font-mono">{{ rub.score }} / {{ rub.maxScore }}</span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <div class="empty-selection">
+              <mat-icon>school</mat-icon>
+              <span>Select a course from the list on the left to view assessments and instructor feedback.</span>
+            </div>
+          }
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</app-layout>
