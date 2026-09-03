@@ -100,8 +100,9 @@ public class StudentCoursesController : ControllerBase
         course.EnrolledStudentsCount = enrolledCount;
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Emit real-time updates for schedule and capacity
+        // Emit real-time updates for schedule, enrollments, and capacity
         await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "withdrawn", studentId = studentId.Value, courseId });
+        await _hubContext.Clients.All.ReceiveEnrollmentNotification(new { action = "withdrawn", studentId = studentId.Value, courseId });
         await _hubContext.Clients.All.ReceiveCapacityAlert(new
         {
             courseId = course.Id,

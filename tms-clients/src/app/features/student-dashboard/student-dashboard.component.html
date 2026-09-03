@@ -171,10 +171,9 @@
             <span>Loading assignments...</span>
           </div>
         } @else if (!dashboardData()?.pendingAssignments || dashboardData()!.pendingAssignments.length === 0) {
-          <div class="empty-state">
-            <mat-icon class="empty-icon">task_alt</mat-icon>
-            <h4 class="empty-title">All caught up!</h4>
-            <p class="empty-desc">No outstanding assignments or unsubmitted assessments at this time.</p>
+          <div class="empty-state compact-empty">
+            <mat-icon class="compact-icon">task_alt</mat-icon>
+            <span class="compact-text">No pending assignments</span>
           </div>
         } @else {
           <div class="assignment-list">
@@ -287,128 +286,5 @@
         }
       </mat-card>
     </div>
-
-    <!-- Active Course Registrations Table -->
-    <mat-card class="enrollments-card eduva-card">
-      <div class="card-header-bar">
-        <div>
-          <h2 class="section-title">My Course Registrations</h2>
-          <p class="section-subtitle">Real-time schedule and enrollment statuses</p>
-        </div>
-
-        <div class="filter-chips">
-          <button
-            mat-stroked-button
-            [class.active-filter]="enrollmentStore.statusFilter() === 'All'"
-            (click)="enrollmentStore.setStatusFilter('All')"
-          >
-            All
-          </button>
-          <button
-            mat-stroked-button
-            [class.active-filter]="enrollmentStore.statusFilter() === 'Active'"
-            (click)="enrollmentStore.setStatusFilter('Active')"
-          >
-            Active
-          </button>
-          <button
-            mat-stroked-button
-            [class.active-filter]="enrollmentStore.statusFilter() === 'Completed'"
-            (click)="enrollmentStore.setStatusFilter('Completed')"
-          >
-            Completed
-          </button>
-        </div>
-      </div>
-
-      @if (enrollmentStore.isLoading() || isLoading()) {
-        <div class="loading-state">
-          <mat-spinner diameter="36"></mat-spinner>
-          <span>Loading academic enrollments...</span>
-        </div>
-      } @else if (enrollmentStore.filteredEnrollments().length === 0) {
-        <div class="empty-state">
-          <mat-icon class="empty-icon">menu_book</mat-icon>
-          <h3 class="empty-title">No course enrollments found</h3>
-          <p class="empty-desc">You are not currently registered in any courses matching this filter.</p>
-          <a mat-flat-button color="primary" routerLink="/student/catalog">Browse Course Catalog</a>
-        </div>
-      } @else {
-        <div class="table-container">
-          <table mat-table [dataSource]="enrollmentStore.filteredEnrollments()" class="tms-table">
-            <!-- Course Column -->
-            <ng-container matColumnDef="course">
-              <th mat-header-cell *matHeaderCellDef>Course</th>
-              <td mat-cell *matCellDef="let item" class="course-cell">
-                <span class="course-title">{{ item.courseTitle || 'Course #' + item.courseId }}</span>
-                <span class="course-code font-mono">{{ item.courseCode }}</span>
-              </td>
-            </ng-container>
-
-            <!-- Status Column -->
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Status</th>
-              <td mat-cell *matCellDef="let item">
-                <span
-                  class="badge"
-                  [ngClass]="{
-                    'badge-success': item.status === 'Completed',
-                    'badge-primary': item.status === 'Active' || item.status === 'Approved',
-                    'badge-warning': item.status === 'Pending',
-                    'badge-danger': item.status === 'Dropped' || item.status === 'Rejected'
-                  }"
-                >
-                  {{ item.status }}
-                </span>
-              </td>
-            </ng-container>
-
-            <!-- Date Column -->
-            <ng-container matColumnDef="date">
-              <th mat-header-cell *matHeaderCellDef>Date</th>
-              <td mat-cell *matCellDef="let item" class="date-cell">
-                {{ item.enrolledAt || item.enrollmentDate | date:'mediumDate' }}
-              </td>
-            </ng-container>
-
-            <!-- Grade Column -->
-            <ng-container matColumnDef="grade">
-              <th mat-header-cell *matHeaderCellDef class="text-center">Letter Grade</th>
-              <td mat-cell *matCellDef="let item" class="text-center font-bold" [class.graded]="item.grade">
-                {{ item.grade || '—' }}
-              </td>
-            </ng-container>
-
-            <!-- Score Column -->
-            <ng-container matColumnDef="score">
-              <th mat-header-cell *matHeaderCellDef class="text-center">Numeric Score</th>
-              <td mat-cell *matCellDef="let item" class="text-center font-mono">
-                {{ item.numericScore !== undefined ? item.numericScore + '%' : '—' }}
-              </td>
-            </ng-container>
-
-            <!-- Actions Column -->
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
-              <td mat-cell *matCellDef="let item" class="text-right">
-                @if (item.status === 'Active' || item.status === 'Pending') {
-                  <button
-                    mat-button
-                    color="warn"
-                    (click)="dropCourse(item.id)"
-                    class="drop-btn"
-                  >
-                    Drop
-                  </button>
-                }
-              </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
-          </table>
-        </div>
-      }
-    </mat-card>
   </div>
 </app-layout>

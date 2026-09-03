@@ -38,7 +38,7 @@ export class StudentMyCoursesComponent implements OnInit, OnDestroy {
   readonly statistics = signal<StudentCoursesStatistics | null>(null);
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
-  readonly activeFilter = signal<'All' | 'Active' | 'Upcoming' | 'Completed' | 'Withdrawn'>('All');
+  readonly activeFilter = signal<'All' | 'Active' | 'Upcoming' | 'Completed'>('All');
 
   // Withdrawal modal state
   readonly confirmWithdrawCourse = signal<StudentEnrolledCourse | null>(null);
@@ -100,7 +100,7 @@ export class StudentMyCoursesComponent implements OnInit, OnDestroy {
     });
   }
 
-  setFilter(filter: 'All' | 'Active' | 'Upcoming' | 'Completed' | 'Withdrawn'): void {
+  setFilter(filter: 'All' | 'Active' | 'Upcoming' | 'Completed'): void {
     this.activeFilter.set(filter);
   }
 
@@ -144,6 +144,15 @@ export class StudentMyCoursesComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.isSubmittingWithdrawal.set(false);
         this.confirmWithdrawCourse.set(null);
+
+        // Immediately remove course from local reactive signals without waiting or reloading
+        this.courses.update(list => list.filter(c => c.courseId !== course.courseId));
+        this.statistics.update(s => s ? {
+          ...s,
+          totalEnrolledCourses: Math.max(0, s.totalEnrolledCourses - 1),
+          upcomingCourses: Math.max(0, s.upcomingCourses - 1)
+        } : null);
+
         this.snackBar.open(res.message || `Successfully withdrawn from ${course.title}.`, 'Close', {
           duration: 5000,
           horizontalPosition: 'end',

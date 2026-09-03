@@ -7,10 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { LayoutComponent } from '../../ui/layout/layout.component';
-import { EnrollmentStore } from '../../store/enrollment.store';
 import { AuthService } from '../../services/auth.service';
 import { DashboardService, StudentDashboard } from '../../services/dashboard.service';
 import { GradeService } from '../../services/grade.service';
@@ -31,7 +29,6 @@ import { StudentAcademicRecord } from '../../models/grade.model';
     MatChipsModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
-    MatTableModule,
     MatTooltipModule
   ],
   templateUrl: './student-dashboard.component.html',
@@ -39,7 +36,6 @@ import { StudentAcademicRecord } from '../../models/grade.model';
 })
 export class StudentDashboardComponent implements OnInit {
   authService = inject(AuthService);
-  enrollmentStore = inject(EnrollmentStore);
   dashboardService = inject(DashboardService);
   gradeService = inject(GradeService);
   liveSync = inject(LiveSyncService);
@@ -48,8 +44,6 @@ export class StudentDashboardComponent implements OnInit {
   dashboardData = signal<StudentDashboard | null>(null);
   academicRecord = signal<StudentAcademicRecord | null>(null);
   isLoading = signal(true);
-
-  displayedColumns = ['course', 'status', 'date', 'grade', 'score', 'actions'];
 
   readonly gpaDisplay = computed(() => {
     const dash = this.dashboardData();
@@ -102,16 +96,6 @@ export class StudentDashboardComponent implements OnInit {
         next: (rec) => this.academicRecord.set(rec),
         error: () => {}
       });
-
-      // Load enrollment store for table display
-      this.enrollmentStore.loadStudentEnrollments(studentId);
-    }
-  }
-
-  dropCourse(enrollmentId: number): void {
-    if (confirm('Are you sure you want to drop this course enrollment?')) {
-      this.enrollmentStore.drop(enrollmentId);
-      setTimeout(() => this.loadDashboardData(), 500);
     }
   }
 }

@@ -168,7 +168,7 @@ public class CourseService : ICourseService
             .Include(e => e.Course)
                 .ThenInclude(c => c.Modules)
                     .ThenInclude(m => m.Lessons)
-            .Where(e => e.StudentId == studentId && !e.IsDeleted && !e.IsArchived && e.Course != null && !e.Course.IsDeleted)
+            .Where(e => e.StudentId == studentId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected && !e.IsDeleted && !e.IsArchived && e.Course != null && !e.Course.IsDeleted)
             .OrderByDescending(e => e.EnrolledAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -187,10 +187,10 @@ public class CourseService : ICourseService
             var courseAssessments = studentAssessments.Where(a => a.CourseId == en.CourseId).ToList();
 
             int totalLessons = course.Modules.SelectMany(m => m.Lessons).Count();
-            if (totalLessons == 0) totalLessons = course.LessonsCount > 0 ? course.LessonsCount : 12;
+            if (totalLessons == 0) totalLessons = course.LessonsCount;
 
-            int totalModules = course.Modules.Count > 0 ? course.Modules.Count : Math.Max(1, (int)Math.Ceiling(totalLessons / 4.0));
-            int totalAssessments = courseAssessments.Count > 0 ? courseAssessments.Count : 4;
+            int totalModules = course.Modules.Count;
+            int totalAssessments = courseAssessments.Count;
             int completedAssessments = courseAssessments.Count(a => a.Status == "Graded" || a.Status == "Submitted");
 
             decimal progressPct = en.Status == EnrollmentStatus.Completed
@@ -201,18 +201,14 @@ public class CourseService : ICourseService
 
             int completedLessons = en.Status == EnrollmentStatus.Completed
                 ? totalLessons
-                : Math.Min(totalLessons, (int)Math.Round((progressPct / 100m) * totalLessons));
+                : totalLessons > 0 ? Math.Min(totalLessons, (int)Math.Round((progressPct / 100m) * totalLessons)) : 0;
 
             int completedModules = en.Status == EnrollmentStatus.Completed
                 ? totalModules
-                : Math.Min(totalModules, (int)Math.Round((progressPct / 100m) * totalModules));
+                : totalModules > 0 ? Math.Min(totalModules, (int)Math.Round((progressPct / 100m) * totalModules)) : 0;
 
             string academicStatus;
-            if (en.Status == EnrollmentStatus.Dropped || en.Status == EnrollmentStatus.Rejected)
-            {
-                academicStatus = "Withdrawn";
-            }
-            else if (en.Status == EnrollmentStatus.Completed || (course.EndDate.Date < now.Date && en.Grade.HasValue))
+            if (en.Status == EnrollmentStatus.Completed || (course.EndDate.Date < now.Date && en.Grade.HasValue))
             {
                 academicStatus = "Completed";
             }

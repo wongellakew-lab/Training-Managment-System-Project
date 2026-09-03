@@ -76,7 +76,7 @@ export class SidebarComponent {
       { label: 'Course Catalog', path: '/student/catalog', icon: 'menu_book' },
       { label: 'Gradebook', path: '/student/gradebook', icon: 'auto_stories' },
       { label: 'Progress Tracking', path: '/student/progress', icon: 'trending_up' },
-      { label: 'Certificates', path: '/student/certificates', icon: 'verified' },
+      { label: 'Certificates & Transcript', path: '/student/certificates', icon: 'verified' },
       { label: 'My Profile', path: '/student/profile', icon: 'person' }
     ];
   });

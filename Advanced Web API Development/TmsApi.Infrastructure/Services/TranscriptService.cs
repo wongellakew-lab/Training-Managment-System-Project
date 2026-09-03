@@ -61,8 +61,8 @@ public class TranscriptService : ITranscriptService
 
         foreach (var e in enrollments)
         {
-            // Omit rejected enrollments
-            if (e.Status == EnrollmentStatus.Rejected)
+            // Omit rejected and dropped (withdrawn) enrollments
+            if (e.Status == EnrollmentStatus.Rejected || e.Status == EnrollmentStatus.Dropped)
                 continue;
 
             attemptedCount++;
@@ -86,15 +86,7 @@ public class TranscriptService : ITranscriptService
                 CompletionDate = course?.EndDate ?? e.EnrolledAt.AddDays(42)
             };
 
-            if (e.Status == EnrollmentStatus.Dropped)
-            {
-                record.Status = "Withdrawn";
-                record.GradeLetter = "W";
-                record.GradePoint = 0.0m;
-                record.FinalScore = null;
-                record.Credits = 0; // No credits for withdrawn
-            }
-            else if (e.Grade.HasValue)
+            if (e.Grade.HasValue)
             {
                 record.Status = "Completed";
                 completedCount++;

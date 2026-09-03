@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace TmsApi.Domain.Entities;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EnrollmentStatus
 {
     Pending = 0,

@@ -109,7 +109,7 @@ public class TranscriptServiceTests
     }
 
     [Fact]
-    public async Task GetStudentTranscriptAsync_ExcludesRejectedEnrollments_AndMarksDroppedWithdrawn()
+    public async Task GetStudentTranscriptAsync_ExcludesRejectedAndDroppedEnrollments_FromTranscriptRecordsAndTotals()
     {
         using var context = CreateInMemoryDbContext();
         var gradingService = new GradingService();
@@ -145,13 +145,10 @@ public class TranscriptServiceTests
         var result = await sut.GetStudentTranscriptAsync(30);
 
         result.Should().NotBeNull();
-        // Rejected course must not appear
-        result!.CourseRecords.Should().HaveCount(1);
-        result.CourseRecords[0].CourseCode.Should().Be("MATH201");
-        result.CourseRecords[0].Status.Should().Be("Withdrawn");
-        result.CourseRecords[0].GradeLetter.Should().Be("W");
-        result.CourseRecords[0].Credits.Should().Be(0);
+        // Both rejected and dropped/withdrawn courses must not appear on official transcript
+        result!.CourseRecords.Should().BeEmpty();
         result.Summary.TotalCreditsEarned.Should().Be(0);
+        result.Summary.TotalCoursesCompleted.Should().Be(0);
     }
 
     [Fact]

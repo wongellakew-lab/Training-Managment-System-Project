@@ -186,7 +186,17 @@ export class CoursesComponent implements OnInit {
       },
       error: (err) => {
         this.isEnrolling.set(false);
-        const msg = err.error?.message || 'Enrollment failed. Please try again.';
+        let msg = err?.error?.message;
+        if (!msg && err?.error?.errors) {
+          const firstKey = Object.keys(err.error.errors)[0];
+          msg = err.error.errors[firstKey]?.[0];
+        }
+        if (!msg && err?.error?.title) {
+          msg = err.error.title;
+        }
+        if (!msg) {
+          msg = 'Enrollment failed. Please try again.';
+        }
         this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });

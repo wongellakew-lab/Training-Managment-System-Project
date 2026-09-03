@@ -59,7 +59,7 @@ public class GradesController : ControllerBase
         var enrollments = await _context.Enrollments
             .Include(e => e.Course)
             .AsNoTracking()
-            .Where(e => e.StudentId == studentId)
+            .Where(e => e.StudentId == studentId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected && !e.IsDeleted)
             .ToListAsync(cancellationToken);
 
         var completed = enrollments.Where(e => e.Status == EnrollmentStatus.Completed || e.Grade.HasValue).ToList();

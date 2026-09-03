@@ -787,7 +787,7 @@ public class StudentFeatureTests
         courseDto.AvailableSeats.Should().Be(2);
 
         var myCourses = await service.GetStudentEnrolledCoursesAsync(55);
-        myCourses.First().AcademicStatus.Should().Be("Withdrawn");
+        myCourses.Should().BeEmpty();
     }
 
     [Fact]
@@ -835,5 +835,31 @@ public class StudentFeatureTests
         calendar.Should().NotBeNull();
         calendar.EnrolledCoursesCount.Should().Be(0);
         calendar.Schedules.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CreateEnrollmentDto_JsonSerialization_ShouldSupportStringEnumValues()
+    {
+        var json = """
+        {
+            "studentId": 10,
+            "courseId": 4,
+            "batch": "Batch 1",
+            "status": "Active"
+        }
+        """;
+
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+
+        var dto = System.Text.Json.JsonSerializer.Deserialize<Application.DTOs.EnrollmentDtos.CreateEnrollmentDto>(json, options);
+
+        dto.Should().NotBeNull();
+        dto!.StudentId.Should().Be(10);
+        dto.CourseId.Should().Be(4);
+        dto.Status.Should().Be(EnrollmentStatus.Active);
     }
 }

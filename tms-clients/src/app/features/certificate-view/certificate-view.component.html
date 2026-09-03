@@ -64,7 +64,7 @@
     <!-- TAB 1: CERTIFICATES & DIPLOMAS                                      -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
     <div *ngIf="activeTab() === 'certificates'" class="tab-pane">
-      <div class="content-split-grid">
+      <div class="certs-card-container">
         <!-- Earned Certificates List -->
         <div class="certs-card">
           <div class="section-header-bar">
@@ -125,74 +125,6 @@
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Certificate Verification Card -->
-        <div class="verify-card">
-          <div class="verify-header-bar">
-            <div class="verify-icon-box">
-              <mat-icon>qr_code_scanner</mat-icon>
-            </div>
-            <div>
-              <h2 class="section-title">Verify Certificate</h2>
-              <p class="section-subtitle">Validate authenticity of any student diploma</p>
-            </div>
-          </div>
-
-          <form (ngSubmit)="verifyCode()" class="verify-form">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Verification Code</mat-label>
-              <input
-                matInput
-                [(ngModel)]="verificationCode"
-                name="verificationCode"
-                placeholder="e.g. CERT-2026-0001-0001"
-                class="font-mono uppercase"
-                required
-              />
-              <mat-icon matPrefix>qr_code</mat-icon>
-            </mat-form-field>
-
-            <button
-              mat-flat-button
-              color="primary"
-              type="submit"
-              [disabled]="isVerifying() || !verificationCode.trim()"
-              class="full-width verify-btn"
-            >
-              {{ isVerifying() ? 'Validating Credential...' : 'Verify Authenticity' }}
-            </button>
-          </form>
-
-          <div *ngIf="verificationResult()" class="verify-success-box">
-            <div class="verify-badge-row">
-              <mat-icon>verified</mat-icon>
-              <span>Authentic Verified Diploma</span>
-            </div>
-            <div class="verify-grid">
-              <div class="verify-field">
-                <span class="v-label">Student Name</span>
-                <span class="v-val">{{ verificationResult()?.studentName }}</span>
-              </div>
-              <div class="verify-field">
-                <span class="v-label">Course Title</span>
-                <span class="v-val">{{ verificationResult()?.courseTitle }}</span>
-              </div>
-              <div class="verify-field">
-                <span class="v-label">Certificate Code</span>
-                <span class="v-val font-mono">{{ verificationResult()?.certificateCode }}</span>
-              </div>
-              <div class="verify-field">
-                <span class="v-label">Issue Date</span>
-                <span class="v-val font-mono">{{ verificationResult()?.issuedAt | date:'mediumDate' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div *ngIf="verificationError()" class="verify-error-box">
-            <mat-icon>error_outline</mat-icon>
-            <span>{{ verificationError() }}</span>
           </div>
         </div>
       </div>

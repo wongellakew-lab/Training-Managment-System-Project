@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace TmsApi.Application.DTOs.CourseDtos;
 
 public class CourseDto
@@ -73,6 +75,7 @@ public class CourseResourceDto
 public class CourseScheduleDto
 {
     public int Id { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public DayOfWeek DayOfWeek { get; set; }
     public string DayName => DayOfWeek.ToString();
     public string StartTime { get; set; } = string.Empty;
@@ -84,6 +87,7 @@ public class CourseScheduleDto
 
 public class CreateCourseScheduleDto
 {
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public DayOfWeek DayOfWeek { get; set; }
     public string StartTime { get; set; } = "09:00 AM";
     public string EndTime { get; set; } = "10:30 AM";

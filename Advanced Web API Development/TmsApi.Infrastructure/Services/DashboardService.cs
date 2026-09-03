@@ -39,7 +39,10 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .Include(e => e.Course)
                 .ThenInclude(c => c!.Instructor)
-            .Where(e => e.StudentId == studentId && !e.IsDeleted)
+            .Include(e => e.Course)
+                .ThenInclude(c => c!.Modules)
+                    .ThenInclude(m => m.Lessons)
+            .Where(e => e.StudentId == studentId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected && !e.IsDeleted)
             .OrderByDescending(e => e.EnrolledAt)
             .ToListAsync(cancellationToken);
 
@@ -76,7 +79,6 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .CountAsync(c => c.StudentId == studentId, cancellationToken);
 
-        // Upcoming classes from schedules for enrolled courses
         // Upcoming classes from schedules for enrolled courses strictly
         var upcomingSchedules = new List<Schedule>();
         if (enrolledCourseIds.Any())
@@ -110,11 +112,11 @@ public class DashboardService : IDashboardService
             Notes = s.Notes
         }).ToList();
 
-        // Pending assignments
+        // Pending assignments (filtered strictly to currently enrolled courses)
         var pendingAssessments = await _context.Assessments
             .AsNoTracking()
             .Include(a => a.Course)
-            .Where(a => a.StudentId == studentId && a.Status != "Graded")
+            .Where(a => a.StudentId == studentId && a.Status != "Graded" && enrolledCourseIds.Contains(a.CourseId))
             .OrderBy(a => a.DueDate)
             .Take(6)
             .ToListAsync(cancellationToken);
@@ -131,11 +133,11 @@ public class DashboardService : IDashboardService
             Status = a.Status
         }).ToList();
 
-        // Recent published grades with feedback
+        // Recent published grades with feedback (filtered strictly to enrolled courses)
         var recentGradedAssessments = await _context.Assessments
             .AsNoTracking()
             .Include(a => a.Course)
-            .Where(a => a.StudentId == studentId && a.IsPublished && a.ScoredPoints.HasValue)
+            .Where(a => a.StudentId == studentId && a.IsPublished && a.ScoredPoints.HasValue && enrolledCourseIds.Contains(a.CourseId))
             .OrderByDescending(a => a.GradedAt ?? a.DueDate)
             .Take(5)
             .ToListAsync(cancellationToken);
@@ -162,16 +164,17 @@ public class DashboardService : IDashboardService
         // Course progress
         var allStudentAssessments = await _context.Assessments
             .AsNoTracking()
-            .Where(a => a.StudentId == studentId)
+            .Where(a => a.StudentId == studentId && enrolledCourseIds.Contains(a.CourseId))
             .ToListAsync(cancellationToken);
 
         var courseProgressList = new List<StudentCourseProgressDto>();
         foreach (var en in enrollments.Where(e => e.Course != null))
         {
             var courseAssessments = allStudentAssessments.Where(a => a.CourseId == en.CourseId).ToList();
-            int totalLessons = en.Course!.LessonsCount > 0 ? en.Course.LessonsCount : 12;
-            int totalModules = Math.Max(1, (int)Math.Ceiling(totalLessons / 4.0));
-            int totalAssessments = courseAssessments.Count > 0 ? courseAssessments.Count : 4; // minimum expected course assessments
+            int totalLessons = en.Course!.Modules.SelectMany(m => m.Lessons).Count();
+            if (totalLessons == 0) totalLessons = en.Course.LessonsCount;
+            int totalModules = en.Course.Modules.Count;
+            int totalAssessments = courseAssessments.Count;
             int completedAssessments = courseAssessments.Count(a => a.Status == "Graded" || a.Status == "Submitted");
 
             decimal completionPct = en.Status == EnrollmentStatus.Completed

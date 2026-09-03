@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TmsApi.Domain.Entities;
 
 namespace TmsApi.Application.DTOs.EnrollmentDtos;
@@ -18,6 +19,7 @@ public class EnrollmentDto
     public string Country { get; set; } = "USA";
     public decimal? Grade { get; set; }
     public DateTime EnrolledAt { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public EnrollmentStatus Status { get; set; }
     public bool IsArchived { get; set; }
 }
@@ -29,10 +31,12 @@ public class CreateEnrollmentDto
     public string Batch { get; set; } = "Batch 1";
     public string PhoneNumber { get; set; } = "+1 202-555-0142";
     public string Country { get; set; } = "USA";
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Active;
 }
 
 public class UpdateEnrollmentStatusDto
 {
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public EnrollmentStatus Status { get; set; }
 }

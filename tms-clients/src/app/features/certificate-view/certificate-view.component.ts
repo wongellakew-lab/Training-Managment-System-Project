@@ -6,8 +6,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { LayoutComponent } from '../../ui/layout/layout.component';
@@ -34,8 +32,6 @@ import { LiveSyncService } from '../../services/live-sync.service';
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
-    MatFormFieldModule,
-    MatInputModule,
     MatProgressSpinnerModule,
     MatSnackBarModule
   ],
@@ -56,12 +52,6 @@ export class CertificateViewComponent implements OnInit {
   certificates = signal<CertificateResponse[]>([]);
   isLoadingCertificates = signal<boolean>(false);
   selectedCertificate = signal<CertificateResponse | null>(null);
-
-  // Verification Form State
-  verificationCode = '';
-  isVerifying = signal<boolean>(false);
-  verificationResult = signal<CertificateResponse | null>(null);
-  verificationError = signal<string | null>(null);
 
   // Academic Transcript State
   transcript = signal<TranscriptDto | null>(null);
@@ -121,25 +111,6 @@ export class CertificateViewComponent implements OnInit {
   downloadCertificate(cert: CertificateResponse, event?: Event): void {
     if (event) event.stopPropagation();
     window.open(this.certificateService.getDownloadUrl(cert.id), '_blank');
-  }
-
-  verifyCode(): void {
-    const trimmed = this.verificationCode.trim();
-    if (!trimmed) return;
-    this.isVerifying.set(true);
-    this.verificationResult.set(null);
-    this.verificationError.set(null);
-
-    this.certificateService.verifyCertificate(trimmed).subscribe({
-      next: (res) => {
-        this.isVerifying.set(false);
-        this.verificationResult.set(res);
-      },
-      error: () => {
-        this.isVerifying.set(false);
-        this.verificationError.set('Certificate code is invalid or does not exist.');
-      }
-    });
   }
 
   // ─── Academic Transcript ──────────────────────────────────────────────────

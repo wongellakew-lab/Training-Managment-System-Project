@@ -212,15 +212,11 @@
 /* ═════════════════════════════════════════════════════════════════════════ */
 /* TAB 1: CERTIFICATES STYLING                                               */
 /* ═════════════════════════════════════════════════════════════════════════ */
-.content-split-grid {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 1.5rem;
-  align-items: start;
+.certs-card-container {
+  width: 100%;
 }
 
-.certs-card,
-.verify-card {
+.certs-card {
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 16px;
@@ -351,102 +347,6 @@
         font-weight: 600;
       }
     }
-  }
-}
-
-/* Verification Card */
-.verify-card {
-  .verify-header-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-
-    .verify-icon-box {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: rgba(37, 99, 235, 0.1);
-      color: #2563eb;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .section-title {
-      margin: 0;
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text-primary, #0f172a);
-    }
-
-    .section-subtitle {
-      margin: 0.15rem 0 0 0;
-      font-size: 0.8rem;
-      color: var(--text-secondary, #64748b);
-    }
-  }
-
-  .verify-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-
-    .full-width {
-      width: 100%;
-    }
-
-    .verify-btn {
-      height: 42px;
-      border-radius: 8px;
-      font-weight: 600;
-    }
-  }
-
-  .verify-success-box {
-    margin-top: 1.25rem;
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid #10b981;
-    border-radius: 10px;
-    padding: 1rem;
-
-    .verify-badge-row {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      color: #059669;
-      font-weight: 700;
-      font-size: 0.85rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .verify-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-
-      .verify-field {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.8rem;
-
-        .v-label { color: var(--text-secondary, #64748b); }
-        .v-val { font-weight: 600; color: var(--text-primary, #0f172a); }
-      }
-    }
-  }
-
-  .verify-error-box {
-    margin-top: 1.25rem;
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid #ef4444;
-    border-radius: 10px;
-    padding: 0.85rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #dc2626;
-    font-size: 0.85rem;
   }
 }
 
