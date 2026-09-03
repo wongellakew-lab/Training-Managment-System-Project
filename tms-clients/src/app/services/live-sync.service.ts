@@ -149,6 +149,19 @@ export class LiveSyncService {
       }
     });
 
+    this.hubConnection.on('ReceiveGradePublished', (data: { studentId: number; courseId: number; grade: number; letterGrade: string }) => {
+      this.gradePublished$.next(data);
+      this.notificationService.addRealtimeNotification(
+        'Grade Published',
+        `A new grade (${data.letterGrade}) has been published.`,
+        'Grade'
+      );
+    });
+
+    this.hubConnection.on('ReceiveScheduleUpdate', () => {
+      this.scheduleUpdated$.next();
+    });
+
     // Generic system message
     this.hubConnection.on('ReceiveMessage', (user: string, message: string) => {
       this.notificationService.addRealtimeNotification(user || 'System', message, 'System');

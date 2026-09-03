@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -8,6 +8,8 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { LayoutComponent } from '../../ui/layout/layout.component';
 import { DashboardService, StudentDashboard, StudentCourseProgress } from '../../services/dashboard.service';
+import { LiveSyncService } from '../../services/live-sync.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-student-progress',
@@ -25,13 +27,31 @@ import { DashboardService, StudentDashboard, StudentCourseProgress } from '../..
   templateUrl: './student-progress.component.html',
   styleUrls: ['./student-progress.component.scss']
 })
-export class StudentProgressComponent implements OnInit {
+export class StudentProgressComponent implements OnInit, OnDestroy {
   private dashboardService = inject(DashboardService);
+  private liveSync = inject(LiveSyncService);
 
   readonly dashboardData = signal<StudentDashboard | null>(null);
   readonly isLoading = signal<boolean>(true);
 
+  private sub?: Subscription;
+
   ngOnInit(): void {
+    this.loadProgress();
+
+    this.sub = this.liveSync.gradePublished$.subscribe(() => {
+      this.loadProgress();
+    });
+    this.sub.add(this.liveSync.enrollmentUpdated$.subscribe(() => {
+      this.loadProgress();
+    }));
+  }
+
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
+
+  loadProgress(): void {
     this.dashboardService.getStudentDashboard().subscribe({
       next: (data) => {
         this.dashboardData.set(data);

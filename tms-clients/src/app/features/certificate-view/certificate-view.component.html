@@ -1,145 +1,261 @@
-<div class="credentials-page">
-  <app-navbar></app-navbar>
-
-  <!-- Header Banner -->
-  <mat-card class="header-card glass-panel">
-    <div class="header-content">
-      <div class="header-left">
-        <div class="role-chip-container">
-          <mat-chip-set>
-            <mat-chip class="role-chip" highlighted>Academic Credentials</mat-chip>
-          </mat-chip-set>
-          <span class="header-prefix">Official Records</span>
+<app-layout pageTitle="Certificates & Credentials" [showGreeting]="false">
+  <div class="credentials-page">
+    <!-- Header Banner -->
+    <mat-card class="header-card eduva-card">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="role-chip-container">
+            <span class="badge-credential">Academic Records</span>
+            <span class="header-prefix">Verified Credentials & Diplomas</span>
+          </div>
+          <h1 class="page-title">Certificates & Transcripts</h1>
+          <p class="page-desc">
+            View verified course completion diplomas, request background-processed academic transcripts, and validate authenticity codes.
+          </p>
         </div>
-        <h1 class="page-title">Certificates & Transcripts</h1>
-        <p class="page-desc">Request async transcripts via Channel background worker and verify cryptographic certificate codes.</p>
-      </div>
 
-      <div class="header-actions">
-        <button
-          mat-flat-button
-          color="primary"
-          (click)="requestTranscript()"
-          [disabled]="isRequestingTranscript()"
-          class="request-btn"
-        >
-          <mat-icon>description</mat-icon>
-          <span>{{ isRequestingTranscript() ? 'Queuing Worker...' : 'Request Official Transcript' }}</span>
-        </button>
+        <div class="header-actions">
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="requestTranscript()"
+            [disabled]="isRequestingTranscript()"
+            class="request-btn"
+          >
+            <mat-icon>description</mat-icon>
+            <span>{{ isRequestingTranscript() ? 'Queuing Request...' : 'Request Official Transcript' }}</span>
+          </button>
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- Transcript Job Progress Card -->
+    @if (transcriptJob()) {
+      <mat-card class="job-card eduva-card">
+        <div class="job-header">
+          <div class="job-icon-box">
+            <mat-icon>hourglass_top</mat-icon>
+          </div>
+          <div class="job-info">
+            <div class="job-title">Academic Transcript Generation (#{{ transcriptJob()?.jobId }})</div>
+            <div class="job-status">
+              Status: <strong>{{ transcriptStatus()?.status || transcriptJob()?.status }}</strong> • Est. Wait: {{ transcriptJob()?.estimatedWaitSeconds }}s
+            </div>
+          </div>
+        </div>
+
+        @if (transcriptStatus()?.status === 'Completed' || transcriptStatus()?.downloadUrl) {
+          <a
+            mat-flat-button
+            color="primary"
+            [href]="transcriptStatus()?.downloadUrl"
+            target="_blank"
+            class="download-btn"
+          >
+            <mat-icon>download</mat-icon>
+            <span>Download Transcript PDF</span>
+          </a>
+        } @else {
+          <div class="job-spinner-row">
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>Processing digital transcript in background...</span>
+          </div>
+        }
+      </mat-card>
+    }
+
+    <!-- Main Content Split Grid -->
+    <div class="content-split-grid">
+      <!-- Earned Certificates List -->
+      <mat-card class="certs-card eduva-card">
+        <div class="certs-header-bar">
+          <div>
+            <h2 class="section-title">Earned Course Certificates</h2>
+            <p class="section-subtitle">Official certificates awarded upon passing course requirements</p>
+          </div>
+          <span class="cert-count-badge">{{ certificates().length }} Earned</span>
+        </div>
+
+        @if (isLoading()) {
+          <div class="loading-state">
+            <mat-spinner diameter="36"></mat-spinner>
+            <span>Retrieving academic certificates...</span>
+          </div>
+        } @else if (certificates().length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon-box">
+              <mat-icon>workspace_premium</mat-icon>
+            </div>
+            <h3 class="empty-title">No certificates earned yet</h3>
+            <p class="empty-desc">
+              Complete enrolled courses with passing grades (GPA &ge; 2.0) to earn official verified certificates of completion.
+            </p>
+            <a mat-flat-button color="primary" routerLink="/student/catalog" class="empty-action-btn">
+              <mat-icon>menu_book</mat-icon>
+              <span>Explore Course Catalog</span>
+            </a>
+          </div>
+        } @else {
+          <div class="certs-list">
+            @for (cert of certificates(); track cert.id) {
+              <div class="cert-card-item">
+                <div class="cert-card-main">
+                  <div class="cert-badge-icon">
+                    <mat-icon>verified</mat-icon>
+                  </div>
+                  <div class="cert-details">
+                    <div class="cert-course-title">{{ cert.courseTitle }}</div>
+                    <div class="cert-meta-row">
+                      <span class="cert-code font-mono">Code: {{ cert.certificateCode }}</span>
+                      <span class="meta-dot">&bull;</span>
+                      <span class="cert-date">Issued {{ cert.issuedAt | date:'mediumDate' }}</span>
+                    </div>
+                  </div>
+                  <span class="credential-status-pill">
+                    <mat-icon>check_circle</mat-icon>
+                    Verified
+                  </span>
+                </div>
+
+                <div class="cert-card-actions">
+                  <button mat-stroked-button (click)="openPreview(cert)" class="action-btn">
+                    <mat-icon>visibility</mat-icon>
+                    <span>View Diploma</span>
+                  </button>
+                  <button mat-flat-button color="primary" (click)="downloadCertificate(cert, $event)" class="action-btn">
+                    <mat-icon>download</mat-icon>
+                    <span>Download PDF</span>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </mat-card>
+
+      <!-- Certificate Verification Card -->
+      <mat-card class="verify-card eduva-card">
+        <div class="verify-header-bar">
+          <div class="verify-icon-box">
+            <mat-icon>qr_code_scanner</mat-icon>
+          </div>
+          <div>
+            <h2 class="section-title">Verify Certificate</h2>
+            <p class="section-subtitle">Validate authenticity of any student certificate code</p>
+          </div>
+        </div>
+
+        <form (ngSubmit)="verifyCode()" class="verify-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Verification Code</mat-label>
+            <input
+              matInput
+              [(ngModel)]="verificationCode"
+              name="verificationCode"
+              placeholder="e.g. CERT-2026-0001-0001"
+              class="font-mono uppercase"
+              required
+            />
+            <mat-icon matPrefix>qr_code</mat-icon>
+          </mat-form-field>
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="isVerifying() || !verificationCode.trim()"
+            class="full-width verify-btn"
+          >
+            {{ isVerifying() ? 'Validating Credential...' : 'Verify Authenticity' }}
+          </button>
+        </form>
+
+        @if (verificationResult()) {
+          <div class="verify-success-box">
+            <div class="verify-badge-row">
+              <mat-icon>verified</mat-icon>
+              <span>Authentic Verified Certificate</span>
+            </div>
+            <div class="verify-grid">
+              <div class="verify-field">
+                <span class="v-label">Student Name</span>
+                <span class="v-val">{{ verificationResult()?.studentName }}</span>
+              </div>
+              <div class="verify-field">
+                <span class="v-label">Course Title</span>
+                <span class="v-val">{{ verificationResult()?.courseTitle }}</span>
+              </div>
+              <div class="verify-field">
+                <span class="v-label">Certificate Code</span>
+                <span class="v-val font-mono">{{ verificationResult()?.certificateCode }}</span>
+              </div>
+              <div class="verify-field">
+                <span class="v-label">Issue Date</span>
+                <span class="v-val font-mono">{{ verificationResult()?.issuedAt | date:'mediumDate' }}</span>
+              </div>
+            </div>
+          </div>
+        } @else if (verificationError()) {
+          <div class="verify-error-box">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ verificationError() }}</span>
+          </div>
+        }
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- Certificate Preview Modal -->
+  @if (selectedCertificate()) {
+    <div class="modal-backdrop" (click)="closePreview()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title">Official Certificate Preview</div>
+          <button mat-icon-button (click)="closePreview()" aria-label="Close dialog">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="certificate-parchment">
+          <div class="parchment-border">
+            <div class="cert-institution">Training Management System &bull; Academic Portal</div>
+            <h2 class="cert-diploma-title">Certificate of Completion</h2>
+            <div class="cert-conferred">This official diploma is proudly conferred upon</div>
+            <div class="cert-student-name">{{ selectedCertificate()?.studentName || getStudentFullName() }}</div>
+            <div class="cert-text">
+              having demonstrated academic excellence and successfully fulfilled all curricular requirements for
+              <strong class="cert-course-name">{{ selectedCertificate()?.courseTitle }}</strong>
+            </div>
+
+            <div class="cert-signatures">
+              <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-label">Academic Dean</div>
+              </div>
+              <div class="cert-seal-badge">
+                <mat-icon>verified</mat-icon>
+                <span>VERIFIED</span>
+              </div>
+              <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-label">Issued: {{ selectedCertificate()?.issuedAt | date:'mediumDate' }}</div>
+              </div>
+            </div>
+
+            <div class="cert-footer-code font-mono">
+              Verification ID: {{ selectedCertificate()?.certificateCode }}
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="closePreview()">Close</button>
+          <button mat-flat-button color="primary" (click)="downloadCertificate(selectedCertificate()!)">
+            <mat-icon>print</mat-icon>
+            <span>Print / Save PDF</span>
+          </button>
+        </div>
       </div>
     </div>
-  </mat-card>
-
-  <!-- Transcript Job Banner -->
-  @if (transcriptJob()) {
-    <mat-card class="job-card glass-panel">
-      <div class="job-header">
-        <div class="job-icon-box">
-          <mat-icon>hourglass_top</mat-icon>
-        </div>
-        <div class="job-info">
-          <div class="job-title">Transcript Job Queued (#{{ transcriptJob()?.jobId }})</div>
-          <div class="job-status">
-            Status: <strong>{{ transcriptStatus()?.status || transcriptJob()?.status }}</strong> • Est. Wait: {{ transcriptJob()?.estimatedWaitSeconds }}s
-          </div>
-        </div>
-      </div>
-
-      @if (transcriptStatus()?.status === 'Completed' || transcriptStatus()?.downloadUrl) {
-        <a mat-flat-button color="primary" [href]="transcriptStatus()?.downloadUrl" target="_blank" class="download-btn">
-          <mat-icon>download</mat-icon>
-          <span>Download Transcript PDF</span>
-        </a>
-      } @else {
-        <div class="job-spinner-row">
-          <mat-spinner diameter="18"></mat-spinner>
-          <span>Processing background channel job...</span>
-        </div>
-      }
-    </mat-card>
   }
-
-  <!-- Split View: Certificates List & Verification Tool -->
-  <div class="content-split-grid">
-    <!-- Earned Certificates List -->
-    <mat-card class="certs-card glass-panel">
-      <div class="certs-header-bar">
-        <h2 class="section-title">Earned Course Certificates</h2>
-        <p class="section-subtitle">Verified credentials issued upon successful course completion</p>
-      </div>
-
-      @if (isLoading()) {
-        <div class="loading-state">
-          <mat-spinner diameter="36"></mat-spinner>
-          <span>Loading certificate credentials...</span>
-        </div>
-      } @else if (certificates().length === 0) {
-        <div class="empty-state">
-          <mat-icon class="empty-icon">workspace_premium</mat-icon>
-          <h3 class="empty-title">No certificates awarded yet</h3>
-          <p class="empty-desc">Complete courses with passing grades to receive verified diplomas.</p>
-        </div>
-      } @else {
-        <div class="certs-list">
-          @for (cert of certificates(); track cert.id) {
-            <div class="cert-item glass-card">
-              <div class="cert-icon-box">
-                <mat-icon>verified</mat-icon>
-              </div>
-              <div class="cert-details">
-                <div class="cert-course-title">{{ cert.courseTitle }}</div>
-                <div class="cert-code font-mono">Code: <span>{{ cert.certificateCode }}</span></div>
-                <div class="cert-date">Issued: {{ cert.issuedAt | date:'mediumDate' }}</div>
-              </div>
-              <span class="badge badge-success">Valid Credential</span>
-            </div>
-          }
-        </div>
-      }
-    </mat-card>
-
-    <!-- Certificate Verification Card -->
-    <mat-card class="verify-card glass-panel">
-      <div class="verify-header-bar">
-        <h2 class="section-title">Verify Certificate</h2>
-        <p class="section-subtitle">Validate authenticity of any student certificate code</p>
-      </div>
-
-      <form (ngSubmit)="verifyCode()" class="verify-form">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Verification Code</mat-label>
-          <input
-            matInput
-            [(ngModel)]="verificationCode"
-            name="verificationCode"
-            placeholder="e.g. CERT-2026-CS101"
-            class="font-mono uppercase"
-            required
-          />
-          <mat-icon matPrefix>qr_code</mat-icon>
-        </mat-form-field>
-
-        <button mat-stroked-button color="primary" type="submit" [disabled]="isVerifying()" class="full-width verify-btn">
-          {{ isVerifying() ? 'Validating...' : 'Verify Authenticity' }}
-        </button>
-      </form>
-
-      @if (verificationResult()) {
-        <div class="verify-success-box">
-          <div class="verify-badge-row">
-            <mat-icon>check_circle</mat-icon>
-            <span>Authentic Certificate</span>
-          </div>
-          <div class="verify-detail">Student: <strong>{{ verificationResult()?.studentName }}</strong></div>
-          <div class="verify-detail">Course: <strong>{{ verificationResult()?.courseTitle }}</strong></div>
-          <div class="verify-detail">Issued: <strong>{{ verificationResult()?.issuedAt | date:'mediumDate' }}</strong></div>
-        </div>
-      } @else if (verificationError()) {
-        <div class="verify-error-box">
-          <mat-icon>error_outline</mat-icon>
-          <span>{{ verificationError() }}</span>
-        </div>
-      }
-    </mat-card>
-  </div>
-</div>
+</app-layout>

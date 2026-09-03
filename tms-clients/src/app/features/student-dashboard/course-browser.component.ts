@@ -91,7 +91,12 @@ export class CourseBrowserComponent implements OnInit {
   }
 
   async onEnrollCourse(course: Course): Promise<void> {
-    const studentId = this.authService.currentUser()?.studentId || 1;
+    const studentId = this.authService.currentUser()?.studentId || 0;
+    if (studentId === 0) {
+      this.isSuccessAlert.set(false);
+      this.alertMessage.set('You must be logged in as an enrolled student to register for this course.');
+      return;
+    }
     try {
       await this.enrollmentStore.enroll({
         studentId,

@@ -1,0 +1,203 @@
+<app-layout pageTitle="My Profile" [showGreeting]="false">
+  <div class="profile-page-container">
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading instructor profile...</p>
+    </div>
+
+    <div *ngIf="!isLoading()" class="profile-content">
+      <!-- Hero Avatar & Identity Card -->
+      <div class="hero-profile-card">
+        <div class="avatar-upload-box" (click)="avatarInput.click()">
+          <input
+            #avatarInput
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            (change)="onAvatarSelected($event)"
+            style="display: none;"
+          />
+          <div class="avatar-circle">
+            <img *ngIf="profile()?.profilePictureUrl" [src]="profile()?.profilePictureUrl" alt="Avatar" />
+            <span *ngIf="!profile()?.profilePictureUrl">{{ profile()?.firstName?.charAt(0) }}{{ profile()?.lastName?.charAt(0) }}</span>
+            <div class="avatar-hover-overlay">
+              <mat-icon>camera_alt</mat-icon>
+              <span>{{ isUploadingAvatar() ? 'Uploading...' : 'Update' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-identity">
+          <div class="role-badge">Faculty Instructor</div>
+          <h1>Prof. {{ profile()?.firstName }} {{ profile()?.lastName }}</h1>
+          <div class="sub-meta">
+            <span><mat-icon>badge</mat-icon> {{ profile()?.employeeNumber }}</span>
+            <span>&bull;</span>
+            <span><mat-icon>domain</mat-icon> {{ profile()?.department || 'Instructional Faculty' }}</span>
+            <span>&bull;</span>
+            <span><mat-icon>email</mat-icon> {{ profile()?.email }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Academic Performance Stats Strip -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon-box blue">
+            <mat-icon>auto_stories</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-num">{{ profile()?.totalCourses || 0 }}</span>
+            <span class="stat-label">Courses Instructed</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-box green">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-num">{{ profile()?.activeStudents || 0 }}</span>
+            <span class="stat-label">Active Students</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-box purple">
+            <mat-icon>verified</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-num">{{ profile()?.totalCertificates || 0 }}</span>
+            <span class="stat-label">Certificates Issued</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon-box amber">
+            <mat-icon>how_to_reg</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-num">{{ profile()?.attendanceRate || 0 }}%</span>
+            <span class="stat-label">Attendance Rate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-Column Forms: Profile Details & Password Change -->
+      <div class="forms-grid">
+        <!-- Left Column: Personal & Academic Info -->
+        <div class="form-card">
+          <div class="card-header">
+            <mat-icon class="header-icon text-primary">person</mat-icon>
+            <h3>Instructor Details</h3>
+          </div>
+
+          <div class="card-body">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" class="form-control" [(ngModel)]="firstName" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" class="form-control" [(ngModel)]="lastName" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">Email Address (Read-only)</label>
+                <input type="text" class="form-control readonly" [value]="profile()?.email" readonly />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="text" class="form-control" [(ngModel)]="phoneNumber" placeholder="+1 (555) 000-0000" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Department / Faculty</label>
+              <input type="text" class="form-control" [(ngModel)]="department" placeholder="e.g. Computer Science & Web Dev" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Professional Biography & Teaching Focus</label>
+              <textarea class="form-control textarea" rows="4" [(ngModel)]="bio"></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="saveProfile()"
+                [disabled]="isSavingProfile()"
+                class="save-btn"
+              >
+                <mat-icon>save</mat-icon>
+                <span>{{ isSavingProfile() ? 'Saving...' : 'Save Profile Changes' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Security & Password Change -->
+        <div class="form-card">
+          <div class="card-header">
+            <mat-icon class="header-icon text-amber">lock</mat-icon>
+            <h3>Security & Password</h3>
+          </div>
+
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input
+                type="password"
+                class="form-control"
+                [(ngModel)]="currentPassword"
+                placeholder="Enter current password"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input
+                type="password"
+                class="form-control"
+                [(ngModel)]="newPassword"
+                placeholder="Minimum 8 characters with digits/symbols"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input
+                type="password"
+                class="form-control"
+                [(ngModel)]="confirmPassword"
+                placeholder="Re-enter new password"
+              />
+            </div>
+
+            <div class="password-hints">
+              <mat-icon>info</mat-icon>
+              <span>Must contain at least 8 characters, an uppercase letter, a number, and a special character.</span>
+            </div>
+
+            <div class="form-actions">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="changePassword()"
+                [disabled]="isChangingPassword() || !currentPassword() || !newPassword()"
+                class="save-btn"
+              >
+                <mat-icon>key</mat-icon>
+                <span>{{ isChangingPassword() ? 'Updating...' : 'Update Password' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-layout>

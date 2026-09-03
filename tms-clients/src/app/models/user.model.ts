@@ -10,6 +10,7 @@ export interface User {
   refreshToken?: string;
   studentId?: number;
   instructorId?: number;
+  profilePictureUrl?: string;
 }
 
 export interface LoginRequest {

@@ -1,8 +1,27 @@
 export interface CourseResource {
+  id?: number;
   title: string;
-  type: string; // PDF, PPTX, ZIP
-  size: string;
+  fileType: string; // PDF, PPTX, XLSX, DOCX
+  fileSize: string;
   url?: string;
+  type?: string;
+  size?: string;
+}
+
+export interface CourseLesson {
+  id: number;
+  title: string;
+  description?: string;
+  orderIndex: number;
+}
+
+export interface CourseModule {
+  id: number;
+  title: string;
+  description?: string;
+  orderIndex: number;
+  lessons: CourseLesson[];
+  expanded?: boolean;
 }
 
 export interface Course {
@@ -13,7 +32,6 @@ export interface Course {
   department: string;
   category: string; // Design, Web Dev, Marketing, Language, Communication, Business, Wellness
   level: string; // Beginner, Intermediate, Advanced
-  price: number;
   status: string; // Active, Draft, Archived
   durationHours: number;
   lessonsCount: number;
@@ -36,9 +54,26 @@ export interface Course {
   instructorId?: number;
   instructorName?: string;
   instructorAvatar?: string;
+  instructorDepartment?: string;
+  instructorEmail?: string;
   isActive: boolean;
   startDate?: string;
   endDate?: string;
+  durationWeeks?: number;
+  schedules?: CourseSchedule[];
+  modules?: CourseModule[];
+  resources?: CourseResource[];
+}
+
+export interface CourseSchedule {
+  id: number;
+  dayOfWeek: number;
+  dayName: string;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  room: string;
+  scheduleType: string;
 }
 
 export interface CreateCourseDto {
@@ -48,7 +83,6 @@ export interface CreateCourseDto {
   department: string;
   category?: string;
   level?: string;
-  price?: number;
   status?: string;
   durationHours?: number;
   lessonsCount?: number;
@@ -65,7 +99,6 @@ export interface UpdateCourseDto {
   department: string;
   category?: string;
   level?: string;
-  price?: number;
   status?: string;
   durationHours?: number;
   lessonsCount?: number;
@@ -98,6 +131,9 @@ export interface CourseFilterParams {
   department?: string;
   category?: string;
   status?: string;
+  skillLevel?: string;
+  subjectMatter?: string;
+  availability?: string;
   sortBy?: string;
   sortDescending?: boolean;
   fields?: string;

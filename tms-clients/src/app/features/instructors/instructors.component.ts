@@ -1,24 +1,15 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { LayoutComponent } from '../../ui/layout/layout.component';
-
-interface InstructorCard {
-  id: number;
-  name: string;
-  department: string;
-  email: string;
-  coursesCount: number;
-  studentsCount: number;
-  rating: number;
-  avatar: string;
-}
+import { InstructorService, InstructorItem, InstructorStats } from '../../services/instructor.service';
 
 @Component({
   selector: 'app-instructors-page',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatButtonModule, LayoutComponent],
+  imports: [CommonModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule, LayoutComponent],
   template: `
     <app-layout pageTitle="Instructors">
       <div class="instructors-page-content">
@@ -28,51 +19,64 @@ interface InstructorCard {
             <div class="stat-icon-circle blue"><mat-icon>co_present</mat-icon></div>
             <div class="stat-content">
               <span class="stat-lbl">Total Instructors</span>
-              <span class="stat-num">85+</span>
+              <span class="stat-num">{{ stats()?.totalInstructors ?? 0 }}</span>
             </div>
           </div>
           <div class="eduva-card stat-item">
             <div class="stat-icon-circle green"><mat-icon>verified</mat-icon></div>
             <div class="stat-content">
               <span class="stat-lbl">Active Mentors</span>
-              <span class="stat-num">72</span>
+              <span class="stat-num">{{ stats()?.activeMentors ?? 0 }}</span>
             </div>
           </div>
           <div class="eduva-card stat-item">
             <div class="stat-icon-circle orange"><mat-icon>star</mat-icon></div>
             <div class="stat-content">
               <span class="stat-lbl">Avg. Rating</span>
-              <span class="stat-num">4.85</span>
+              <span class="stat-num">{{ (stats()?.averageRating ?? 0) | number:'1.2-2' }}</span>
             </div>
           </div>
         </div>
 
         <!-- Instructors Grid -->
-        <div class="instructors-grid">
-          @for (inst of instructors(); track inst.id) {
-            <div class="eduva-card instructor-card">
-              <div class="inst-card-top">
-                <img [src]="inst.avatar" alt="Instructor Avatar" class="inst-avatar-large" />
-                <span class="rating-badge"><mat-icon>star</mat-icon> {{ inst.rating }}</span>
-              </div>
-              <h4 class="inst-name">{{ inst.name }}</h4>
-              <span class="pill-badge category-design">{{ inst.department }}</span>
-              <span class="inst-email">{{ inst.email }}</span>
+        @if (isLoading()) {
+          <div class="loading-box">
+            <mat-spinner diameter="36"></mat-spinner>
+            <span>Loading faculty directory...</span>
+          </div>
+        } @else if (instructors().length === 0) {
+          <div class="empty-box">
+            <mat-icon>co_present</mat-icon>
+            <h4>No Faculty Mentors Found</h4>
+            <p>Instructors added to the system will appear here.</p>
+          </div>
+        } @else {
+          <div class="instructors-grid">
+            @for (inst of instructors(); track inst.id) {
+              <div class="eduva-card instructor-card">
+                <div class="inst-card-top">
+                  <img [src]="inst.avatar" alt="Instructor Avatar" class="inst-avatar-large" />
+                  <span class="rating-badge"><mat-icon>star</mat-icon> {{ inst.rating }}</span>
+                </div>
+                <h4 class="inst-name">{{ inst.firstName }} {{ inst.lastName }}</h4>
+                <span class="pill-badge category-design">{{ inst.department }}</span>
+                <span class="inst-email">{{ inst.email }}</span>
 
-              <div class="inst-metrics-footer">
-                <div class="metric-item">
-                  <span class="val">{{ inst.coursesCount }}</span>
-                  <span class="lbl">Courses</span>
-                </div>
-                <div class="metric-divider"></div>
-                <div class="metric-item">
-                  <span class="val">{{ inst.studentsCount }}+</span>
-                  <span class="lbl">Students</span>
+                <div class="inst-metrics-footer">
+                  <div class="metric-item">
+                    <span class="val">{{ inst.coursesCount }}</span>
+                    <span class="lbl">Courses</span>
+                  </div>
+                  <div class="metric-divider"></div>
+                  <div class="metric-item">
+                    <span class="val">{{ inst.studentsCount }}</span>
+                    <span class="lbl">Students</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          }
-        </div>
+            }
+          </div>
+        }
       </div>
     </app-layout>
   `,
@@ -87,6 +91,7 @@ interface InstructorCard {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 20px;
+      @media (max-width: 900px) { grid-template-columns: 1fr; }
     }
     .stat-item {
       display: flex;
@@ -179,17 +184,46 @@ interface InstructorCard {
         }
       }
     }
+    .loading-box, .empty-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      gap: 12px;
+      text-align: center;
+      color: var(--text-muted);
+      mat-icon { font-size: 40px; width: 40px; height: 40px; color: var(--text-muted); }
+      h4 { margin: 0; color: var(--text-primary); font-size: 1.125rem; font-weight: 700; }
+      p { margin: 0; font-size: 0.8125rem; }
+    }
   `]
 })
 export class InstructorsComponent implements OnInit {
-  readonly instructors = signal<InstructorCard[]>([
-    { id: 1, name: 'Gina Alexander', department: 'Web Dev', email: 'gina.alexander@eduva.com', coursesCount: 5, studentsCount: 1450, rating: 4.9, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
-    { id: 2, name: 'Elise Wong', department: 'Design', email: 'elise.wong@eduva.com', coursesCount: 4, studentsCount: 1180, rating: 4.8, avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80' },
-    { id: 3, name: 'Fabricio Conrad', department: 'Marketing', email: 'fabricio.conrad@eduva.com', coursesCount: 6, studentsCount: 980, rating: 4.7, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80' },
-    { id: 4, name: 'Angela Cole', department: 'Communication', email: 'angela.cole@eduva.com', coursesCount: 3, studentsCount: 820, rating: 4.6, avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80' },
-    { id: 5, name: 'Mason James', department: 'Web Dev', email: 'mason.james@eduva.com', coursesCount: 4, studentsCount: 1250, rating: 4.8, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80' },
-    { id: 6, name: 'Jacqueline Hart', department: 'Design', email: 'jacqueline.hart@eduva.com', coursesCount: 5, studentsCount: 1320, rating: 4.9, avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80' }
-  ]);
+  private instructorService = inject(InstructorService);
 
-  ngOnInit(): void {}
+  readonly instructors = signal<InstructorItem[]>([]);
+  readonly stats = signal<InstructorStats | null>(null);
+  readonly isLoading = signal(false);
+
+  ngOnInit(): void {
+    this.loadData();
+  }
+
+  loadData(): void {
+    this.isLoading.set(true);
+
+    this.instructorService.getInstructors({ pageSize: 50 }).subscribe({
+      next: (res) => {
+        this.instructors.set(res.items);
+        this.isLoading.set(false);
+      },
+      error: () => this.isLoading.set(false)
+    });
+
+    this.instructorService.getInstructorStats().subscribe({
+      next: (st) => this.stats.set(st),
+      error: () => {}
+    });
+  }
 }

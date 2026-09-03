@@ -25,6 +25,15 @@ export class CourseService {
     if (filter.status && filter.status !== 'All') {
       params = params.set('status', filter.status);
     }
+    if (filter.skillLevel && filter.skillLevel !== 'All' && filter.skillLevel !== 'All Levels') {
+      params = params.set('skillLevel', filter.skillLevel);
+    }
+    if (filter.subjectMatter && filter.subjectMatter !== 'All' && filter.subjectMatter !== 'All Subjects') {
+      params = params.set('subjectMatter', filter.subjectMatter);
+    }
+    if (filter.availability && filter.availability !== 'All') {
+      params = params.set('availability', filter.availability);
+    }
     if (filter.sortBy) params = params.set('sortBy', filter.sortBy);
     if (filter.sortDescending !== undefined) params = params.set('sortDescending', filter.sortDescending.toString());
     if (filter.fields) params = params.set('fields', filter.fields);
@@ -45,6 +54,15 @@ export class CourseService {
     }
     if (filter.status && filter.status !== 'All') {
       params = params.set('status', filter.status);
+    }
+    if (filter.skillLevel && filter.skillLevel !== 'All' && filter.skillLevel !== 'All Levels') {
+      params = params.set('skillLevel', filter.skillLevel);
+    }
+    if (filter.subjectMatter && filter.subjectMatter !== 'All' && filter.subjectMatter !== 'All Subjects') {
+      params = params.set('subjectMatter', filter.subjectMatter);
+    }
+    if (filter.availability && filter.availability !== 'All') {
+      params = params.set('availability', filter.availability);
     }
     if (filter.sortBy) params = params.set('sortBy', filter.sortBy);
     if (filter.sortDescending !== undefined) params = params.set('sortDescending', filter.sortDescending.toString());

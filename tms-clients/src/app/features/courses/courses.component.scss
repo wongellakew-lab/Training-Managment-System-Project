@@ -434,10 +434,22 @@
           align-items: center;
           gap: 12px;
 
-          .row-price {
-            font-size: 1.125rem;
+          .status-full-tag {
+            font-size: 0.6875rem;
             font-weight: 800;
-            color: var(--text-primary);
+            color: #ef4444;
+            background: #fee2e2;
+            padding: 2px 8px;
+            border-radius: 4px;
+          }
+
+          .status-available-tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #059669;
+            background: #d1fae5;
+            padding: 2px 8px;
+            border-radius: 4px;
           }
         }
       }
@@ -497,6 +509,15 @@
           .count-num {
             font-weight: 700;
             color: var(--text-primary);
+          }
+
+          .btn-view-course {
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 6px;
+            padding: 0 10px;
+            height: 28px;
+            line-height: 26px;
           }
         }
       }
@@ -569,10 +590,22 @@
         align-items: center;
         justify-content: space-between;
 
-        .card-price {
-          font-size: 1.125rem;
+        .status-full-tag {
+          font-size: 0.6875rem;
           font-weight: 800;
-          color: var(--text-primary);
+          color: #ef4444;
+          background: #fee2e2;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .status-available-tag {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #059669;
+          background: #d1fae5;
+          padding: 2px 8px;
+          border-radius: 4px;
         }
       }
 
@@ -647,6 +680,15 @@
             gap: 2px;
             mat-icon { font-size: 14px; width: 14px; height: 14px; }
           }
+        }
+
+        .btn-grid-view-course {
+          font-size: 0.6875rem;
+          font-weight: 700;
+          border-radius: 6px;
+          padding: 0 8px;
+          height: 26px;
+          line-height: 24px;
         }
 
         .duration-lessons-meta {

@@ -36,30 +36,6 @@ export interface CountryDemographic {
   percentage: number;
 }
 
-export interface PaymentStatusBreakdown {
-  totalPaid: number;
-  paidStudentsCount: number;
-  paidPercentage: number;
-  totalPending: number;
-  pendingStudentsCount: number;
-  pendingPercentage: number;
-  totalUnpaid: number;
-  unpaidStudentsCount: number;
-  unpaidPercentage: number;
-
-  enrolledPaid: number;
-  enrolledPending: number;
-  enrolledUnpaid: number;
-
-  appliedPaid: number;
-  appliedPending: number;
-  appliedUnpaid: number;
-
-  waitlistedPaid: number;
-  waitlistedPending: number;
-  waitlistedUnpaid: number;
-}
-
 export interface SystemActivity {
   id: string;
   title: string;

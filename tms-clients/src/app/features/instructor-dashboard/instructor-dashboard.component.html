@@ -1,249 +1,304 @@
-<app-layout pageTitle="Instructor Workspace" [showGreeting]="true">
-  <div class="instructor-page-content">
-    <!-- Welcome Banner -->
-    <mat-card class="welcome-card eduva-card">
-      <div class="welcome-content">
-        <div class="welcome-left">
-          <div class="role-chip-container">
-            <span class="role-badge">Instructor Workspace</span>
-            <span class="welcome-prefix">Faculty Portal</span>
-          </div>
-          <h1 class="instructor-name">
-            Prof. {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}
-          </h1>
-          <p class="instructor-desc">
-            Manage course rosters, grade student performance, and approve real-time enrollments backed by PostgreSQL.
-          </p>
+<app-layout pageTitle="Instructor Dashboard" [showGreeting]="true">
+  <div class="instructor-dashboard-wrapper">
+    <!-- Top Hero Banner -->
+    <div class="hero-banner">
+      <div class="banner-text">
+        <div class="faculty-tag">
+          <mat-icon>verified_user</mat-icon>
+          <span>Faculty Workspace</span>
         </div>
-
-        <div class="welcome-actions">
-          <button
-            mat-flat-button
-            color="primary"
-            (click)="submitAllGrades()"
-            [disabled]="isSubmittingBulk() || gradeRows().length === 0"
-            class="submit-all-btn"
-          >
-            <mat-icon>cloud_upload</mat-icon>
-            <span>{{ isSubmittingBulk() ? 'Saving All...' : 'Submit All Grades' }}</span>
-          </button>
-        </div>
+        <h1>Welcome, Prof. {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}</h1>
+        <p>Manage today's classes, take digital roll call, review student submissions, and update your courses.</p>
       </div>
-    </mat-card>
 
-    <!-- KPI Metrics Cards -->
-    <div class="metrics-grid">
-      <mat-card class="metric-card eduva-card">
-        <div class="metric-header">
-          <div class="metric-icon-box assigned-icon">
-            <mat-icon>cast_for_education</mat-icon>
+      <div class="banner-quick-actions">
+        <button mat-flat-button color="primary" routerLink="/instructor/attendance" class="action-btn">
+          <mat-icon>fact_check</mat-icon>
+          <span>Take Roll Call</span>
+        </button>
+        <button mat-stroked-button routerLink="/instructor/assignments" class="action-btn-outline">
+          <mat-icon>add_task</mat-icon>
+          <span>Create Assignment</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Loading your instructor workspace...</p>
+    </div>
+
+    <div *ngIf="!isLoading()" class="dashboard-body">
+      <!-- 4 KPI Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon-box courses-icon">
+            <mat-icon>auto_stories</mat-icon>
           </div>
-          <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.assignedCoursesCount ?? courses().length }}</div>
-            <div class="metric-label">Assigned Courses</div>
+          <div class="metric-details">
+            <span class="metric-val">{{ dashboard()?.assignedCoursesCount || 0 }}</span>
+            <span class="metric-label">Assigned Courses</span>
           </div>
         </div>
-        <div class="metric-footer">Active teaching sections</div>
-      </mat-card>
 
-      <mat-card class="metric-card eduva-card">
-        <div class="metric-header">
+        <div class="metric-card">
           <div class="metric-icon-box students-icon">
             <mat-icon>groups</mat-icon>
           </div>
-          <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.activeStudentsCount ?? gradeRows().length }}</div>
-            <div class="metric-label">Active Students</div>
+          <div class="metric-details">
+            <span class="metric-val">{{ dashboard()?.activeStudentsCount || 0 }}</span>
+            <span class="metric-label">Active Students</span>
           </div>
         </div>
-        <div class="metric-footer">Enrolled students</div>
-      </mat-card>
 
-      <mat-card class="metric-card eduva-card">
-        <div class="metric-header">
-          <div class="metric-icon-box pending-icon">
-            <mat-icon>fact_check</mat-icon>
+        <div class="metric-card">
+          <div class="metric-icon-box attendance-icon">
+            <mat-icon>how_to_reg</mat-icon>
           </div>
-          <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.pendingGradesCount ?? pendingCount() }}</div>
-            <div class="metric-label">Pending Grades</div>
+          <div class="metric-details">
+            <span class="metric-val">{{ dashboard()?.attendanceRate || 0 }}%</span>
+            <span class="metric-label">Attendance Rate</span>
           </div>
         </div>
-        <div class="metric-footer">Requires scoring</div>
-      </mat-card>
 
-      <mat-card class="metric-card eduva-card">
-        <div class="metric-header">
-          <div class="metric-icon-box cert-icon">
-            <mat-icon>workspace_premium</mat-icon>
+        <div class="metric-card">
+          <div class="metric-icon-box grading-icon">
+            <mat-icon>assignment_turned_in</mat-icon>
           </div>
-          <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.certificatesAwardedCount ?? issuedCount() }}</div>
-            <div class="metric-label">Certificates Issued</div>
+          <div class="metric-details">
+            <span class="metric-val">{{ dashboard()?.pendingGradesCount || 0 }}</span>
+            <span class="metric-label">Pending Grading</span>
           </div>
         </div>
-        <div class="metric-footer">Credentials awarded</div>
-      </mat-card>
-    </div>
-
-    <!-- Course Roster & Gradebook Section -->
-    <mat-card class="roster-card eduva-card">
-      <div class="roster-header-bar">
-        <div>
-          <h2 class="section-title">Course Gradebook & Roster</h2>
-          <p class="section-subtitle">Select an assigned course to view students and input final grades</p>
-        </div>
-
-        <!-- Course Selection Form Field -->
-        <mat-form-field appearance="outline" class="course-select-field">
-          <mat-label>Select Course Section</mat-label>
-          <mat-select [value]="selectedCourseId()" (selectionChange)="onCourseSelect($event.value)">
-            @for (c of courses(); track c.id) {
-              <mat-option [value]="c.id">{{ c.code }} - {{ c.title }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
       </div>
 
-      <!-- Alert / Feedback Banner -->
-      @if (feedbackMessage()) {
-        <div class="feedback-banner" [class.success]="isFeedbackSuccess()" [class.error]="!isFeedbackSuccess()">
-          <mat-icon>{{ isFeedbackSuccess() ? 'check_circle' : 'error' }}</mat-icon>
-          <span class="feedback-text">{{ feedbackMessage() }}</span>
-          <button mat-icon-button (click)="feedbackMessage.set(null)" class="close-btn">
-            <mat-icon>close</mat-icon>
+      <!-- Main 2-Column Grid -->
+      <div class="sections-grid">
+        <!-- Left Column: Today's Classes & Pending Grading -->
+        <div class="col-left">
+          <!-- Today's Classes Card -->
+          <div class="content-card">
+            <div class="card-header">
+              <div class="header-title">
+                <mat-icon class="section-icon text-primary">schedule</mat-icon>
+                <h2>Today's Classes</h2>
+              </div>
+              <span class="header-badge">{{ dashboard()?.todaysClasses?.length || 0 }} Sessions</span>
+            </div>
+
+            <div class="card-content">
+              <div *ngIf="!dashboard()?.todaysClasses?.length" class="empty-state">
+                <mat-icon>event_available</mat-icon>
+                <p>No classes scheduled for today.</p>
+              </div>
+
+              <div *ngFor="let cls of dashboard()?.todaysClasses" class="today-class-item">
+                <div class="class-meta">
+                  <div class="class-code-badge">{{ cls.courseCode }}</div>
+                  <div class="class-info">
+                    <h4>{{ cls.courseName }}</h4>
+                    <div class="class-subdetails">
+                      <span><mat-icon>access_time</mat-icon> {{ cls.startTime }} - {{ cls.endTime }}</span>
+                      <span><mat-icon>place</mat-icon> {{ cls.room || cls.location }}</span>
+                      <span><mat-icon>people</mat-icon> {{ cls.studentCount }} Students</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="class-actions">
+                  <span
+                    class="status-chip"
+                    [class.taken]="cls.attendanceStatus === 'Taken'"
+                    [class.pending]="cls.attendanceStatus === 'Pending'"
+                  >
+                    {{ cls.attendanceStatus === 'Taken' ? 'Attendance Taken' : 'Attendance Pending' }}
+                  </span>
+
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    (click)="goToAttendance(cls.courseId)"
+                    class="roll-call-btn"
+                  >
+                    <mat-icon>fact_check</mat-icon>
+                    <span>{{ cls.attendanceStatus === 'Taken' ? 'View Roll Call' : 'Take Roll Call' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending Grading Card -->
+          <div class="content-card">
+            <div class="card-header">
+              <div class="header-title">
+                <mat-icon class="section-icon text-amber">rate_review</mat-icon>
+                <h2>Pending Grading</h2>
+              </div>
+              <span class="header-badge amber">{{ dashboard()?.pendingGrading?.length || 0 }} Awaiting Review</span>
+            </div>
+
+            <div class="card-content">
+              <div *ngIf="!dashboard()?.pendingGrading?.length" class="empty-state">
+                <mat-icon>done_all</mat-icon>
+                <p>All submissions are graded! No pending reviews.</p>
+              </div>
+
+              <div *ngFor="let item of dashboard()?.pendingGrading" class="pending-grading-item">
+                <div class="grading-info">
+                  <h4>{{ item.assignmentTitle }}</h4>
+                  <div class="grading-subdetails">
+                    <span><mat-icon>book</mat-icon> {{ item.courseName }}</span>
+                    <span><mat-icon>event</mat-icon> Due: {{ item.dueDate | date:'mediumDate' }}</span>
+                  </div>
+                </div>
+
+                <div class="grading-actions">
+                  <div class="submission-count-chip">
+                    <mat-icon>hourglass_top</mat-icon>
+                    <span>{{ item.submissionsCount }} to grade</span>
+                  </div>
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    (click)="goToSubmissions(item.assignmentId, item.courseId)"
+                  >
+                    Grade Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Upcoming Sessions & Student Questions -->
+        <div class="col-right">
+          <!-- Upcoming Sessions Card -->
+          <div class="content-card">
+            <div class="card-header">
+              <div class="header-title">
+                <mat-icon class="section-icon text-info">calendar_month</mat-icon>
+                <h2>Upcoming Sessions</h2>
+              </div>
+              <a routerLink="/instructor/schedule" class="header-link">View Master Schedule →</a>
+            </div>
+
+            <div class="card-content">
+              <div *ngIf="!dashboard()?.upcomingSessions?.length" class="empty-state">
+                <mat-icon>calendar_today</mat-icon>
+                <p>No upcoming sessions recorded.</p>
+              </div>
+
+              <div *ngFor="let s of dashboard()?.upcomingSessions" class="upcoming-session-item">
+                <div class="session-date-box">
+                  <span class="date-day">{{ s.date | date:'dd' }}</span>
+                  <span class="date-month">{{ s.date | date:'MMM' }}</span>
+                </div>
+                <div class="session-details">
+                  <h4>{{ s.courseName }}</h4>
+                  <div class="session-sub">
+                    <span><mat-icon>schedule</mat-icon> {{ s.startTime }} - {{ s.endTime }}</span>
+                    <span><mat-icon>location_on</mat-icon> {{ s.room }}</span>
+                  </div>
+                </div>
+                <div class="session-attendees">
+                  <mat-icon>groups</mat-icon>
+                  <span>{{ s.enrolledStudentsCount }} enrolled</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student Questions Card -->
+          <div class="content-card">
+            <div class="card-header">
+              <div class="header-title">
+                <mat-icon class="section-icon text-success">question_answer</mat-icon>
+                <h2>Recent Student Questions</h2>
+              </div>
+              <span class="header-badge">{{ dashboard()?.recentStudentQuestions?.length || 0 }} Inquiries</span>
+            </div>
+
+            <div class="card-content">
+              <div *ngIf="!dashboard()?.recentStudentQuestions?.length" class="empty-state">
+                <mat-icon>chat_bubble_outline</mat-icon>
+                <p>No student questions at this time.</p>
+              </div>
+
+              <div *ngFor="let q of dashboard()?.recentStudentQuestions" class="question-item">
+                <div class="question-header">
+                  <div class="student-profile-info">
+                    <div class="student-avatar-box">
+                      <img *ngIf="q.studentAvatar" [src]="q.studentAvatar" [alt]="q.studentName" />
+                      <span *ngIf="!q.studentAvatar">{{ q.studentName.charAt(0) }}</span>
+                    </div>
+                    <div>
+                      <span class="student-name">{{ q.studentName }}</span>
+                      <span class="question-course">{{ q.courseName }}</span>
+                    </div>
+                  </div>
+                  <span class="question-status" [class.answered]="q.isAnswered">
+                    {{ q.isAnswered ? 'Answered' : 'Unanswered' }}
+                  </span>
+                </div>
+
+                <p class="question-body">{{ q.question }}</p>
+
+                <div *ngIf="q.answer" class="existing-answer">
+                  <mat-icon>reply</mat-icon>
+                  <p><strong>Your Reply:</strong> {{ q.answer }}</p>
+                </div>
+
+                <div class="question-footer">
+                  <span class="question-date">{{ q.date | date:'short' }}</span>
+                  <button mat-button color="primary" (click)="openReply(q)">
+                    <mat-icon>edit_note</mat-icon>
+                    <span>{{ q.isAnswered ? 'Edit Answer' : 'Reply to Student' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reply Modal / Overlay -->
+    <div *ngIf="activeQuestion()" class="modal-backdrop" (click)="closeReply()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Reply to {{ activeQuestion()?.studentName }}</h3>
+          <button mat-icon-button (click)="closeReply()"><mat-icon>close</mat-icon></button>
+        </div>
+        <div class="modal-body">
+          <div class="question-quote">
+            <span class="quote-label">Student Question:</span>
+            <p>"{{ activeQuestion()?.question }}"</p>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Your Answer</mat-label>
+            <textarea
+              matInput
+              rows="4"
+              [(ngModel)]="replyText"
+              placeholder="Provide clear guidance or answers to the student..."
+            ></textarea>
+          </mat-form-field>
+        </div>
+        <div class="modal-actions">
+          <button mat-stroked-button (click)="closeReply()">Cancel</button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="submitReply()"
+            [disabled]="isSubmittingReply() || !replyText().trim()"
+          >
+            {{ isSubmittingReply() ? 'Sending...' : 'Send Answer' }}
           </button>
         </div>
-      }
-
-      @if (isLoading()) {
-        <div class="loading-state">
-          <mat-spinner diameter="36"></mat-spinner>
-          <span>Loading course roster and grades...</span>
-        </div>
-      } @else if (gradeRows().length === 0) {
-        <div class="empty-state">
-          <mat-icon class="empty-icon">group_off</mat-icon>
-          <h3 class="empty-title">No students enrolled in this section</h3>
-          <p class="empty-desc">Students will appear here in real-time once they register for this course.</p>
-        </div>
-      } @else {
-        <div class="table-container">
-          <table mat-table [dataSource]="gradeRows()" class="tms-table">
-            <!-- Student Column -->
-            <ng-container matColumnDef="student">
-              <th mat-header-cell *matHeaderCellDef>Student</th>
-              <td mat-cell *matCellDef="let row" class="student-cell">
-                <span class="student-name">{{ row.enrollment.studentName || 'Student #' + row.enrollment.studentId }}</span>
-                <span class="student-id font-mono">ID: {{ row.enrollment.studentId }}</span>
-              </td>
-            </ng-container>
-
-            <!-- Status Column -->
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Enrollment Status</th>
-              <td mat-cell *matCellDef="let row">
-                <span
-                  class="badge"
-                  [ngClass]="{
-                    'badge-success': row.enrollment.status === 'Completed',
-                    'badge-primary': row.enrollment.status === 'Active' || row.enrollment.status === 'Approved',
-                    'badge-warning': row.enrollment.status === 'Pending',
-                    'badge-danger': row.enrollment.status === 'Dropped' || row.enrollment.status === 'Rejected'
-                  }"
-                >
-                  {{ row.enrollment.status }}
-                </span>
-              </td>
-            </ng-container>
-
-            <!-- Numeric Score Column -->
-            <ng-container matColumnDef="numericScore">
-              <th mat-header-cell *matHeaderCellDef class="w-36">Score (0-100)</th>
-              <td mat-cell *matCellDef="let row">
-                <mat-form-field appearance="outline" class="score-input-field">
-                  <input
-                    matInput
-                    type="number"
-                    min="0"
-                    max="100"
-                    [(ngModel)]="row.numericScore"
-                    (ngModelChange)="onScoreChange(row)"
-                    class="font-mono text-right"
-                  />
-                </mat-form-field>
-              </td>
-            </ng-container>
-
-            <!-- Letter Grade Column -->
-            <ng-container matColumnDef="letterGrade">
-              <th mat-header-cell *matHeaderCellDef class="text-center">Letter Grade</th>
-              <td mat-cell *matCellDef="let row" class="text-center">
-                <span class="letter-grade-badge">{{ row.letterGrade || '—' }}</span>
-              </td>
-            </ng-container>
-
-            <!-- Certificate Column -->
-            <ng-container matColumnDef="certificate">
-              <th mat-header-cell *matHeaderCellDef class="text-center">Certificate</th>
-              <td mat-cell *matCellDef="let row" class="text-center">
-                @if (row.isIssued) {
-                  <span class="badge badge-success">Issued</span>
-                } @else if (row.enrollment.status === 'Completed' || row.numericScore >= 60) {
-                  <button
-                    mat-stroked-button
-                    color="accent"
-                    (click)="issueCertificate(row)"
-                    class="award-btn"
-                  >
-                    Award Cert
-                  </button>
-                } @else {
-                  <span class="text-muted text-xs">Requires 60%+</span>
-                }
-              </td>
-            </ng-container>
-
-            <!-- Actions Column -->
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
-              <td mat-cell *matCellDef="let row" class="text-right actions-cell">
-                @if (row.enrollment.status === 'Pending') {
-                  <button
-                    mat-flat-button
-                    color="primary"
-                    (click)="approveEnrollment(row)"
-                    class="btn-approve"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    mat-stroked-button
-                    color="warn"
-                    (click)="rejectEnrollment(row)"
-                    class="btn-reject"
-                  >
-                    Reject
-                  </button>
-                } @else {
-                  <button
-                    mat-flat-button
-                    color="primary"
-                    (click)="saveSingleGrade(row)"
-                    [disabled]="row.isSaving"
-                    class="save-btn"
-                  >
-                    {{ row.isSaving ? 'Saving...' : 'Save Grade' }}
-                  </button>
-                }
-              </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="tms-row"></tr>
-          </table>
-        </div>
-      }
-    </mat-card>
+      </div>
+    </div>
   </div>
 </app-layout>

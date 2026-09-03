@@ -1,0 +1,394 @@
+<app-layout pageTitle="Course Builder" [showGreeting]="false">
+  <div class="builder-wrapper">
+    <!-- Builder Header -->
+    <div class="builder-top-bar">
+      <div class="top-bar-left">
+        <button mat-icon-button (click)="cancel()" class="back-btn">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div>
+          <div class="title-status-row">
+            <h1>Course Content Builder</h1>
+            <span class="status-pill" [class.active]="course().status === 'Active'">
+              {{ course().status || 'Draft' }}
+            </span>
+          </div>
+          <p>Structure your curriculum, chronology of modules, lessons, and PDF resource documents.</p>
+        </div>
+      </div>
+
+      <div class="top-bar-actions">
+        <button mat-stroked-button (click)="saveDraft()" [disabled]="isSaving()">
+          Save as Draft
+        </button>
+        <button mat-flat-button color="primary" (click)="publishCourse()" [disabled]="isSaving()" class="publish-btn">
+          <mat-icon>publish</mat-icon>
+          <span>{{ isSaving() ? 'Saving...' : 'Publish Course' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading course content hierarchy...</p>
+    </div>
+
+    <!-- Main Two-Column Builder Layout (Reference Screenshot) -->
+    <div *ngIf="!isLoading()" class="builder-content-grid">
+      <!-- ─── LEFT COLUMN: Course Info & Meta ─────────────────────────────── -->
+      <div class="col-left">
+        <!-- Thumbnail Section -->
+        <div class="form-card">
+          <label class="form-label">Course Thumbnail</label>
+          <div class="thumbnail-dropzone" (click)="thumbnailInput.click()">
+            <input
+              #thumbnailInput
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              (change)="onThumbnailSelected($event)"
+              style="display: none;"
+            />
+
+            <div *ngIf="course().imageUrl" class="thumbnail-preview">
+              <img [src]="course().imageUrl" alt="Course Thumbnail" />
+              <div class="thumbnail-overlay">
+                <mat-icon>photo_camera</mat-icon>
+                <span>Change Image</span>
+              </div>
+            </div>
+
+            <div *ngIf="!course().imageUrl" class="dropzone-empty">
+              <mat-icon class="upload-icon">cloud_upload</mat-icon>
+              <p class="dropzone-title">Upload or drag image here</p>
+              <span class="dropzone-note">JPG, PNG or WebP (Max 3MB)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Basic Course Fields -->
+        <div class="form-card">
+          <!-- Course Name -->
+          <div class="form-group">
+            <label class="form-label">Course Name</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="course().title"
+              placeholder="e.g. Advanced Angular & Full-Stack Architecture"
+            />
+          </div>
+
+          <!-- Category -->
+          <div class="form-group">
+            <label class="form-label">Course Category</label>
+            <select class="form-control" [(ngModel)]="course().category">
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+
+          <!-- Skill Level Radio Pills -->
+          <div class="form-group">
+            <label class="form-label">Skill Level</label>
+            <div class="skill-pills">
+              <button
+                *ngFor="let lvl of skillLevels"
+                type="button"
+                class="skill-pill"
+                [class.active]="course().level === lvl"
+                (click)="course().level = lvl"
+              >
+                {{ lvl }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Instructor Field -->
+          <div class="form-group">
+            <label class="form-label">Instructor</label>
+            <div class="readonly-instructor-box">
+              <mat-icon>school</mat-icon>
+              <span>{{ course().instructorName || (authService.currentUser()?.firstName + ' ' + authService.currentUser()?.lastName) }} (Authenticated)</span>
+            </div>
+          </div>
+
+          <!-- Lessons Count & Duration Hours -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Total Lessons</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="course().lessonsCount"
+                min="0"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Duration (Hours)</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="course().durationHours"
+                min="1"
+              />
+            </div>
+          </div>
+
+          <!-- About the Course -->
+          <div class="form-group">
+            <label class="form-label">About the Course</label>
+            <textarea
+              class="form-control textarea"
+              rows="4"
+              [(ngModel)]="course().about"
+              placeholder="Provide a comprehensive summary of syllabus, learning outcomes, and prerequisites..."
+            ></textarea>
+          </div>
+
+          <!-- Features Toggles -->
+          <div class="features-section">
+            <label class="form-label">Features & Deliverables</label>
+            <div class="feature-item">
+              <div class="feature-info">
+                <mat-icon>verified</mat-icon>
+                <span>Completion Certificate</span>
+              </div>
+              <mat-slide-toggle [(ngModel)]="featureCertificate" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="feature-item">
+              <div class="feature-info">
+                <mat-icon>picture_as_pdf</mat-icon>
+                <span>Downloadable PDF Materials</span>
+              </div>
+              <mat-slide-toggle [(ngModel)]="featureDownloadable" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="feature-item">
+              <div class="feature-info">
+                <mat-icon>assignment</mat-icon>
+                <span>Hands-on Laboratory Exercises</span>
+              </div>
+              <mat-slide-toggle [(ngModel)]="featureExercises" color="primary"></mat-slide-toggle>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── RIGHT COLUMN: Course Content & Resources ───────────────────── -->
+      <div class="col-right">
+        <!-- Course Content Accordion -->
+        <div class="form-card">
+          <div class="card-section-header">
+            <div>
+              <h3>Course Content</h3>
+              <p>Organize chronological modules and sequential sub-content lessons.</p>
+            </div>
+            <button mat-stroked-button (click)="addModule()" class="add-module-header-btn">
+              <mat-icon>add</mat-icon>
+              <span>Add Module</span>
+            </button>
+          </div>
+
+          <div *ngIf="course().modules.length === 0" class="empty-modules">
+            <mat-icon>library_books</mat-icon>
+            <p>No modules created yet. Click below to add your first module.</p>
+          </div>
+
+          <!-- Modules List -->
+          <div class="modules-stack">
+            <div *ngFor="let mod of course().modules; let mIdx = index" class="module-block">
+              <!-- Module Header Bar -->
+              <div class="module-header-bar">
+                <div class="module-drag-indicator">
+                  <span class="module-index-badge">#{{ mIdx + 1 }}</span>
+                </div>
+
+                <div class="module-title-input-wrapper">
+                  <input
+                    type="text"
+                    class="module-title-input"
+                    [(ngModel)]="mod.title"
+                    (blur)="updateModuleTitle(mod)"
+                    placeholder="Module Title..."
+                  />
+                </div>
+
+                <div class="module-controls">
+                  <button mat-icon-button (click)="moveModule(mIdx, 'up')" [disabled]="mIdx === 0" title="Move Up">
+                    <mat-icon>arrow_upward</mat-icon>
+                  </button>
+                  <button mat-icon-button (click)="moveModule(mIdx, 'down')" [disabled]="mIdx === course().modules.length - 1" title="Move Down">
+                    <mat-icon>arrow_downward</mat-icon>
+                  </button>
+                  <button mat-icon-button color="warn" (click)="deleteModule(mod.id)" title="Delete Module">
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Lessons (Sub Content) inside Module -->
+              <div class="sub-content-list">
+                <div *ngFor="let l of mod.lessons; let lIdx = index" class="lesson-row">
+                  <div class="lesson-indicator">
+                    <mat-icon class="sub-icon">subdirectory_arrow_right</mat-icon>
+                    <span class="lesson-num">{{ lIdx + 1 }}.</span>
+                  </div>
+
+                  <div class="lesson-fields">
+                    <input
+                      type="text"
+                      class="lesson-title-input"
+                      [(ngModel)]="l.title"
+                      (blur)="updateLesson(mod.id, l)"
+                      placeholder="Lesson title or lecture notes..."
+                    />
+                    <div class="lesson-duration-box">
+                      <mat-icon>timer</mat-icon>
+                      <input
+                        type="number"
+                        class="duration-input"
+                        [(ngModel)]="l.durationMinutes"
+                        (blur)="updateLesson(mod.id, l)"
+                        min="5"
+                      />
+                      <span>min</span>
+                    </div>
+                  </div>
+
+                  <div class="lesson-controls">
+                    <button mat-icon-button (click)="moveLesson(mod, lIdx, 'up')" [disabled]="lIdx === 0">
+                      <mat-icon>arrow_upward</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="moveLesson(mod, lIdx, 'down')" [disabled]="lIdx === mod.lessons.length - 1">
+                      <mat-icon>arrow_downward</mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteLesson(mod, l.id)">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Add Sub Content Button -->
+                <button type="button" class="add-sub-content-btn" (click)="addLesson(mod)">
+                  <mat-icon>add</mat-icon>
+                  <span>Add More Sub Content</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Big Add More Course Content Button -->
+            <button type="button" class="big-add-content-btn" (click)="addModule()">
+              <mat-icon>add_circle_outline</mat-icon>
+              <span>Add More Course Content</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Course PDF Resources Section -->
+        <div class="form-card">
+          <div class="card-section-header">
+            <div>
+              <h3>Course Resources</h3>
+              <p>Upload lecture slides, reading material, or laboratory guides in PDF format.</p>
+            </div>
+          </div>
+
+          <!-- Existing Resources List -->
+          <div *ngIf="course().resources.length > 0" class="resources-stack">
+            <div *ngFor="let res of course().resources" class="resource-item">
+              <div class="res-left">
+                <div class="file-icon-box">
+                  <mat-icon>picture_as_pdf</mat-icon>
+                </div>
+                <div class="res-info">
+                  <span class="res-title">{{ res.title }}</span>
+                  <span class="res-size">{{ res.fileType }} &bull; {{ res.fileSize }}</span>
+                </div>
+              </div>
+
+              <div class="res-actions">
+                <button mat-stroked-button (click)="openPdfPreview(res)" class="preview-btn">
+                  <mat-icon>visibility</mat-icon>
+                  <span>Preview</span>
+                </button>
+                <a [href]="res.url" target="_blank" download mat-icon-button title="Download File">
+                  <mat-icon>download</mat-icon>
+                </a>
+                <button mat-icon-button color="warn" (click)="deleteResource(res.id)" title="Delete Resource">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resource Upload Dropzone (Screenshot Style) -->
+          <div class="resource-dropzone" (click)="resourceInput.click()">
+            <input
+              #resourceInput
+              type="file"
+              accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              (change)="onResourceSelected($event)"
+              style="display: none;"
+            />
+
+            <div class="dropzone-inner">
+              <div class="drop-text-col">
+                <mat-icon class="drop-icon">cloud_upload</mat-icon>
+                <div>
+                  <p class="drop-title">Upload or drag your file here</p>
+                  <span class="drop-hint">PDF, DOCX or PPTX (Max 20MB)</span>
+                </div>
+              </div>
+
+              <button mat-flat-button color="primary" class="drop-upload-btn" (click)="$event.stopPropagation(); resourceInput.click()">
+                <mat-icon>upload</mat-icon>
+                <span>{{ isUploadingResource() ? 'Uploading...' : 'Upload' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Bottom Actions Bar -->
+    <div class="bottom-action-bar">
+      <button mat-stroked-button (click)="cancel()" class="cancel-btn">
+        Cancel
+      </button>
+
+      <div class="right-actions">
+        <button mat-stroked-button (click)="saveDraft()" [disabled]="isSaving()">
+          Save as Draft
+        </button>
+        <button mat-flat-button color="primary" (click)="publishCourse()" [disabled]="isSaving()" class="publish-btn">
+          <mat-icon>check_circle</mat-icon>
+          <span>{{ isSaving() ? 'Saving...' : 'Publish Course' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div *ngIf="previewResource()" class="pdf-modal-backdrop" (click)="closePdfPreview()">
+      <div class="pdf-modal-card" (click)="$event.stopPropagation()">
+        <div class="pdf-modal-header">
+          <div class="pdf-title-box">
+            <mat-icon>picture_as_pdf</mat-icon>
+            <h3>{{ previewResource()?.title }}</h3>
+          </div>
+          <div class="pdf-header-actions">
+            <a [href]="previewResource()?.url" target="_blank" download mat-stroked-button>
+              <mat-icon>download</mat-icon>
+              <span>Download</span>
+            </a>
+            <button mat-icon-button (click)="closePdfPreview()"><mat-icon>close</mat-icon></button>
+          </div>
+        </div>
+
+        <div class="pdf-modal-body">
+          <iframe [src]="previewResource()?.url" class="pdf-iframe"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-layout>

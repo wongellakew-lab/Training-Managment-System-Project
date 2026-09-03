@@ -58,18 +58,24 @@ export class SidebarComponent {
     if (role === 'Instructor') {
       return [
         { label: 'Dashboard', path: '/instructor/dashboard', icon: 'grid_view', exact: true },
-        { label: 'My Courses', path: '/instructor/courses', icon: 'menu_book' }
+        { label: 'Master Schedule', path: '/instructor/schedule', icon: 'calendar_month' },
+        { label: 'Courses & Builder', path: '/instructor/courses', icon: 'auto_stories' },
+        { label: 'Digital Roll Call', path: '/instructor/attendance', icon: 'fact_check' },
+        { label: 'Assignments', path: '/instructor/assignments', icon: 'assignment' },
+        { label: 'Gradebook', path: '/instructor/gradebook', icon: 'table_chart' },
+        { label: 'Student Submissions', path: '/instructor/submissions', icon: 'rate_review' },
+        { label: 'My Profile', path: '/instructor/profile', icon: 'account_circle' }
       ];
     }
 
     // Student
     return [
       { label: 'Dashboard', path: '/student/dashboard', icon: 'grid_view', exact: true },
+      { label: 'Calendar', path: '/student/schedule', icon: 'calendar_today' },
+      { label: 'My Courses', path: '/student/my-courses', icon: 'school' },
       { label: 'Course Catalog', path: '/student/catalog', icon: 'menu_book' },
-      { label: 'Class Schedule', path: '/student/schedule', icon: 'calendar_today' },
-      { label: 'Gradebook', path: '/student/gradebook', icon: 'school' },
+      { label: 'Gradebook', path: '/student/gradebook', icon: 'auto_stories' },
       { label: 'Progress Tracking', path: '/student/progress', icon: 'trending_up' },
-      { label: 'My Enrollments', path: '/student/enrollments', icon: 'people' },
       { label: 'Certificates', path: '/student/certificates', icon: 'verified' },
       { label: 'My Profile', path: '/student/profile', icon: 'person' }
     ];

@@ -1,0 +1,133 @@
+<app-layout pageTitle="Gradebook" [showGreeting]="false">
+  <div class="gradebook-page-container">
+    <!-- Header Card -->
+    <div class="header-card">
+      <div class="header-left">
+        <h1>Course Gradebook & Matrix</h1>
+        <p>Spreadsheet matrix of student grades across assignments. Edits in cells save directly to the PostgreSQL database.</p>
+      </div>
+
+      <div class="header-controls">
+        <mat-form-field appearance="outline" class="course-select-field">
+          <mat-label>Select Course</mat-label>
+          <mat-select [(ngModel)]="selectedCourseId" (selectionChange)="onCourseChange()">
+            <mat-option *ngFor="let c of courses()" [value]="c.id">
+              {{ c.code }} - {{ c.title }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Quick Stats Strip -->
+    <div class="stats-strip">
+      <div class="stat-box">
+        <span class="stat-label">Enrolled Students</span>
+        <span class="stat-val">{{ rows().length }}</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Assignments Evaluated</span>
+        <span class="stat-val">{{ assignments().length }}</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Class Average</span>
+        <span class="stat-val text-primary">{{ classAverage() }}%</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Passing Rate</span>
+        <span class="stat-val text-success">{{ passingCount() }} / {{ rows().length }}</span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading course gradebook matrix...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && (rows().length === 0 || assignments().length === 0)" class="empty-state-card">
+      <mat-icon>table_chart</mat-icon>
+      <h3>Gradebook Empty</h3>
+      <p>Ensure you have created published assignments and enrolled active students in this course.</p>
+    </div>
+
+    <!-- Spreadsheet Matrix Table -->
+    <div *ngIf="!isLoading() && rows().length > 0 && assignments().length > 0" class="matrix-card">
+      <div class="matrix-scroll-wrapper">
+        <table class="gradebook-table">
+          <thead>
+            <tr>
+              <th class="sticky-col col-student">Student Name</th>
+              <th class="col-reg">Reg #</th>
+              <!-- Dynamic Assignment Columns -->
+              <th *ngFor="let asgn of assignments()" class="col-asgn">
+                <div class="asgn-header-cell">
+                  <span class="asgn-title">{{ asgn.title }}</span>
+                  <span class="asgn-pts">/ {{ asgn.maxPoints }} pts</span>
+                </div>
+              </th>
+              <th class="col-total">Total</th>
+              <th class="col-avg">Avg %</th>
+              <th class="col-grade">Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of rows()" class="student-grade-row">
+              <!-- Student Info -->
+              <td class="sticky-col col-student">
+                <div class="student-cell-content">
+                  <div class="student-avatar">
+                    <img *ngIf="row.avatarUrl" [src]="row.avatarUrl" [alt]="row.studentName" />
+                    <span *ngIf="!row.avatarUrl">{{ row.studentName.charAt(0) }}</span>
+                  </div>
+                  <span class="student-name">{{ row.studentName }}</span>
+                </div>
+              </td>
+
+              <!-- Reg # -->
+              <td class="col-reg">
+                <span class="reg-code">{{ row.registrationNumber || 'REG-PENDING' }}</span>
+              </td>
+
+              <!-- Dynamic Grade Cells -->
+              <td *ngFor="let asgn of assignments()" class="col-asgn">
+                <div class="grade-cell-wrapper">
+                  <input
+                    type="number"
+                    class="grade-cell-input"
+                    [value]="row.grades[asgn.id]?.score ?? ''"
+                    [placeholder]="'-'"
+                    min="0"
+                    [max]="asgn.maxPoints"
+                    (change)="onScoreChange(row, asgn, $any($event.target).value)"
+                  />
+                  <span class="max-pts-hint">/{{ asgn.maxPoints }}</span>
+                </div>
+              </td>
+
+              <!-- Total Score -->
+              <td class="col-total">
+                <span class="total-score-val">{{ row.totalScore }} / {{ row.totalMaxScore }}</span>
+              </td>
+
+              <!-- Average % -->
+              <td class="col-avg">
+                <span class="avg-percentage-val" [class.passing]="row.averagePercentage >= 60">
+                  {{ row.averagePercentage }}%
+                </span>
+              </td>
+
+              <!-- Letter Grade -->
+              <td class="col-grade">
+                <span class="letter-grade-badge" [attr.data-grade]="row.letterGrade">
+                  {{ row.letterGrade }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</app-layout>

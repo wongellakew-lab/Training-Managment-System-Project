@@ -1,0 +1,184 @@
+<app-layout pageTitle="Course Assignments" [showGreeting]="false">
+  <div class="assignments-page-container">
+    <!-- Header Card -->
+    <div class="header-card">
+      <div class="header-left">
+        <h1>Course Assignments & Evaluations</h1>
+        <p>Create assignment tasks, attach prompt PDF guidelines, set deadlines, and monitor student submission progress.</p>
+      </div>
+
+      <div class="header-controls">
+        <mat-form-field appearance="outline" class="course-select-field">
+          <mat-label>Select Course</mat-label>
+          <mat-select [(ngModel)]="selectedCourseId" (selectionChange)="onCourseChange()">
+            <mat-option *ngFor="let c of courses()" [value]="c.id">
+              {{ c.code }} - {{ c.title }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <button mat-flat-button color="primary" (click)="openCreateDialog()" class="create-btn">
+          <mat-icon>add</mat-icon>
+          <span>Create Assignment</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading course assignments...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && assignments().length === 0" class="empty-state-card">
+      <mat-icon>assignment_late</mat-icon>
+      <h3>No Assignments Created</h3>
+      <p>Click "Create Assignment" to post the first assessment for this course.</p>
+    </div>
+
+    <!-- Assignments Grid -->
+    <div *ngIf="!isLoading() && assignments().length > 0" class="assignments-grid">
+      <div *ngFor="let a of assignments()" class="assignment-card">
+        <div class="card-top">
+          <div class="badge-group">
+            <span class="points-pill">{{ a.maxPoints }} Points</span>
+            <span class="pub-pill" [class.published]="a.isPublished">{{ a.isPublished ? 'Published' : 'Draft' }}</span>
+          </div>
+
+          <div class="menu-actions">
+            <button mat-icon-button (click)="openEditDialog(a)" title="Edit Assignment">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="deleteAssignment(a.id)" title="Delete Assignment">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <h3 class="assignment-title">{{ a.title }}</h3>
+        <p class="assignment-instructions">{{ a.instructions }}</p>
+
+        <!-- Attachment indicator -->
+        <div *ngIf="a.attachmentUrl" class="attachment-bar">
+          <mat-icon>attachment</mat-icon>
+          <a [href]="a.attachmentUrl" target="_blank" class="attachment-link">
+            {{ a.attachmentFileName || 'Download Attachment Guidelines' }}
+          </a>
+        </div>
+
+        <div class="meta-strip">
+          <div class="meta-item">
+            <mat-icon>event</mat-icon>
+            <span>Due: {{ a.dueDate | date:'mediumDate' }}</span>
+          </div>
+        </div>
+
+        <!-- Submissions Progress Box -->
+        <div class="submissions-progress-box">
+          <div class="progress-details">
+            <span class="sub-label">Student Submissions:</span>
+            <span class="sub-count">{{ a.totalSubmissions }} Submitted</span>
+          </div>
+
+          <div class="pending-chip" *ngIf="a.pendingGrading > 0">
+            <mat-icon>hourglass_top</mat-icon>
+            <span>{{ a.pendingGrading }} pending review</span>
+          </div>
+          <div class="done-chip" *ngIf="a.pendingGrading === 0 && a.totalSubmissions > 0">
+            <mat-icon>check_circle</mat-icon>
+            <span>All graded</span>
+          </div>
+        </div>
+
+        <!-- Footer Action -->
+        <div class="card-footer">
+          <button mat-flat-button color="primary" (click)="viewSubmissions(a.id)" class="review-btn">
+            <mat-icon>rate_review</mat-icon>
+            <span>Review Submissions ({{ a.totalSubmissions }})</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create / Edit Modal -->
+    <div *ngIf="showCreateModal()" class="modal-backdrop" (click)="closeDialog()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ isEditing() ? 'Edit Assignment' : 'Create New Assignment' }}</h3>
+          <button mat-icon-button (click)="closeDialog()"><mat-icon>close</mat-icon></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Assignment Title</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="formTitle"
+              placeholder="e.g. Midterm Project: Scalable API Architecture"
+            />
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Max Score (Points)</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="formMaxPoints"
+                min="1"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Due Date & Time</label>
+              <input
+                type="datetime-local"
+                class="form-control"
+                [(ngModel)]="formDueDate"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Instructions & Rubric Guidelines</label>
+            <textarea
+              class="form-control textarea"
+              rows="4"
+              [(ngModel)]="formInstructions"
+              placeholder="Detail the expectations, grading rubric criteria, and required deliverables..."
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Attach PDF / Guidelines File (Optional)</label>
+            <input
+              type="file"
+              accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              (change)="onAttachmentFileSelected($event)"
+              class="file-input"
+            />
+          </div>
+
+          <div class="form-toggle-row">
+            <span class="toggle-label">Publish Assignment Immediately</span>
+            <mat-slide-toggle [(ngModel)]="formIsPublished" color="primary"></mat-slide-toggle>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button mat-stroked-button (click)="closeDialog()">Cancel</button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="saveAssignment()"
+            [disabled]="isSaving() || !formTitle().trim()"
+          >
+            {{ isSaving() ? 'Saving...' : 'Save Assignment' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-layout>

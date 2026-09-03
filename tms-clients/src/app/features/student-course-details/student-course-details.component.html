@@ -1,0 +1,399 @@
+<app-layout [pageTitle]="course()?.title || 'Course Details'">
+  <!-- Top Navigation & Breadcrumb Header -->
+  <div class="course-details-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()" title="Back to Catalog">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="breadcrumb-trail">
+        <span class="crumb-parent" (click)="goBack()">Courses</span>
+        <mat-icon class="crumb-separator">chevron_right</mat-icon>
+        <span class="crumb-current">Course Details</span>
+      </div>
+    </div>
+    <div class="header-right">
+      @if (course()?.code) {
+        <span class="course-code-pill font-mono">{{ course()?.code }}</span>
+      }
+    </div>
+  </div>
+
+  <!-- Loading State Skeleton -->
+  @if (isLoading()) {
+    <div class="details-loading-container">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p class="loading-label">Loading course details...</p>
+    </div>
+  }
+
+  <!-- Not Found State -->
+  @else if (isNotFound()) {
+    <div class="eduva-card details-state-card not-found-card">
+      <div class="state-icon-box">
+        <mat-icon>search_off</mat-icon>
+      </div>
+      <h2 class="state-title">Course Not Found</h2>
+      <p class="state-sub">The course you're looking for does not exist or is no longer available in the catalog.</p>
+      <button mat-flat-button color="primary" class="state-btn" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        <span>Back to Course Catalog</span>
+      </button>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (errorMessage()) {
+    <div class="eduva-card details-state-card error-card">
+      <div class="state-icon-box error-icon">
+        <mat-icon>error_outline</mat-icon>
+      </div>
+      <h2 class="state-title">Unable to Load Course Details</h2>
+      <p class="state-sub">{{ errorMessage() }}</p>
+      <button mat-flat-button color="primary" class="state-btn" (click)="loadCourse(course()?.id || 1)">
+        <mat-icon>refresh</mat-icon>
+        <span>Retry</span>
+      </button>
+    </div>
+  }
+
+  <!-- Loaded Course Details Main View -->
+  @else if (course()) {
+    <div class="course-details-grid">
+      <!-- ================= LEFT COLUMN: COURSE INFORMATION CARD ================= -->
+      <aside class="course-info-panel">
+        <div class="eduva-card info-card">
+          <!-- Hero Thumbnail with Level Badge -->
+          <div class="course-hero-wrapper">
+            <img
+              [src]="course()!.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80'"
+              alt="Course Thumbnail"
+              class="hero-img"
+            />
+            <span class="hero-level-badge font-mono">{{ course()!.level || 'Beginner' }}</span>
+          </div>
+
+          <div class="info-card-body">
+            <!-- Course Title -->
+            <h1 class="course-headline">{{ course()!.title }}</h1>
+
+            <!-- Instructor Information -->
+            <div class="instructor-profile-box">
+              <img
+                [src]="course()!.instructorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
+                alt="Instructor"
+                class="inst-img"
+              />
+              <div class="inst-details">
+                <span class="inst-label">Instructor</span>
+                <h4 class="inst-fullname">{{ course()!.instructorName || 'No instructor assigned yet' }}</h4>
+                @if (course()!.instructorDepartment) {
+                  <span class="inst-dept">{{ course()!.instructorDepartment }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Meta Tags: Status & Subject Matter -->
+            <div class="course-tags-row">
+              <span class="pill-badge status-active">&bull; {{ course()!.status }}</span>
+              <span class="pill-badge category-tag">{{ course()!.department || course()!.category }}</span>
+              <span class="pill-badge credits-tag font-mono">{{ course()!.credits }} Credits</span>
+            </div>
+
+            <!-- Duration & Lesson Metrics -->
+            <div class="metrics-grid">
+              <div class="metric-item">
+                <span class="metric-label">Duration</span>
+                <span class="metric-val font-mono">{{ course()!.durationWeeks || 6 }} Weeks</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Total Lessons</span>
+                <span class="metric-val font-mono">{{ course()!.lessonsCount || 0 }} Lessons</span>
+              </div>
+            </div>
+
+            <!-- Enrollment Capacity & Availability Section -->
+            <div class="capacity-breakdown-box">
+              <div class="capacity-header-row">
+                <span class="cap-title">Class Capacity</span>
+                <span class="cap-metric font-mono" [class.text-danger]="isFull()">
+                  {{ course()!.enrolledCount }} / {{ course()!.maxCapacity }} Enrolled
+                </span>
+              </div>
+
+              <mat-progress-bar
+                mode="determinate"
+                [value]="capacityPercentage()"
+                [color]="isFull() ? 'warn' : 'primary'"
+                class="capacity-progress"
+              ></mat-progress-bar>
+
+              <div class="capacity-status-row">
+                @if (isFull()) {
+                  <span class="full-indicator font-mono font-bold">FULL</span>
+                  <span class="full-note">No remaining seats</span>
+                } @else {
+                  <span class="available-indicator font-mono font-bold">
+                    {{ availableSeats() }} Seats Available
+                  </span>
+                  <span class="capacity-note font-mono">Max {{ course()!.maxCapacity }} students</span>
+                }
+              </div>
+            </div>
+
+            <!-- Enrollment Call-To-Action Button -->
+            <div class="enrollment-action-wrapper">
+              @if (course()!.isStudentEnrolled) {
+                <div class="enrolled-status-banner">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>Enrolled ({{ course()!.studentEnrollmentStatus || 'Active' }})</span>
+                </div>
+              } @else if (isFull()) {
+                <button mat-flat-button disabled class="enroll-action-btn btn-full">
+                  Course Full
+                </button>
+              } @else {
+                <button
+                  mat-flat-button
+                  color="primary"
+                  class="enroll-action-btn btn-enroll"
+                  [disabled]="isEnrolling()"
+                  (click)="enroll()"
+                >
+                  <mat-icon>school</mat-icon>
+                  <span>{{ isEnrolling() ? 'Enrolling...' : 'Enroll Now' }}</span>
+                </button>
+              }
+            </div>
+
+            <!-- Prerequisites Warning if any -->
+            @if (course()!.prerequisites && course()!.prerequisites !== 'None') {
+              <div class="prereq-callout">
+                <mat-icon>info</mat-icon>
+                <div class="prereq-text">
+                  <strong>Prerequisites:</strong> {{ course()!.prerequisites }}
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </aside>
+
+      <!-- ================= RIGHT COLUMN: MAIN CONTENT & SCHEDULE ================= -->
+      <main class="course-main-sections">
+        <!-- 1. Dedicated Course Schedule Section -->
+        <section class="eduva-card section-card schedule-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">event</mat-icon>
+              <h2 class="section-title">Course Schedule</h2>
+            </div>
+            <span class="schedule-duration-badge font-mono">{{ course()!.durationWeeks || 6 }} Weeks</span>
+          </div>
+
+          <div class="schedule-body">
+            <div class="schedule-period-banner">
+              <div class="period-item">
+                <span class="period-label">Course Period</span>
+                <span class="period-dates font-mono">
+                  {{ course()!.startDate | date:'mediumDate' }} &ndash; {{ course()!.endDate | date:'mediumDate' }}
+                </span>
+              </div>
+              <div class="period-item">
+                <span class="period-label">Calendar Sync</span>
+                <span class="period-status font-bold">Auto-synced to Student Calendar</span>
+              </div>
+            </div>
+
+            <!-- Recurring Weekly Sessions -->
+            <h4 class="sub-section-title">Weekly Recurring Sessions</h4>
+            @if (course()!.schedules && course()!.schedules!.length > 0) {
+              <div class="schedules-grid">
+                @for (sched of course()!.schedules; track sched.id) {
+                  <div class="schedule-session-card">
+                    <div class="session-card-header-line">
+                      <div class="session-day-badge">
+                        <span class="day-name font-mono">{{ sched.dayName }}</span>
+                      </div>
+                      <span class="session-type-pill font-mono">{{ sched.scheduleType || 'Lecture' }}</span>
+                    </div>
+                    <div class="session-info">
+                      <div class="session-detail-row font-mono time-row">
+                        <mat-icon>schedule</mat-icon>
+                        <span class="detail-label">Time:</span>
+                        <span class="detail-value font-bold">{{ sched.startTime }} &ndash; {{ sched.endTime }}</span>
+                      </div>
+                      <div class="session-detail-row">
+                        <mat-icon>business</mat-icon>
+                        <span class="detail-label">Location:</span>
+                        <span class="detail-value">{{ sched.location || 'Main Training Center' }}</span>
+                      </div>
+                      <div class="session-detail-row">
+                        <mat-icon>meeting_room</mat-icon>
+                        <span class="detail-label">Room:</span>
+                        <span class="detail-value font-mono">{{ sched.room || 'Room 204' }}</span>
+                      </div>
+                      <div class="session-detail-row">
+                        <mat-icon>person</mat-icon>
+                        <span class="detail-label">Instructor:</span>
+                        <span class="detail-value">{{ course()!.instructorName || 'Faculty Instructor' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="empty-schedule-box">
+                <mat-icon>calendar_today</mat-icon>
+                <span>Weekly class schedule details will be confirmed prior to term start.</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- 2. About This Course -->
+        <section class="eduva-card section-card about-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">menu_book</mat-icon>
+              <h2 class="section-title">About This Course</h2>
+            </div>
+          </div>
+          <div class="section-body">
+            @if (course()!.description || course()!.about) {
+              <p class="about-text">{{ course()!.description || course()!.about }}</p>
+            } @else {
+              <p class="empty-text">No course description available.</p>
+            }
+          </div>
+        </section>
+
+        <!-- 3. Course Content / Academic Outline (Collapsible Accordion) -->
+        <section class="eduva-card section-card outline-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">format_list_numbered</mat-icon>
+              <h2 class="section-title">Course Content</h2>
+            </div>
+            <span class="modules-count font-mono">{{ course()!.modules?.length || 0 }} Modules</span>
+          </div>
+
+          <div class="section-body modules-accordion-wrapper">
+            @if (course()!.modules && course()!.modules!.length > 0) {
+              @for (mod of course()!.modules; track mod.id; let idx = $index) {
+                <div class="module-panel" [class.is-expanded]="isModuleExpanded(mod.id)">
+                  <!-- Module Header Clickable -->
+                  <div class="module-header" (click)="toggleModule(mod.id)">
+                    <div class="module-index-title">
+                      <span class="module-num font-mono">{{ (idx + 1) < 10 ? '0' + (idx + 1) : (idx + 1) }}</span>
+                      <div class="module-titles">
+                        <h4 class="module-title">{{ mod.title }}</h4>
+                        @if (mod.description) {
+                          <span class="module-desc">{{ mod.description }}</span>
+                        }
+                      </div>
+                    </div>
+                    <div class="module-meta-actions">
+                      <span class="lesson-count-tag font-mono">{{ mod.lessons.length }} Lessons</span>
+                      <mat-icon class="chevron-icon">
+                        {{ isModuleExpanded(mod.id) ? 'expand_less' : 'expand_more' }}
+                      </mat-icon>
+                    </div>
+                  </div>
+
+                  <!-- Module Lessons Content -->
+                  @if (isModuleExpanded(mod.id)) {
+                    <div class="lessons-container">
+                      @if (mod.lessons && mod.lessons.length > 0) {
+                        @for (lesson of mod.lessons; track lesson.id; let lIdx = $index) {
+                          <div class="lesson-row">
+                            <div class="lesson-lead">
+                              <mat-icon class="lesson-icon">bookmark_border</mat-icon>
+                              <span class="lesson-order font-mono">{{ lIdx + 1 }}.</span>
+                              <span class="lesson-title">{{ lesson.title }}</span>
+                            </div>
+                            @if (lesson.description) {
+                              <span class="lesson-desc">{{ lesson.description }}</span>
+                            }
+                          </div>
+                        }
+                      } @else {
+                        <div class="empty-lessons-box">
+                          <span>No lesson topics published under this module yet.</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            } @else {
+              <div class="empty-modules-box">
+                <mat-icon>folder_open</mat-icon>
+                <span>No course outline modules currently published.</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- 4. Course Resources -->
+        <section class="eduva-card section-card resources-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">attachment</mat-icon>
+              <h2 class="section-title">Educational Resources</h2>
+            </div>
+            <span class="resources-count font-mono">{{ course()!.resources?.length || 0 }} Files</span>
+          </div>
+
+          <div class="section-body">
+            @if (course()!.resources && course()!.resources!.length > 0) {
+              <div class="resources-grid">
+                @for (res of course()!.resources; track res.id) {
+                  <div class="resource-card">
+                    <div class="resource-icon-badge" [ngClass]="res.fileType.toLowerCase()">
+                      <mat-icon>{{ getFileIcon(res.fileType) }}</mat-icon>
+                    </div>
+                    <div class="resource-details">
+                      <h4 class="resource-title">{{ res.title }}</h4>
+                      <div class="resource-meta font-mono">
+                        <span class="res-type">{{ res.fileType }}</span>
+                        <span class="res-divider">&bull;</span>
+                        <span class="res-size">{{ res.fileSize }}</span>
+                      </div>
+                    </div>
+                    <a [href]="res.url || '#'" class="resource-download-btn" title="Download Resource" download>
+                      <mat-icon>download</mat-icon>
+                    </a>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="empty-resources-box">
+                <mat-icon>folder_special</mat-icon>
+                <span>No downloadable resources currently attached to this course.</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- 5. Course Progress (Only when authenticated student is enrolled) -->
+        @if (course()!.isStudentEnrolled && course()!.studentProgress !== null && course()!.studentProgress !== undefined) {
+          <section class="eduva-card section-card progress-card">
+            <div class="section-card-header">
+              <div class="header-icon-title">
+                <mat-icon class="sec-icon">trending_up</mat-icon>
+                <h2 class="section-title">Your Course Progress</h2>
+              </div>
+              <span class="progress-grade-pill font-mono font-bold">{{ course()!.studentProgress }}%</span>
+            </div>
+            <div class="section-body">
+              <mat-progress-bar mode="determinate" [value]="course()!.studentProgress!" class="student-progress-bar"></mat-progress-bar>
+              <div class="progress-subtext font-mono">
+                <span>Recorded institutional evaluation / grade performance</span>
+              </div>
+            </div>
+          </section>
+        }
+      </main>
+    </div>
+  }
+</app-layout>

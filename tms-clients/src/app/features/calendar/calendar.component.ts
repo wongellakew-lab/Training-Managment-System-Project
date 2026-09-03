@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { LayoutComponent } from '../../ui/layout/layout.component';
 import { ScheduleService } from '../../services/schedule.service';
 import { Schedule, CreateScheduleDto } from '../../models/schedule.model';
@@ -37,8 +37,8 @@ export class CalendarComponent implements OnInit {
   readonly schedules = signal<Schedule[]>([]);
   readonly selectedCategory = signal<string>('All');
   readonly selectedView = signal<'Month' | 'Week' | 'Day'>('Month');
-  readonly currentMonth = signal<number>(5); // May
-  readonly currentYear = signal<number>(2030);
+  readonly currentMonth = signal<number>(new Date().getMonth() + 1);
+  readonly currentYear = signal<number>(new Date().getFullYear());
   readonly selectedSchedule = signal<Schedule | null>(null);
   readonly showNewAgendaModal = signal(false);
 
@@ -46,11 +46,11 @@ export class CalendarComponent implements OnInit {
   newAgenda: CreateScheduleDto = {
     title: '',
     category: 'Meetings',
-    date: '2030-05-15',
+    date: new Date().toISOString().slice(0, 10),
     startTime: '09:00 AM',
     endTime: '10:30 AM',
-    picName: 'James Ocampo',
-    location: 'Eduva Creative Studio Room',
+    picName: '',
+    location: '',
     notes: ''
   };
 
@@ -67,7 +67,9 @@ export class CalendarComponent implements OnInit {
         this.schedules.set(data);
         this.buildCalendarGrid();
         if (data.length > 0 && !this.selectedSchedule()) {
-          this.selectedSchedule.set(data.find(s => s.category === 'Workshops') || data[0]);
+          this.selectedSchedule.set(data[0]);
+        } else if (data.length === 0) {
+          this.selectedSchedule.set(null);
         }
       }
     });
@@ -78,18 +80,49 @@ export class CalendarComponent implements OnInit {
     this.loadSchedules();
   }
 
+  prevMonth(): void {
+    let m = this.currentMonth() - 1;
+    let y = this.currentYear();
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    }
+    this.currentMonth.set(m);
+    this.currentYear.set(y);
+    this.loadSchedules();
+  }
+
+  nextMonth(): void {
+    let m = this.currentMonth() + 1;
+    let y = this.currentYear();
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    this.currentMonth.set(m);
+    this.currentYear.set(y);
+    this.loadSchedules();
+  }
+
   buildCalendarGrid(): void {
     const list = this.schedules();
     const cells: CalendarCell[] = [];
+    const year = this.currentYear();
+    const month = this.currentMonth() - 1; // 0-indexed for JS Date
 
-    // April leading days (28, 29, 30)
-    for (let d = 28; d <= 30; d++) {
-      cells.push({ day: d, dateStr: `2030-04-${d}`, isCurrentMonth: false, schedules: [] });
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    // Leading days from previous month
+    for (let x = firstDayIndex; x > 0; x--) {
+      const d = daysInPrevMonth - x + 1;
+      cells.push({ day: d, dateStr: '', isCurrentMonth: false, schedules: [] });
     }
 
-    // May days (1 to 31)
-    for (let d = 1; d <= 31; d++) {
-      const dateKey = `2030-05-${d.toString().padStart(2, '0')}`;
+    // Days in current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = `${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
       const daySchedules = list.filter(s => {
         if (!s.date) return false;
         const sDate = s.date.split('T')[0];
@@ -98,8 +131,12 @@ export class CalendarComponent implements OnInit {
       cells.push({ day: d, dateStr: dateKey, isCurrentMonth: true, schedules: daySchedules });
     }
 
-    // June trailing days (1)
-    cells.push({ day: 1, dateStr: '2030-06-01', isCurrentMonth: false, schedules: [] });
+    // Trailing days to fill 35 or 42 grid cells
+    const totalSlots = cells.length <= 35 ? 35 : 42;
+    const remaining = totalSlots - cells.length;
+    for (let j = 1; j <= remaining; j++) {
+      cells.push({ day: j, dateStr: '', isCurrentMonth: false, schedules: [] });
+    }
 
     this.calendarDays = cells;
   }
@@ -112,11 +149,11 @@ export class CalendarComponent implements OnInit {
     this.newAgenda = {
       title: '',
       category: 'Meetings',
-      date: '2030-05-15',
+      date: new Date().toISOString().slice(0, 10),
       startTime: '09:00 AM',
       endTime: '10:30 AM',
-      picName: 'James Ocampo',
-      location: 'Eduva Creative Studio Room',
+      picName: '',
+      location: '',
       notes: ''
     };
     this.showNewAgendaModal.set(true);
@@ -138,15 +175,15 @@ export class CalendarComponent implements OnInit {
   }
 
   get totalSchedules(): number {
-    return this.schedules().length || 12;
+    return this.schedules().length;
   }
   get totalMeetings(): number {
-    return this.schedules().filter(s => s.category.toLowerCase() === 'meetings').length || 4;
+    return this.schedules().filter(s => s.category?.toLowerCase() === 'meetings').length;
   }
   get totalWorkshops(): number {
-    return this.schedules().filter(s => s.category.toLowerCase() === 'workshops').length || 4;
+    return this.schedules().filter(s => s.category?.toLowerCase() === 'workshops').length;
   }
   get totalEvents(): number {
-    return this.schedules().filter(s => s.category.toLowerCase() === 'events').length || 4;
+    return this.schedules().filter(s => s.category?.toLowerCase() === 'events').length;
   }
 }

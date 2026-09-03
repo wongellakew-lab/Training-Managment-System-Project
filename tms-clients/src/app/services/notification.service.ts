@@ -28,8 +28,8 @@ export class NotificationService {
   readonly notifications = signal<TmsNotification[]>([]);
   readonly unreadCount = signal<number>(0);
 
-  loadNotifications(page: number = 1, pageSize: number = 20): Observable<PagedResult<TmsNotification>> {
-    return this.http.get<PagedResult<TmsNotification>>(`/api/v1/notifications?page=${page}&pageSize=${pageSize}`).pipe(
+  loadNotifications(page: number = 1, pageSize: number = 20, unreadOnly: boolean = true): Observable<PagedResult<TmsNotification>> {
+    return this.http.get<PagedResult<TmsNotification>>(`/api/v1/notifications?page=${page}&pageSize=${pageSize}&unreadOnly=${unreadOnly}`).pipe(
       tap((res) => {
         this.notifications.set(res.items);
       })
@@ -47,9 +47,8 @@ export class NotificationService {
   markAsRead(id: number): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(`/api/v1/notifications/${id}/read`, {}).pipe(
       tap(() => {
-        this.notifications.update((list) =>
-          list.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-        );
+        // Immediately remove notification from active unread list without waiting or refreshing
+        this.notifications.update((list) => list.filter((n) => n.id !== id));
         this.unreadCount.update((c) => Math.max(0, c - 1));
       })
     );
@@ -58,7 +57,8 @@ export class NotificationService {
   markAllAsRead(): Observable<{ message: string }> {
     return this.http.put<{ message: string }>('/api/v1/notifications/mark-all-read', {}).pipe(
       tap(() => {
-        this.notifications.update((list) => list.map((n) => ({ ...n, isRead: true })));
+        // Immediately clear all active notifications
+        this.notifications.set([]);
         this.unreadCount.set(0);
       })
     );

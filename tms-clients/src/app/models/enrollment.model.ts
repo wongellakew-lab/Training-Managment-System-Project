@@ -12,8 +12,6 @@ export interface Enrollment {
   courseCode?: string;
   courseCategory?: string;
   batch?: string;
-  fee?: number;
-  paymentStatus?: 'Paid' | 'Pending' | 'Unpaid' | string;
   country?: string;
   enrollmentDate?: string;
   enrolledAt?: string;
@@ -26,16 +24,14 @@ export interface EnrollRequest {
   studentId: number;
   courseId: number;
   batch?: string;
-  fee?: number;
-  paymentStatus?: string;
   phoneNumber?: string;
   country?: string;
+  status?: EnrollmentStatus;
 }
 
 export interface UpdateEnrollmentStatusRequest {
   enrollmentId: number;
   status: EnrollmentStatus;
-  paymentStatus?: string;
 }
 
 export interface EnrollmentFilterParams {

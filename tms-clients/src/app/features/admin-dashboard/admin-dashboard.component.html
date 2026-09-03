@@ -46,18 +46,10 @@
           <div class="card-header-flex">
             <div>
               <h3 class="card-title">Revenue</h3>
-              <div class="main-metric">${{ (dashboard()?.totalRevenue ?? 0) | number:'1.0-0' }}</div>
+              <div class="main-metric">\${{ (dashboard()?.totalRevenue ?? 0) | number:'1.0-0' }}</div>
             </div>
             <div class="card-header-actions">
-              <button class="filter-dropdown-btn" [matMenuTriggerFor]="revenueMenu">
-                <span>Last 6 Months</span>
-                <mat-icon>keyboard_arrow_down</mat-icon>
-              </button>
-              <mat-menu #revenueMenu="matMenu">
-                <button mat-menu-item>Last 30 Days</button>
-                <button mat-menu-item>Last 6 Months</button>
-                <button mat-menu-item>This Year</button>
-              </mat-menu>
+              <span class="date-period-tag font-mono">Last 6 Months</span>
             </div>
           </div>
 
@@ -70,63 +62,29 @@
 
           <!-- Revenue Interactive Bar Chart -->
           <div class="revenue-chart-container">
-            <div class="y-axis-labels">
-              <span>$60K</span>
-              <span>$45K</span>
-              <span>$30K</span>
-              <span>$15K</span>
-              <span>$0K</span>
-            </div>
-            <div class="bars-wrapper">
-              <!-- Dec -->
-              <div class="bar-col">
-                <div class="bar-pill-group" style="height: 60%;">
-                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
-                </div>
-                <span class="x-label">Dec</span>
+            @if (!dashboard()?.revenueHistory || dashboard()!.revenueHistory.length === 0) {
+              <div class="chart-empty-msg">
+                <mat-icon>bar_chart</mat-icon>
+                <span>No revenue data available for this timeframe</span>
               </div>
-              <!-- Jan -->
-              <div class="bar-col">
-                <div class="bar-pill-group" style="height: 70%;">
-                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
-                </div>
-                <span class="x-label">Jan</span>
+            } @else {
+              <div class="bars-wrapper">
+                @for (rev of dashboard()!.revenueHistory; track rev.month) {
+                  <div class="bar-col">
+                    <div class="breakdown-tooltip">
+                      <div class="tooltip-title">{{ rev.month }}</div>
+                      <div class="tooltip-row"><span class="tooltip-dot dot-revenue"></span> Revenue <strong>\${{ rev.revenue | number:'1.0-0' }}</strong></div>
+                      <div class="tooltip-row"><span class="tooltip-dot dot-profit"></span> Profit <strong>\${{ rev.profit | number:'1.0-0' }}</strong></div>
+                      <div class="tooltip-row"><span class="tooltip-dot dot-expense"></span> Expense <strong>\${{ rev.expense | number:'1.0-0' }}</strong></div>
+                    </div>
+                    <div class="bar-pill-group" [style.height.%]="getRevenuePercent(rev.revenue)">
+                      <div class="bar-segment bar-revenue" style="height: 100%;"></div>
+                    </div>
+                    <span class="x-label">{{ rev.month }}</span>
+                  </div>
+                }
               </div>
-              <!-- Feb (Active with breakdown popup) -->
-              <div class="bar-col active-month">
-                <div class="breakdown-tooltip">
-                  <div class="tooltip-title">February</div>
-                  <div class="tooltip-row"><span class="tooltip-dot dot-revenue"></span> Revenue <strong>$50K</strong></div>
-                  <div class="tooltip-row"><span class="tooltip-dot dot-profit"></span> Profit <strong>$35K</strong></div>
-                  <div class="tooltip-row"><span class="tooltip-dot dot-expense"></span> Expense <strong>$15K</strong></div>
-                </div>
-                <div class="bar-pill-group" style="height: 85%;">
-                  <div class="bar-segment bar-profit" style="height: 100%;"></div>
-                </div>
-                <span class="x-label active">Feb</span>
-              </div>
-              <!-- Mar -->
-              <div class="bar-col">
-                <div class="bar-pill-group" style="height: 78%;">
-                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
-                </div>
-                <span class="x-label">Mar</span>
-              </div>
-              <!-- Apr -->
-              <div class="bar-col">
-                <div class="bar-pill-group" style="height: 88%;">
-                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
-                </div>
-                <span class="x-label">Apr</span>
-              </div>
-              <!-- May -->
-              <div class="bar-col">
-                <div class="bar-pill-group" style="height: 98%;">
-                  <div class="bar-segment bar-revenue" style="height: 100%;"></div>
-                </div>
-                <span class="x-label">May</span>
-              </div>
-            </div>
+            }
           </div>
         </div>
 
@@ -134,203 +92,133 @@
         <div class="eduva-card chart-card">
           <div class="card-header-flex">
             <div>
-              <h3 class="card-title">Enrollment trends</h3>
+              <h3 class="card-title">Enrollment Trends</h3>
               <div class="metric-with-badge">
-                <span class="main-metric">$12,480</span>
-                <span class="growth-pill">↑ +12.5%</span>
+                <span class="main-metric">{{ dashboard()?.activeEnrollments ?? 0 }} Active</span>
+                @if (dashboard()?.enrollmentGrowthPercentage) {
+                  <span class="growth-pill font-mono">↑ {{ dashboard()?.enrollmentGrowthPercentage }}%</span>
+                }
               </div>
             </div>
             <div class="card-header-actions">
-              <button class="filter-dropdown-btn" [matMenuTriggerFor]="trendMenu">
-                <span>Last 6 Months</span>
-                <mat-icon>keyboard_arrow_down</mat-icon>
-              </button>
-              <mat-menu #trendMenu="matMenu">
-                <button mat-menu-item>Last 6 Months</button>
-                <button mat-menu-item>Last 12 Months</button>
-              </mat-menu>
+              <span class="date-period-tag font-mono">Monthly Trend</span>
             </div>
           </div>
 
-          <!-- SVG Spline Trend Area Chart with Callout -->
+          <!-- Trend Bar Chart Container -->
           <div class="trend-chart-container">
-            <div class="trend-y-axis">
-              <span>2.5K</span>
-              <span>2.0K</span>
-              <span>1.5K</span>
-              <span>1.0K</span>
-              <span>500</span>
-              <span>0</span>
-            </div>
-            <div class="svg-chart-wrapper">
-              <svg viewBox="0 0 500 200" preserveAspectRatio="none" class="spline-svg">
-                <defs>
-                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25" />
-                    <stop offset="100%" stop-color="#0284C7" stop-opacity="0.0" />
-                  </linearGradient>
-                </defs>
-                <!-- Area fill -->
-                <path
-                  d="M 0 160 Q 60 130 100 135 T 200 65 T 300 120 T 400 95 T 500 80 L 500 200 L 0 200 Z"
-                  fill="url(#areaGradient)"
-                />
-                <!-- Stroke line -->
-                <path
-                  d="M 0 160 Q 60 130 100 135 T 200 65 T 300 120 T 400 95 T 500 80"
-                  fill="none"
-                  stroke="#0284C7"
-                  stroke-width="3"
-                />
-                <!-- Active peak bar line -->
-                <line x1="200" y1="65" x2="200" y2="200" stroke="#0284C7" stroke-width="6" stroke-linecap="round" />
-              </svg>
-
-              <!-- Peak indicator bubble -->
-              <div class="peak-badge" style="left: 40%; top: 22%;">
-                <span>1,920</span>
+            @if (!dashboard()?.enrollmentTrends || dashboard()!.enrollmentTrends.length === 0) {
+              <div class="chart-empty-msg">
+                <mat-icon>show_chart</mat-icon>
+                <span>No enrollment trend data recorded</span>
               </div>
-
-              <!-- X-Axis Labels -->
-              <div class="trend-x-axis">
-                <span>Jan</span>
-                <span>Feb</span>
-                <span>Mar</span>
-                <span>Apr</span>
-                <span>May</span>
-                <span>Jun</span>
+            } @else {
+              <div class="bars-wrapper trend-bars">
+                @for (tr of dashboard()!.enrollmentTrends; track tr.month) {
+                  <div class="bar-col" [class.active-month]="tr.isPeak">
+                    @if (tr.isPeak) {
+                      <div class="peak-badge">
+                        <span>{{ tr.count }} Peak</span>
+                      </div>
+                    }
+                    <div class="bar-pill-group" [style.height.%]="getTrendPercent(tr.count)">
+                      <div class="bar-segment bar-cyan" style="height: 100%;"></div>
+                    </div>
+                    <span class="x-label">{{ tr.month }}</span>
+                  </div>
+                }
               </div>
-            </div>
+            }
           </div>
         </div>
       </div>
 
       <!-- Charts Row 2: Top Courses & Learning Activity Heatmap -->
       <div class="charts-row-two-col">
-        <!-- Top Courses Donut Card -->
+        <!-- Top Courses Card -->
         <div class="eduva-card chart-card">
           <div class="card-header-flex">
-            <h3 class="card-title">Top Courses</h3>
-            <button class="filter-dropdown-btn" [matMenuTriggerFor]="topCoursesMenu">
-              <span>All Time</span>
-              <mat-icon>keyboard_arrow_down</mat-icon>
-            </button>
-            <mat-menu #topCoursesMenu="matMenu">
-              <button mat-menu-item>All Time</button>
-              <button mat-menu-item>This Year</button>
-              <button mat-menu-item>This Month</button>
-            </mat-menu>
+            <h3 class="card-title">Top Enrolled Courses</h3>
+            <span class="date-period-tag font-mono">All Time</span>
           </div>
 
-          <!-- Donut SVG & Breakdown -->
+          <!-- Breakdown List -->
           <div class="donut-chart-container">
-            <div class="donut-svg-wrapper">
-              <svg viewBox="0 0 200 200" class="donut-svg">
-                <!-- Outer Arc 1: UX/UI (38%) -->
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#172b4d" stroke-width="26"
-                        stroke-dasharray="167 440" stroke-dashoffset="0" stroke-linecap="round" />
-                <!-- Outer Arc 2: Analytics (32%) -->
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#0284c7" stroke-width="26"
-                        stroke-dasharray="140 440" stroke-dashoffset="-175" stroke-linecap="round" />
-                <!-- Outer Arc 3: Full Stack (24%) -->
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#38bdf8" stroke-width="26"
-                        stroke-dasharray="105 440" stroke-dashoffset="-325" stroke-linecap="round" />
-                <!-- Outer Arc 4: Others (8%) -->
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#e0f2fe" stroke-width="26"
-                        stroke-dasharray="35 440" stroke-dashoffset="-435" stroke-linecap="round" />
-              </svg>
-              <div class="donut-center-text">
-                <span class="donut-total">320+</span>
-                <span class="donut-sub">Total Courses</span>
+            @if (!dashboard()?.topCoursesDistribution || dashboard()!.topCoursesDistribution.length === 0) {
+              <div class="chart-empty-msg">
+                <mat-icon>pie_chart</mat-icon>
+                <span>No course enrollment distribution yet</span>
               </div>
-            </div>
-
-            <!-- List Legend -->
-            <div class="donut-legend-list">
-              <div class="legend-row">
-                <div class="legend-label"><span class="legend-sq sq-navy"></span> UX/UI Design Fundamentals</div>
-                <div class="legend-numbers"><strong>1,450</strong> <span class="pct-pill pill-navy">38%</span></div>
+            } @else {
+              <div class="donut-legend-list full-width-list">
+                @for (course of dashboard()!.topCoursesDistribution; track course.name) {
+                  <div class="legend-row">
+                    <div class="legend-label">
+                      <span class="legend-sq" [style.background-color]="course.color || '#0284c7'"></span>
+                      {{ course.name }}
+                    </div>
+                    <div class="legend-numbers">
+                      <strong>{{ course.studentsCount }}</strong>
+                      <span class="pct-pill pill-navy font-mono">{{ course.percentage }}%</span>
+                    </div>
+                  </div>
+                }
               </div>
-              <div class="legend-row">
-                <div class="legend-label"><span class="legend-sq sq-blue"></span> Business Analytics Essentials</div>
-                <div class="legend-numbers"><strong>1,180</strong> <span class="pct-pill pill-blue">32%</span></div>
-              </div>
-              <div class="legend-row">
-                <div class="legend-label"><span class="legend-sq sq-sky"></span> Full Stack Web Development</div>
-                <div class="legend-numbers"><strong>960</strong> <span class="pct-pill pill-sky">24%</span></div>
-              </div>
-              <div class="legend-row">
-                <div class="legend-label"><span class="legend-sq sq-light"></span> Others</div>
-                <div class="legend-numbers"><strong>229</strong> <span class="pct-pill pill-light">8%</span></div>
-              </div>
-            </div>
+            }
           </div>
         </div>
 
         <!-- Learning Activity Heatmap Card -->
         <div class="eduva-card chart-card">
           <div class="card-header-flex">
-            <h3 class="card-title">Learning Activity</h3>
-            <button class="filter-dropdown-btn" [matMenuTriggerFor]="activityMenu">
-              <span>This Week</span>
-              <mat-icon>keyboard_arrow_down</mat-icon>
-            </button>
-            <mat-menu #activityMenu="matMenu">
-              <button mat-menu-item>This Week</button>
-              <button mat-menu-item>Last Week</button>
-            </mat-menu>
+            <h3 class="card-title">Learning Activity Heatmap</h3>
+            <span class="date-period-tag font-mono">Real Activity Distribution</span>
           </div>
 
           <!-- Heatmap Matrix -->
           <div class="heatmap-matrix-container">
-            <div class="heatmap-body">
-              <div class="heatmap-y-labels">
-                <span>6pm</span>
-                <span>3pm</span>
-                <span>1pm</span>
-                <span>11am</span>
-                <span>9am</span>
-                <span>7am</span>
+            @if (!dashboard()?.learningActivityHeatmap || dashboard()!.learningActivityHeatmap.length === 0) {
+              <div class="chart-empty-msg">
+                <mat-icon>grid_on</mat-icon>
+                <span>No learning activities recorded yet</span>
               </div>
-              <div class="heatmap-grid">
-                <!-- 6 rows x 7 cols matching Picture 1 -->
-                <div class="heatmap-row">
-                  <div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-1"></div>
+            } @else {
+              <div class="heatmap-body">
+                <div class="heatmap-y-labels">
+                  <span>6pm</span>
+                  <span>3pm</span>
+                  <span>1pm</span>
+                  <span>11am</span>
+                  <span>9am</span>
+                  <span>7am</span>
                 </div>
-                <div class="heatmap-row">
-                  <div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-4"></div><div class="cell level-1"></div><div class="cell level-0"></div>
-                </div>
-                <div class="heatmap-row">
-                  <div class="cell level-3"></div><div class="cell level-2"></div><div class="cell level-4"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-2"></div><div class="cell level-0"></div>
-                </div>
-                <div class="heatmap-row">
-                  <div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-1"></div><div class="cell level-0"></div>
-                </div>
-                <div class="heatmap-row">
-                  <div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-3"></div><div class="cell level-4"></div><div class="cell level-2"></div><div class="cell level-0"></div><div class="cell level-0"></div>
-                </div>
-                <div class="heatmap-row">
-                  <div class="cell level-2"></div><div class="cell level-4"></div><div class="cell level-2"></div><div class="cell level-3"></div><div class="cell level-1"></div><div class="cell level-0"></div><div class="cell level-0"></div>
-                </div>
-                <!-- X-Axis Labels -->
-                <div class="heatmap-x-labels">
-                  <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                <div class="heatmap-grid dynamic-heatmap">
+                  @for (cell of dashboard()!.learningActivityHeatmap; track $index) {
+                    <div
+                      class="cell"
+                      [class]="'cell level-' + cell.level"
+                      [title]="cell.day + ' ' + cell.timeSlot + ': ' + cell.value + ' events'"
+                    ></div>
+                  }
+                  <div class="heatmap-x-labels">
+                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Heatmap Scale Legend -->
-            <div class="heatmap-scale-legend">
-              <span class="scale-text">Very Low</span>
-              <div class="scale-boxes">
-                <span class="cell level-0"></span>
-                <span class="cell level-1"></span>
-                <span class="cell level-2"></span>
-                <span class="cell level-3"></span>
-                <span class="cell level-4"></span>
+              <!-- Heatmap Scale Legend -->
+              <div class="heatmap-scale-legend">
+                <span class="scale-text">Low</span>
+                <div class="scale-boxes">
+                  <span class="cell level-0"></span>
+                  <span class="cell level-1"></span>
+                  <span class="cell level-2"></span>
+                  <span class="cell level-3"></span>
+                  <span class="cell level-4"></span>
+                </div>
+                <span class="scale-text">High</span>
               </div>
-              <span class="scale-text">Very High</span>
-            </div>
+            }
           </div>
         </div>
       </div>
@@ -347,136 +235,53 @@
             </button>
           </div>
 
-          <!-- Stylized Interactive World Map -->
-          <div class="demographic-map-wrapper">
-            <svg viewBox="0 0 600 260" class="world-map-svg">
-              <path d="M 50 80 Q 90 60 140 70 T 220 120 T 160 210 T 80 160 Z" fill="#E2E8F0" opacity="0.8" />
-              <path d="M 120 50 Q 180 40 210 60 T 230 110 T 160 140 Z" fill="#38BDF8" opacity="0.85" />
-              <path d="M 280 45 Q 340 30 380 60 T 360 110 T 290 80 Z" fill="#0284C7" opacity="0.9" />
-              <path d="M 290 120 Q 360 110 390 170 T 330 240 T 280 180 Z" fill="#E2E8F0" opacity="0.8" />
-              <path d="M 400 50 Q 520 40 570 90 T 520 160 T 430 120 Z" fill="#E2E8F0" opacity="0.8" />
-              <path d="M 460 170 Q 530 160 550 210 T 480 240 Z" fill="#0284C7" opacity="0.85" />
-            </svg>
-
-            <!-- Country Flag Markers -->
-            <div class="map-marker marker-canada" title="Canada: 1,125 students">🇨🇦</div>
-            <div class="map-marker marker-usa" title="USA: 1,875 students">🇺🇸</div>
-            <div class="map-marker marker-uk" title="UK: 1,650 students">🇬🇧</div>
-            <div class="map-marker marker-germany" title="Germany: 900 students">🇩🇪</div>
-            <div class="map-marker marker-australia" title="Australia: 1,350 students">🇦🇺</div>
-          </div>
-
-          <!-- Country List Breakdown -->
-          <div class="demographic-country-grid">
-            <div class="country-cell">
-              <span class="country-flag">🇺🇸</span>
-              <span class="country-name">USA</span>
-              <span class="country-count">1,875</span>
-              <span class="country-pct">25%</span>
+          @if (!dashboard()?.studentDemographics || dashboard()!.studentDemographics.length === 0) {
+            <div class="chart-empty-msg">
+              <mat-icon>public</mat-icon>
+              <span>No student country data recorded yet</span>
             </div>
-            <div class="country-cell">
-              <span class="country-flag">🇨🇦</span>
-              <span class="country-name">Canada</span>
-              <span class="country-count">1,125</span>
-              <span class="country-pct">15%</span>
+          } @else {
+            <!-- Country List Breakdown -->
+            <div class="demographic-country-grid">
+              @for (c of dashboard()!.studentDemographics; track c.country) {
+                <div class="country-cell">
+                  <span class="country-flag">{{ c.flag || '🌐' }}</span>
+                  <span class="country-name">{{ c.country }}</span>
+                  <span class="country-count font-mono">{{ c.studentsCount }}</span>
+                  <span class="country-pct font-mono">{{ c.percentage }}%</span>
+                </div>
+              }
             </div>
-            <div class="country-cell">
-              <span class="country-flag">🇬🇧</span>
-              <span class="country-name">UK</span>
-              <span class="country-count">1,650</span>
-              <span class="country-pct">22%</span>
-            </div>
-            <div class="country-cell">
-              <span class="country-flag">🇩🇪</span>
-              <span class="country-name">Germany</span>
-              <span class="country-count">900</span>
-              <span class="country-pct">12%</span>
-            </div>
-            <div class="country-cell">
-              <span class="country-flag">🇦🇺</span>
-              <span class="country-name">Australia</span>
-              <span class="country-count">1,350</span>
-              <span class="country-pct">18%</span>
-            </div>
-            <div class="country-cell">
-              <span class="country-flag">🌐</span>
-              <span class="country-name">Others</span>
-              <span class="country-count">500</span>
-              <span class="country-pct">8%</span>
-            </div>
-          </div>
+          }
         </div>
 
         <!-- New Courses Card -->
         <div class="eduva-card new-courses-card">
           <div class="card-header-flex">
-            <h3 class="card-title">New Courses</h3>
-            <button mat-icon-button class="more-menu-btn" aria-label="Course options">
-              <mat-icon>more_horiz</mat-icon>
-            </button>
+            <h3 class="card-title">Recently Added Courses</h3>
+            <a routerLink="/courses" class="link-action">View All</a>
           </div>
 
-          <div class="new-courses-list">
-            <!-- Item 1: UI/UX Design for Beginners -->
-            <div class="new-course-item" routerLink="/courses">
-              <div class="course-thumb">
-                <img src="https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=200&auto=format&fit=crop&q=80" alt="UI/UX Design" />
-              </div>
-              <div class="course-item-info">
-                <div class="course-tag tag-design">Design</div>
-                <h4 class="course-item-title">UI/UX Design for Beginners</h4>
-                <div class="course-item-footer">
-                  <span class="course-price">$99</span>
-                  <div class="student-avatar-stack">
-                    <span class="avatar a1"></span>
-                    <span class="avatar a2"></span>
-                    <span class="avatar a3"></span>
-                    <span class="student-count">320</span>
+          @if (!dashboard()?.newCourses || dashboard()!.newCourses.length === 0) {
+            <div class="chart-empty-msg">
+              <mat-icon>menu_book</mat-icon>
+              <span>No new courses created yet</span>
+            </div>
+          } @else {
+            <div class="new-courses-list">
+              @for (course of dashboard()!.newCourses; track course.id) {
+                <div class="new-course-item" [routerLink]="['/courses', course.id]">
+                  <div class="course-item-info">
+                    <div class="course-tag tag-webdev">{{ course.category || 'Course' }}</div>
+                    <h4 class="course-item-title">{{ course.title }}</h4>
+                    <div class="course-item-footer">
+                      <span class="student-count font-mono">{{ course.enrolledCount }} / {{ course.maxCapacity }} Enrolled</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              }
             </div>
-
-            <!-- Item 2: Social Media Marketing Strategies -->
-            <div class="new-course-item" routerLink="/courses">
-              <div class="course-thumb">
-                <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=200&auto=format&fit=crop&q=80" alt="Social Media Marketing" />
-              </div>
-              <div class="course-item-info">
-                <div class="course-tag tag-marketing">Marketing</div>
-                <h4 class="course-item-title">Social Media Marketing Strategies</h4>
-                <div class="course-item-footer">
-                  <span class="course-price">$79</span>
-                  <div class="student-avatar-stack">
-                    <span class="avatar a1"></span>
-                    <span class="avatar a2"></span>
-                    <span class="avatar a3"></span>
-                    <span class="student-count">280</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Item 3: JavaScript Essentials -->
-            <div class="new-course-item" routerLink="/courses">
-              <div class="course-thumb">
-                <img src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80" alt="JavaScript Essentials" />
-              </div>
-              <div class="course-item-info">
-                <div class="course-tag tag-webdev">Web Dev</div>
-                <h4 class="course-item-title">JavaScript Essentials</h4>
-                <div class="course-item-footer">
-                  <span class="course-price">$89</span>
-                  <div class="student-avatar-stack">
-                    <span class="avatar a1"></span>
-                    <span class="avatar a2"></span>
-                    <span class="avatar a3"></span>
-                    <span class="student-count">350</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          }
         </div>
       </div>
     </div>
@@ -486,10 +291,10 @@
       <!-- Mini Calendar Widget -->
       <div class="eduva-card mini-calendar-card">
         <div class="calendar-header-flex">
-          <span class="calendar-month-year">May 2030</span>
+          <span class="calendar-month-year font-mono">{{ currentDate() | date:'MMMM yyyy' }}</span>
           <div class="month-nav-arrows">
-            <button class="nav-arrow-btn" aria-label="Previous Month"><mat-icon>keyboard_arrow_down</mat-icon></button>
-            <button class="nav-arrow-btn" aria-label="Next Month"><mat-icon>keyboard_arrow_up</mat-icon></button>
+            <button class="nav-arrow-btn" (click)="prevMonth()" aria-label="Previous Month"><mat-icon>keyboard_arrow_left</mat-icon></button>
+            <button class="nav-arrow-btn" (click)="nextMonth()" aria-label="Next Month"><mat-icon>keyboard_arrow_right</mat-icon></button>
           </div>
         </div>
 
@@ -518,127 +323,65 @@
       <!-- Upcoming Schedules Section -->
       <div class="eduva-card schedules-card">
         <div class="card-header-flex">
-          <h3 class="card-title">Schedules</h3>
-          <button mat-icon-button class="more-menu-btn" aria-label="Schedule options">
-            <mat-icon>more_horiz</mat-icon>
-          </button>
+          <h3 class="card-title">Upcoming Schedules</h3>
+          <a routerLink="/calendar" class="link-action">View All</a>
         </div>
 
-        <div class="schedules-list">
-          <!-- Item 1 -->
-          <div class="schedule-item">
-            <div class="date-badge">
-              <span class="date-num">21</span>
-              <span class="date-month">May</span>
-            </div>
-            <div class="schedule-details">
-              <div class="schedule-meta">
-                <span class="schedule-pill pill-meetings">Meetings</span>
-                <span class="schedule-time">09:00 - 10:00 AM</span>
-              </div>
-              <h4 class="schedule-title">Weekly Mentor Coordination</h4>
-            </div>
+        @if (!dashboard()?.upcomingSchedules || dashboard()!.upcomingSchedules.length === 0) {
+          <div class="chart-empty-msg">
+            <mat-icon>event_busy</mat-icon>
+            <span>No upcoming schedule events</span>
           </div>
-
-          <!-- Item 2 -->
-          <div class="schedule-item">
-            <div class="date-badge date-cyan">
-              <span class="date-num">21</span>
-              <span class="date-month">May</span>
-            </div>
-            <div class="schedule-details">
-              <div class="schedule-meta">
-                <span class="schedule-pill pill-workshops">Workshops</span>
-                <span class="schedule-time">01:00 - 03:00 PM</span>
+        } @else {
+          <div class="schedules-list">
+            @for (sch of dashboard()!.upcomingSchedules; track sch.id) {
+              <div class="schedule-item">
+                <div class="date-badge date-cyan">
+                  <span class="date-num font-mono">{{ sch.date | date:'dd' }}</span>
+                  <span class="date-month">{{ sch.date | date:'MMM' }}</span>
+                </div>
+                <div class="schedule-details">
+                  <div class="schedule-meta">
+                    <span class="schedule-pill pill-meetings">{{ sch.category }}</span>
+                    <span class="schedule-time font-mono">{{ sch.startTime }}</span>
+                  </div>
+                  <h4 class="schedule-title">{{ sch.title }}</h4>
+                </div>
               </div>
-              <h4 class="schedule-title">Student Success and Career Webinar</h4>
-            </div>
+            }
           </div>
-
-          <!-- Item 3 -->
-          <div class="schedule-item">
-            <div class="date-badge date-cyan">
-              <span class="date-num">21</span>
-              <span class="date-month">May</span>
-            </div>
-            <div class="schedule-details">
-              <div class="schedule-meta">
-                <span class="schedule-pill pill-workshops">Workshops</span>
-                <span class="schedule-time">09:30 AM - 12:00 PM</span>
-              </div>
-              <h4 class="schedule-title">Public Speaking Essentials Workshop</h4>
-            </div>
-          </div>
-
-          <!-- Item 4 -->
-          <div class="schedule-item">
-            <div class="date-badge date-steel">
-              <span class="date-num">24</span>
-              <span class="date-month">May</span>
-            </div>
-            <div class="schedule-details">
-              <div class="schedule-meta">
-                <span class="schedule-pill pill-events">Events</span>
-                <span class="schedule-time">06:30 - 08:00 PM</span>
-              </div>
-              <h4 class="schedule-title">Learning Community Meetup</h4>
-            </div>
-          </div>
-        </div>
+        }
       </div>
 
       <!-- Recent Activities Section -->
       <div class="eduva-card activities-card">
         <div class="card-header-flex">
-          <h3 class="card-title">Recent Activities</h3>
-          <button mat-icon-button class="more-menu-btn" aria-label="Activity options">
-            <mat-icon>more_horiz</mat-icon>
-          </button>
+          <h3 class="card-title">Recent System Activities</h3>
         </div>
 
-        <div class="activities-timeline">
-          <!-- Activity 1 -->
-          <div class="activity-timeline-item">
-            <div class="activity-icon-badge">
-              <mat-icon>person_outline</mat-icon>
-            </div>
-            <div class="activity-body">
-              <span class="activity-tag">Profile Updated</span>
-              <p class="activity-text">
-                <strong>Daniel Lowie</strong> updated account information and learning preferences.
-              </p>
-              <span class="activity-time">May 19, 2030 &bull; 10:30 AM</span>
-            </div>
+        @if (!dashboard()?.recentActivities || dashboard()!.recentActivities.length === 0) {
+          <div class="chart-empty-msg">
+            <mat-icon>notifications_none</mat-icon>
+            <span>No recent activity logged</span>
           </div>
-
-          <!-- Activity 2 -->
-          <div class="activity-timeline-item">
-            <div class="activity-icon-badge badge-dark">
-              <mat-icon>workspace_premium</mat-icon>
-            </div>
-            <div class="activity-body">
-              <span class="activity-tag">Course Completed</span>
-              <p class="activity-text">
-                <strong>Claire Manne</strong> completed "Business Analytics Essentials" and received a certificate.
-              </p>
-              <span class="activity-time">May 19, 2030 &bull; 6:45 PM</span>
-            </div>
+        } @else {
+          <div class="activities-timeline">
+            @for (act of dashboard()!.recentActivities; track act.id) {
+              <div class="activity-timeline-item">
+                <div class="activity-icon-badge">
+                  <mat-icon>notifications</mat-icon>
+                </div>
+                <div class="activity-body">
+                  <span class="activity-tag">{{ act.type }}</span>
+                  <p class="activity-text">
+                    <strong>{{ act.title }}</strong>: {{ act.description }}
+                  </p>
+                  <span class="activity-time font-mono">{{ act.timestamp | date:'medium' }}</span>
+                </div>
+              </div>
+            }
           </div>
-
-          <!-- Activity 3 -->
-          <div class="activity-timeline-item">
-            <div class="activity-icon-badge">
-              <mat-icon>rate_review</mat-icon>
-            </div>
-            <div class="activity-body">
-              <span class="activity-tag">User Feedback Submitted</span>
-              <p class="activity-text">
-                <strong>Benedict Ritche</strong> rated "Python Programming for Beginners" 5 stars and left a review.
-              </p>
-              <span class="activity-time">May 18, 2030 &bull; 12:15 PM</span>
-            </div>
-          </div>
-        </div>
+        }
       </div>
     </div>
   </div>

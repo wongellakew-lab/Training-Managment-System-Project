@@ -8,13 +8,33 @@ export interface Schedule {
   picName: string;
   picAvatar?: string;
   location: string;
+  room?: string;
   notes: string;
   attendeesCount: number;
   courseId?: number;
   courseTitle?: string;
   courseCode?: string;
+  instructorName?: string;
+  instructorAvatar?: string;
   scheduleType?: string;
+  courseStatus?: string;
+  enrollmentStatus?: string;
   createdAt?: string;
+}
+
+export interface CourseLookup {
+  id: number;
+  title: string;
+  code: string;
+}
+
+export interface StudentScheduleSummary {
+  classesThisMonth: number;
+  classesThisWeek: number;
+  enrolledCoursesCount: number;
+  nextClass: Schedule | null;
+  enrolledCourses: CourseLookup[];
+  schedules: Schedule[];
 }
 
 export interface CreateScheduleDto {

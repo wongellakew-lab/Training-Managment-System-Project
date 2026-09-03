@@ -83,16 +83,19 @@ export class CourseDetailComponent implements OnInit {
     const c = this.course();
     if (!c) return;
 
-    const studentId = this.authService.currentUser()?.studentId || 1;
+    const studentId = this.authService.currentUser()?.studentId || 0;
+    if (studentId === 0) {
+      this.enrollmentMessage.set('You must be logged in as a student to enroll.');
+      this.isEnrollSuccess.set(false);
+      return;
+    }
     this.isEnrolling.set(true);
     this.enrollmentMessage.set(null);
 
     this.enrollmentService.enrollStudent({
       studentId: studentId,
       courseId: c.id,
-      batch: 'Batch 1',
-      fee: c.price,
-      paymentStatus: 'Pending'
+      batch: 'Batch 1'
     }).subscribe({
       next: (res) => {
         this.userEnrollment.set(res);

@@ -1,0 +1,298 @@
+<app-layout pageTitle="My Courses">
+  <div class="my-courses-container">
+
+    <!-- Header & Action Bar -->
+    <header class="page-header">
+      <div class="header-text">
+        <h1 class="page-main-title">My Enrolled Courses</h1>
+        <p class="page-subtitle">
+          View and manage your active, upcoming, and completed courses, class schedules, and academic progress.
+        </p>
+      </div>
+      <div class="header-actions">
+        <button mat-flat-button class="catalog-btn" (click)="browseCatalog()">
+          <mat-icon>search</mat-icon>
+          Browse Catalog
+        </button>
+      </div>
+    </header>
+
+    <!-- Top KPI Statistics Bar (Real Backend Data) -->
+    @if (statistics(); as stats) {
+      <section class="stats-grid">
+        <div class="stat-card eduva-card">
+          <div class="stat-icon-circle blue">
+            <mat-icon>school</mat-icon>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Total Enrolled</span>
+            <div class="stat-value font-mono">{{ stats.totalEnrolledCourses }}</div>
+            <span class="stat-sub">{{ stats.totalCredits }} Academic Credits</span>
+          </div>
+        </div>
+
+        <div class="stat-card eduva-card">
+          <div class="stat-icon-circle green">
+            <mat-icon>play_circle</mat-icon>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Active Courses</span>
+            <div class="stat-value font-mono">{{ stats.activeCourses }}</div>
+            <span class="stat-sub">In Current Term</span>
+          </div>
+        </div>
+
+        <div class="stat-card eduva-card">
+          <div class="stat-icon-circle purple">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Completed</span>
+            <div class="stat-value font-mono">{{ stats.completedCourses }}</div>
+            <span class="stat-sub">Finished Curriculum</span>
+          </div>
+        </div>
+
+        <div class="stat-card eduva-card">
+          <div class="stat-icon-circle amber">
+            <mat-icon>trending_up</mat-icon>
+          </div>
+          <div class="stat-details">
+            <span class="stat-label">Overall Progress</span>
+            <div class="stat-value font-mono">{{ stats.overallProgressPercentage }}%</div>
+            <div class="stat-progress-bar">
+              <mat-progress-bar mode="determinate" [value]="stats.overallProgressPercentage"></mat-progress-bar>
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Filter Pills Toolbar -->
+    <div class="filters-toolbar">
+      <div class="filter-pills">
+        <button
+          type="button"
+          class="filter-pill"
+          [class.active]="activeFilter() === 'All'"
+          (click)="setFilter('All')">
+          All Courses
+          <span class="pill-count">{{ courses().length }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="filter-pill"
+          [class.active]="activeFilter() === 'Active'"
+          (click)="setFilter('Active')">
+          Active
+        </button>
+
+        <button
+          type="button"
+          class="filter-pill"
+          [class.active]="activeFilter() === 'Upcoming'"
+          (click)="setFilter('Upcoming')">
+          Upcoming
+        </button>
+
+        <button
+          type="button"
+          class="filter-pill"
+          [class.active]="activeFilter() === 'Completed'"
+          (click)="setFilter('Completed')">
+          Completed
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-ring"></div>
+        <p>Loading your courses from database...</p>
+      </div>
+    } @else if (errorMessage()) {
+      <div class="error-banner eduva-card">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ errorMessage() }}</span>
+        <button mat-stroked-button color="warn" (click)="loadData()">Retry</button>
+      </div>
+    } @else if (courses().length === 0) {
+      <!-- 8. Professional Empty State -->
+      <div class="empty-state eduva-card">
+        <div class="empty-illustration">
+          <mat-icon>menu_book</mat-icon>
+        </div>
+        <h2 class="empty-title">No courses yet</h2>
+        <p class="empty-desc">
+          You haven't enrolled in any courses yet. Explore our course catalog to find topics that match your goals.
+        </p>
+        <button mat-flat-button class="empty-cta-btn" (click)="browseCatalog()">
+          <mat-icon>search</mat-icon>
+          Browse Course Catalog
+        </button>
+      </div>
+    } @else if (filteredCourses().length === 0) {
+      <div class="empty-filter-state eduva-card">
+        <mat-icon>filter_list_off</mat-icon>
+        <h3>No {{ activeFilter() }} courses</h3>
+        <p>You do not have any enrolled courses matching the "{{ activeFilter() }}" status.</p>
+        <button mat-stroked-button (click)="setFilter('All')">Show All Courses</button>
+      </div>
+    } @else {
+      <!-- 4. Course Cards Grid -->
+      <div class="courses-grid">
+        @for (course of filteredCourses(); track course.courseId) {
+          <article class="course-card eduva-card">
+
+            <!-- Card Top: Tags & Status -->
+            <div class="card-top-bar">
+              <div class="tags-left">
+                <span class="level-pill font-mono" [ngClass]="getLevelClass(course.level)">
+                  {{ course.level }}
+                </span>
+                <span class="category-pill">
+                  {{ course.category || course.department }}
+                </span>
+              </div>
+              <span class="status-badge font-mono" [ngClass]="getStatusClass(course.academicStatus)">
+                {{ course.academicStatus }}
+              </span>
+            </div>
+
+            <!-- Course Title & Code -->
+            <div class="course-heading">
+              <h3 class="course-title">{{ course.title }}</h3>
+              <span class="course-code font-mono">{{ course.courseCode }}</span>
+            </div>
+
+            <!-- Instructor Info -->
+            <div class="instructor-row">
+              <div class="instructor-avatar-wrap">
+                @if (course.instructorAvatar) {
+                  <img [src]="course.instructorAvatar" [alt]="course.instructorName" class="instructor-img" />
+                } @else {
+                  <div class="avatar-fallback">{{ course.instructorName.charAt(0) }}</div>
+                }
+              </div>
+              <div class="instructor-details">
+                <span class="instructor-title-lbl">Instructor</span>
+                <span class="instructor-name">{{ course.instructorName }}</span>
+              </div>
+            </div>
+
+            <!-- Duration & Dates Banner -->
+            <div class="duration-dates-banner">
+              <div class="duration-item">
+                <mat-icon>schedule</mat-icon>
+                <span class="font-mono font-bold">{{ course.durationWeeks }} Weeks</span>
+              </div>
+              @if (course.startDate && course.endDate) {
+                <div class="dates-item font-mono">
+                  {{ course.startDate | date:'MMM d' }} &ndash; {{ course.endDate | date:'MMM d' }}
+                </div>
+              }
+            </div>
+
+            <!-- Class Schedule Row -->
+            @if (course.daysDisplay) {
+              <div class="schedule-block">
+                <div class="schedule-days font-mono">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ course.daysDisplay }}</span>
+                </div>
+                @if (course.timeDisplay) {
+                  <div class="schedule-time font-mono">
+                    <mat-icon>access_time</mat-icon>
+                    <span>{{ course.timeDisplay }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Location & Room Info -->
+            <div class="location-room-row">
+              <div class="loc-item" [matTooltip]="course.location">
+                <mat-icon>business</mat-icon>
+                <span class="text-truncate">{{ course.location }}</span>
+              </div>
+              <div class="room-item font-mono" [matTooltip]="course.room">
+                <mat-icon>meeting_room</mat-icon>
+                <span>{{ course.room }}</span>
+              </div>
+            </div>
+
+            <!-- Curriculum Lessons Meta -->
+            <div class="lessons-count-row">
+              <span class="lessons-text font-mono">
+                <mat-icon>auto_stories</mat-icon>
+                {{ course.totalLessons }} lessons
+              </span>
+              <span class="credits-badge font-mono">{{ course.credits }} Credits</span>
+            </div>
+
+            <!-- Progress Bar Section -->
+            <div class="progress-section">
+              <div class="progress-label-row">
+                <span class="progress-label">Progress</span>
+                <span class="progress-pct font-mono font-bold">{{ course.progressPercentage }}%</span>
+              </div>
+              <div class="progress-bar-container">
+                <mat-progress-bar mode="determinate" [value]="course.progressPercentage"></mat-progress-bar>
+              </div>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="card-actions">
+              <button mat-flat-button class="view-course-btn" (click)="viewCourse(course.courseId)">
+                <span>View Course</span>
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
+
+              @if (canWithdraw(course)) {
+                <button mat-stroked-button color="warn" class="withdraw-btn" (click)="openWithdrawConfirmation(course)">
+                  <mat-icon>cancel</mat-icon>
+                  <span>Withdraw</span>
+                </button>
+              }
+            </div>
+
+          </article>
+        }
+      </div>
+    }
+
+  </div>
+
+  <!-- Confirmation Modal Dialog -->
+  @if (confirmWithdrawCourse()) {
+    <div class="withdraw-modal-overlay" (click)="cancelWithdrawal()">
+      <div class="withdraw-modal-card eduva-card" (click)="$event.stopPropagation()">
+        <div class="modal-icon-danger">
+          <mat-icon>warning_amber</mat-icon>
+        </div>
+        <h3 class="modal-title">Withdraw from this course?</h3>
+        <p class="modal-body-text">
+          You are about to withdraw from:
+          <strong class="course-name-highlight">{{ confirmWithdrawCourse()?.title }}</strong>
+        </p>
+        <p class="modal-subtext">
+          This action will cancel your registration, remove the course from your active calendar schedule, and release your seat.
+        </p>
+        <div class="modal-actions-row">
+          <button mat-button class="modal-cancel-btn" (click)="cancelWithdrawal()" [disabled]="isSubmittingWithdrawal()">
+            Cancel
+          </button>
+          <button mat-flat-button color="warn" class="modal-confirm-btn" (click)="executeWithdrawal()" [disabled]="isSubmittingWithdrawal()">
+            @if (isSubmittingWithdrawal()) {
+              <span>Withdrawing...</span>
+            } @else {
+              <span>Withdraw</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</app-layout>

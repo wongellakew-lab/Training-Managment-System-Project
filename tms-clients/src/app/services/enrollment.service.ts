@@ -2,7 +2,6 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Enrollment, EnrollRequest, EnrollmentStatus, EnrollmentFilterParams } from '../models/enrollment.model';
-import { PaymentStatusBreakdown } from '../models/dashboard.model';
 import { PagedResult } from '../models/course.model';
 
 @Injectable({
@@ -37,10 +36,6 @@ export class EnrollmentService {
     return this.http.get<PagedResult<Enrollment>>(this.baseUrl, { params });
   }
 
-  getPaymentBreakdown(): Observable<PaymentStatusBreakdown> {
-    return this.http.get<PaymentStatusBreakdown>(`${this.baseUrl}/breakdown`);
-  }
-
   getStudentEnrollments(studentId: number): Observable<Enrollment[]> {
     return this.getEnrollments(studentId);
   }
@@ -49,8 +44,8 @@ export class EnrollmentService {
     return this.http.post<Enrollment>(this.baseUrl, request);
   }
 
-  updateEnrollmentStatus(enrollmentId: number, status: EnrollmentStatus, paymentStatus?: string): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/${enrollmentId}/status`, { status, paymentStatus });
+  updateEnrollmentStatus(enrollmentId: number, status: EnrollmentStatus): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/${enrollmentId}/status`, { status });
   }
 
   approveEnrollment(enrollmentId: number): Observable<{ message: string }> {

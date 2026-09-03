@@ -21,4 +21,12 @@ export class CertificateService {
   getStudentCertificates(studentId: number): Observable<CertificateResponse[]> {
     return this.http.get<CertificateResponse[]>(`${this.baseUrl}/student/${studentId}`);
   }
+
+  getMyCertificates(): Observable<CertificateResponse[]> {
+    return this.http.get<CertificateResponse[]>(`${this.baseUrl}/my-certificates`);
+  }
+
+  getDownloadUrl(id: number): string {
+    return `${this.baseUrl}/${id}/download`;
+  }
 }

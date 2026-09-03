@@ -15,6 +15,7 @@ import { AuthService } from '../../services/auth.service';
 import { DashboardService, StudentDashboard } from '../../services/dashboard.service';
 import { GradeService } from '../../services/grade.service';
 import { LiveSyncService } from '../../services/live-sync.service';
+import { NotificationService } from '../../services/notification.service';
 import { StudentAcademicRecord } from '../../models/grade.model';
 
 @Component({
@@ -42,6 +43,7 @@ export class StudentDashboardComponent implements OnInit {
   dashboardService = inject(DashboardService);
   gradeService = inject(GradeService);
   liveSync = inject(LiveSyncService);
+  notificationService = inject(NotificationService);
 
   dashboardData = signal<StudentDashboard | null>(null);
   academicRecord = signal<StudentAcademicRecord | null>(null);
@@ -63,7 +65,25 @@ export class StudentDashboardComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    const studentId = this.authService.currentUser()?.studentId || 1;
+    this.loadDashboardData();
+
+    // Listen for SignalR live events and reload
+    this.liveSync.enrollmentUpdated$.subscribe(() => {
+      this.loadDashboardData();
+    });
+
+    this.liveSync.gradePublished$.subscribe(() => {
+      this.loadDashboardData();
+    });
+
+    this.liveSync.scheduleUpdated$.subscribe(() => {
+      this.loadDashboardData();
+    });
+  }
+
+  loadDashboardData(): void {
+    const user = this.authService.currentUser();
+    const studentId = user?.studentId;
 
     this.isLoading.set(true);
 
@@ -77,26 +97,21 @@ export class StudentDashboardComponent implements OnInit {
     });
 
     // Load academic record
-    this.gradeService.getStudentAcademicRecord(studentId).subscribe({
-      next: (rec) => this.academicRecord.set(rec),
-      error: () => {}
-    });
-
-    // Load enrollment store for table display
-    this.enrollmentStore.loadStudentEnrollments(studentId);
-
-    // Listen for SignalR live enrollment events and reload
-    this.liveSync.enrollmentUpdated$.subscribe(() => {
-      this.enrollmentStore.loadStudentEnrollments(studentId);
-      this.dashboardService.getStudentDashboard(studentId).subscribe({
-        next: (data) => this.dashboardData.set(data)
+    if (studentId) {
+      this.gradeService.getStudentAcademicRecord(studentId).subscribe({
+        next: (rec) => this.academicRecord.set(rec),
+        error: () => {}
       });
-    });
+
+      // Load enrollment store for table display
+      this.enrollmentStore.loadStudentEnrollments(studentId);
+    }
   }
 
   dropCourse(enrollmentId: number): void {
     if (confirm('Are you sure you want to drop this course enrollment?')) {
       this.enrollmentStore.drop(enrollmentId);
+      setTimeout(() => this.loadDashboardData(), 500);
     }
   }
 }

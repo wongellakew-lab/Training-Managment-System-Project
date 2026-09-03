@@ -13,22 +13,6 @@
 
   <!-- Right Actions & Profile -->
   <div class="header-right">
-    <!-- Omni Search Bar -->
-    <div class="eduva-input-group search-bar">
-      <mat-icon>search</mat-icon>
-      <input type="text" placeholder="Search anything" aria-label="Search anything" />
-    </div>
-
-    <!-- Live Sync Indicator -->
-    <div
-      class="live-indicator"
-      [class.live]="isConnected()"
-      [matTooltip]="isConnected() ? 'Live sync active' : 'Connecting...'"
-    >
-      <span class="live-dot"></span>
-      <span class="live-text">{{ isConnected() ? 'Live' : '...' }}</span>
-    </div>
-
     <!-- Notification Bell -->
     <button
       mat-icon-button
@@ -58,12 +42,12 @@
         @if (notificationService.notifications().length === 0) {
           <div class="notif-empty">
             <mat-icon>notifications_none</mat-icon>
-            <span>No notifications yet</span>
+            <span>No unread notifications</span>
           </div>
         }
         @for (n of notificationService.notifications().slice(0, 8); track n.id) {
-          <div class="notif-item" [class.unread]="!n.isRead" (click)="notificationService.markAsRead(n.id).subscribe()">
-            <div class="notif-dot" [class.unread]="!n.isRead"></div>
+          <div class="notif-item unread" (click)="markNotificationRead(n)">
+            <div class="notif-dot unread"></div>
             <div class="notif-content">
               <p class="notif-item-title">{{ n.title }}</p>
               <p class="notif-item-msg">{{ n.message }}</p>
@@ -73,11 +57,6 @@
         }
       </div>
     </mat-menu>
-
-    <!-- Settings Button -->
-    <button mat-icon-button class="icon-action-btn" aria-label="Settings" [matTooltip]="'Settings'">
-      <mat-icon>settings</mat-icon>
-    </button>
 
     <!-- User Profile Chip -->
     <div class="user-profile-chip" [matMenuTriggerFor]="userMenu" id="user-profile-menu-trigger">

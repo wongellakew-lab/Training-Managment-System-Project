@@ -44,65 +44,8 @@
   .header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
-
-    .search-bar {
-      width: 240px;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-full);
-      padding: 7px 16px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-
-      mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-      }
-
-      &:focus-within {
-        border-color: var(--eduva-blue);
-        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
-      }
-    }
+    gap: 12px;
   }
-}
-
-// ─── Live Indicator ──────────────────────────────────────────────────────────
-.live-indicator {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
-
-  .live-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #94a3b8;
-  }
-
-  &.live {
-    background: var(--eduva-green-light);
-    border-color: rgba(16, 185, 129, 0.3);
-    color: var(--eduva-green);
-
-    .live-dot {
-      background: var(--eduva-green);
-      animation: pulse-live 2s infinite;
-    }
-  }
-}
-
-@keyframes pulse-live {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
 }
 
 // ─── Icon Action Button ──────────────────────────────────────────────────────

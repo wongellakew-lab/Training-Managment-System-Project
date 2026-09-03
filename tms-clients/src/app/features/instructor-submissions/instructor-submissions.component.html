@@ -1,0 +1,193 @@
+<app-layout pageTitle="Submission Review" [showGreeting]="false">
+  <div class="submissions-page-container">
+    <!-- Top Filter Bar -->
+    <div class="filter-header-card">
+      <div class="header-left">
+        <h1>Inline Assignment Review</h1>
+        <p>Inspect student deliverables, preview submitted work, and submit points and feedback.</p>
+      </div>
+
+      <div class="header-controls">
+        <mat-form-field appearance="outline" class="select-field">
+          <mat-label>Course</mat-label>
+          <mat-select [(ngModel)]="selectedCourseId" (selectionChange)="onCourseChange()">
+            <mat-option *ngFor="let c of courses()" [value]="c.id">
+              {{ c.code }} - {{ c.title }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="select-field">
+          <mat-label>Assignment</mat-label>
+          <mat-select [(ngModel)]="selectedAssignmentId" (selectionChange)="onAssignmentChange()">
+            <mat-option *ngFor="let a of assignments()" [value]="a.id">
+              {{ a.title }} ({{ a.maxPoints }} pts)
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading student submissions...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && submissions().length === 0" class="empty-state-card">
+      <mat-icon>inbox</mat-icon>
+      <h3>No Submissions Found</h3>
+      <p>No student submissions have been recorded yet for this assignment.</p>
+    </div>
+
+    <!-- Split Screen Review Workspace -->
+    <div *ngIf="!isLoading() && submissions().length > 0" class="split-review-grid">
+      <!-- Left List: Submissions Roster -->
+      <div class="roster-col">
+        <div class="roster-header">
+          <h3>Submissions ({{ submissions().length }})</h3>
+        </div>
+
+        <div class="roster-list">
+          <div
+            *ngFor="let s of submissions()"
+            class="submission-list-item"
+            [class.selected]="selectedSubmission()?.id === s.id"
+            (click)="selectSubmission(s)"
+          >
+            <div class="item-avatar">
+              <img *ngIf="s.studentAvatar" [src]="s.studentAvatar" [alt]="s.studentName" />
+              <span *ngIf="!s.studentAvatar">{{ s.studentName.charAt(0) }}</span>
+            </div>
+
+            <div class="item-info">
+              <span class="item-name">{{ s.studentName }}</span>
+              <span class="item-date">{{ s.submittedAt ? (s.submittedAt | date:'short') : 'Pending' }}</span>
+            </div>
+
+            <div class="item-status">
+              <span class="status-pill" [class.graded]="s.status === 'Graded'" [class.submitted]="s.status === 'Submitted'">
+                {{ s.status === 'Graded' ? (s.scoredPoints + ' / ' + s.maxPoints) : s.status }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center / Right: Review & Grading Panel -->
+      <div class="review-col" *ngIf="selectedSubmission()">
+        <!-- Submission Details Card -->
+        <div class="review-card">
+          <div class="review-header">
+            <div class="student-profile-strip">
+              <div class="avatar-large">
+                <img *ngIf="selectedSubmission()?.studentAvatar" [src]="selectedSubmission()?.studentAvatar" />
+                <span *ngIf="!selectedSubmission()?.studentAvatar">{{ selectedSubmission()?.studentName?.charAt(0) }}</span>
+              </div>
+
+              <div>
+                <h2>{{ selectedSubmission()?.studentName }}</h2>
+                <div class="student-submeta">
+                  <span>{{ selectedSubmission()?.studentEmail }}</span>
+                  <span>&bull;</span>
+                  <span>{{ selectedSubmission()?.studentRegistrationNumber || 'REG-PENDING' }}</span>
+                  <span>&bull;</span>
+                  <span>Submitted: {{ selectedSubmission()?.submittedAt | date:'medium' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <span class="status-pill-lg" [class.graded]="selectedSubmission()?.status === 'Graded'">
+              {{ selectedSubmission()?.status }}
+            </span>
+          </div>
+
+          <!-- Assignment Guidelines Reference Box -->
+          <div class="assignment-prompt-box">
+            <div class="prompt-header">
+              <mat-icon>assignment</mat-icon>
+              <h4>{{ selectedSubmission()?.assignmentTitle }}</h4>
+              <span class="max-pts-badge">Max: {{ selectedSubmission()?.maxPoints }} pts</span>
+            </div>
+            <p>{{ selectedSubmission()?.assignmentInstructions }}</p>
+          </div>
+
+          <!-- Student Work Preview -->
+          <div class="submission-work-box">
+            <label class="section-label">Student Deliverable</label>
+
+            <!-- Text submission -->
+            <div *ngIf="selectedSubmission()?.submissionText" class="text-deliverable">
+              <p>{{ selectedSubmission()?.submissionText }}</p>
+            </div>
+
+            <!-- PDF / File submission preview -->
+            <div *ngIf="selectedSubmission()?.submissionFileUrl" class="file-deliverable">
+              <div class="file-card">
+                <mat-icon class="pdf-icon">picture_as_pdf</mat-icon>
+                <div class="file-meta">
+                  <span class="file-name">Student Submission Document</span>
+                  <a [href]="selectedSubmission()?.submissionFileUrl" target="_blank" download class="file-download-link">
+                    Download Submitted File
+                  </a>
+                </div>
+              </div>
+
+              <!-- Iframe inline preview -->
+              <div class="document-preview-frame">
+                <iframe [src]="selectedSubmission()?.submissionFileUrl" class="doc-iframe"></iframe>
+              </div>
+            </div>
+
+            <div *ngIf="!selectedSubmission()?.submissionText && !selectedSubmission()?.submissionFileUrl" class="no-file-text">
+              <p>No document attached to this submission record.</p>
+            </div>
+          </div>
+
+          <!-- Grading & Feedback Form -->
+          <div class="grading-form-section">
+            <div class="score-input-row">
+              <div class="score-field-wrapper">
+                <label class="section-label">Award Score</label>
+                <div class="score-input-box">
+                  <input
+                    type="number"
+                    class="score-input"
+                    [(ngModel)]="gradeScore"
+                    min="0"
+                    [max]="selectedSubmission()?.maxPoints || 100"
+                  />
+                  <span class="score-denom">/ {{ selectedSubmission()?.maxPoints }} pts</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="feedback-field-wrapper">
+              <label class="section-label">Instructor Feedback</label>
+              <textarea
+                class="feedback-textarea"
+                rows="4"
+                [(ngModel)]="gradeFeedback"
+                placeholder="Provide constructive assessment comments, praise, and improvement areas..."
+              ></textarea>
+            </div>
+
+            <div class="grading-actions">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="submitGrade()"
+                [disabled]="isSubmittingGrade()"
+                class="save-grade-btn"
+              >
+                <mat-icon>check_circle</mat-icon>
+                <span>{{ isSubmittingGrade() ? 'Saving...' : 'Submit Grade & Feedback' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-layout>

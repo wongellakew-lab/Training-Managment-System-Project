@@ -198,8 +198,10 @@
             <mat-spinner diameter="18" class="btn-spinner"></mat-spinner>
             <span>{{ isRegisterMode() ? 'Creating account...' : 'Signing in...' }}</span>
           } @else {
-            <mat-icon>{{ isRegisterMode() ? 'person_add' : 'login' }}</mat-icon>
-            <span>{{ isRegisterMode() ? 'Create Account' : 'Sign In' }}</span>
+            <ng-container>
+              <mat-icon>{{ isRegisterMode() ? 'person_add' : 'login' }}</mat-icon>
+              <span>{{ isRegisterMode() ? 'Create Account' : 'Sign In' }}</span>
+            </ng-container>
           }
         </button>
       </form>

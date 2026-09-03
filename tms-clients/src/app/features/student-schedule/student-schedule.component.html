@@ -1,134 +1,333 @@
-<app-layout pageTitle="My Class Schedule" [showGreeting]="false">
-  <div class="schedule-page-container">
-    <!-- Header Controls -->
-    <div class="schedule-toolbar eduva-card">
-      <div class="toolbar-left">
-        <h2 class="toolbar-title">Academic Timetable</h2>
-        <span class="toolbar-date font-mono">{{ currentDate() | date:'MMMM yyyy' }}</span>
+<app-layout pageTitle="Class Schedule" [showGreeting]="false">
+  <div class="student-schedule-container">
+
+    <!-- Top 4 Summary Cards Row -->
+    <div class="schedule-summary-row">
+      <!-- Card 1: Classes This Month -->
+      <div class="eduva-card summary-card">
+        <div class="summary-icon-box bg-blue">
+          <mat-icon>date_range</mat-icon>
+        </div>
+        <div class="summary-info">
+          <span class="summary-label">Classes This Month</span>
+          <div class="summary-value font-mono">{{ summary()?.classesThisMonth ?? 0 }}</div>
+        </div>
       </div>
 
-      <div class="toolbar-center">
-        <button mat-icon-button (click)="previousPeriod()" aria-label="Previous">
-          <mat-icon>chevron_left</mat-icon>
-        </button>
-        <button mat-stroked-button class="view-pill" [class.active]="selectedView() === 'Day'" (click)="setView('Day')">Day</button>
-        <button mat-stroked-button class="view-pill" [class.active]="selectedView() === 'Week'" (click)="setView('Week')">Week</button>
-        <button mat-stroked-button class="view-pill" [class.active]="selectedView() === 'Month'" (click)="setView('Month')">Month</button>
-        <button mat-icon-button (click)="nextPeriod()" aria-label="Next">
-          <mat-icon>chevron_right</mat-icon>
+      <!-- Card 2: Classes This Week -->
+      <div class="eduva-card summary-card">
+        <div class="summary-icon-box bg-navy">
+          <mat-icon>event_available</mat-icon>
+        </div>
+        <div class="summary-info">
+          <span class="summary-label">Classes This Week</span>
+          <div class="summary-value font-mono">{{ summary()?.classesThisWeek ?? 0 }}</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Next Class -->
+      <div class="eduva-card summary-card">
+        <div class="summary-icon-box bg-cyan">
+          <mat-icon>access_time</mat-icon>
+        </div>
+        <div class="summary-info">
+          <span class="summary-label">Next Class</span>
+          @if (summary()?.nextClass) {
+            <div class="summary-value-compact">
+              <span class="next-title">{{ summary()!.nextClass!.courseCode || summary()!.nextClass!.title }}</span>
+              <span class="next-time font-mono">{{ summary()!.nextClass!.date | date:'EEE':'UTC' }} &bull; {{ summary()!.nextClass!.startTime }}</span>
+            </div>
+          } @else {
+            <div class="summary-value-text text-muted">None upcoming</div>
+          }
+        </div>
+      </div>
+
+      <!-- Card 4: Enrolled Courses -->
+      <div class="eduva-card summary-card">
+        <div class="summary-icon-box bg-green">
+          <mat-icon>school</mat-icon>
+        </div>
+        <div class="summary-info">
+          <span class="summary-label">Enrolled Courses</span>
+          <div class="summary-value font-mono">{{ summary()?.enrolledCoursesCount ?? 0 }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calendar Toolbar -->
+    <div class="eduva-card calendar-toolbar-card">
+      <div class="toolbar-left">
+        <div class="month-title-wrapper">
+          <h2 class="month-title">{{ monthYearDisplay() }}</h2>
+          <div class="month-nav-group">
+            <button mat-icon-button (click)="prevMonth()" aria-label="Previous Month">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <button mat-icon-button (click)="nextMonth()" aria-label="Next Month">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+        </div>
+        <button mat-stroked-button class="today-btn" (click)="goToToday()">
+          <mat-icon>today</mat-icon> Today
         </button>
       </div>
 
       <div class="toolbar-right">
-        <span class="live-pill"><span class="dot"></span> Real-time Sync</span>
+        <!-- Course Filter Dropdown -->
+        <button mat-stroked-button class="filter-dropdown-btn" [matMenuTriggerFor]="courseMenu">
+          <mat-icon>filter_list</mat-icon>
+          <span>{{ getSelectedCourseName() }}</span>
+          <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #courseMenu="matMenu">
+          <button mat-menu-item (click)="filterCourse(0)">
+            <mat-icon>all_inclusive</mat-icon>
+            <span>All Enrolled Classes</span>
+          </button>
+          @for (c of enrolledCourses(); track c.id) {
+            <button mat-menu-item (click)="filterCourse(c.id)">
+              <mat-icon>menu_book</mat-icon>
+              <span>{{ c.code }} - {{ c.title }}</span>
+            </button>
+          }
+        </mat-menu>
+
+        <!-- View Mode Switcher -->
+        <div class="view-switch-pills">
+          <button
+            class="view-pill"
+            [class.active]="selectedView() === 'Month'"
+            (click)="setView('Month')"
+          >
+            Month
+          </button>
+          <button
+            class="view-pill"
+            [class.active]="selectedView() === 'Week'"
+            (click)="setView('Week')"
+          >
+            Week
+          </button>
+          <button
+            class="view-pill"
+            [class.active]="selectedView() === 'Day'"
+            (click)="setView('Day')"
+          >
+            Day
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content Layout -->
-    <div class="schedule-grid-layout">
-      <!-- Left Schedule List -->
-      <div class="schedule-list-section">
-        @if (isLoading()) {
-          <div class="loading-box eduva-card">
-            <mat-spinner diameter="36"></mat-spinner>
-            <span>Retrieving class timetable...</span>
-          </div>
-        } @else if (schedules().length === 0) {
-          <div class="empty-box eduva-card">
-            <mat-icon class="empty-icon">event_busy</mat-icon>
-            <h3>No Scheduled Classes</h3>
-            <p>You have no classes or workshops scheduled for this timeframe.</p>
-          </div>
-        } @else {
-          <div class="schedule-cards-list">
-            @for (item of schedules(); track item.id) {
-              <div
-                class="schedule-card eduva-card"
-                [class.selected]="selectedSchedule()?.id === item.id"
-                (click)="selectSchedule(item)"
-              >
-                <div class="card-time-column">
-                  <span class="start-time font-mono">{{ item.startTime }}</span>
-                  <span class="end-time font-mono">{{ item.endTime }}</span>
-                  <span class="date-badge font-mono">{{ item.date | date:'EEE, MMM d' }}</span>
+    <!-- Main Layout: Calendar Grid (Left) + Selected Day Details (Right) -->
+    <div class="calendar-two-col-layout">
+      <!-- Left / Main Area: Calendar Grid -->
+      <div class="calendar-main-col">
+        <div class="eduva-card calendar-grid-card">
+          @if (isLoading()) {
+            <div class="loading-overlay">
+              <mat-spinner diameter="40"></mat-spinner>
+              <span>Loading schedule timetable...</span>
+            </div>
+          } @else if (hasError()) {
+            <div class="error-box">
+              <mat-icon>error_outline</mat-icon>
+              <h4>Unable to load schedule</h4>
+              <p>Could not connect to the scheduling service. Please try again.</p>
+              <button mat-stroked-button color="primary" (click)="loadScheduleData()">
+                <mat-icon>refresh</mat-icon> Retry
+              </button>
+            </div>
+          } @else {
+            @if (selectedView() === 'Month') {
+              <!-- Month Grid -->
+              <div class="monthly-calendar-wrapper">
+                <!-- Weekday Headers -->
+                <div class="weekday-header-row">
+                  @for (w of weekDays; track w) {
+                    <div class="weekday-cell">{{ w }}</div>
+                  }
                 </div>
 
-                <div class="card-details-column">
-                  <div class="card-tags">
-                    <span class="type-badge" [ngClass]="getTypeClass(item.scheduleType)">{{ item.scheduleType || 'Lecture' }}</span>
-                    @if (item.courseCode) {
-                      <span class="code-badge font-mono">{{ item.courseCode }}</span>
-                    }
-                  </div>
-                  <h4 class="card-title">{{ item.title }}</h4>
-                  <div class="card-meta">
-                    <span class="meta-item"><mat-icon>location_on</mat-icon> {{ item.location }}</span>
-                    <span class="meta-item"><mat-icon>person</mat-icon> {{ item.picName }}</span>
-                  </div>
+                <!-- Days Matrix (7 cols x 5 or 6 rows) -->
+                <div class="days-matrix-grid">
+                  @for (cell of calendarGrid(); track cell.dateStr) {
+                    <div
+                      class="calendar-day-cell"
+                      [class.other-month]="!cell.isCurrentMonth"
+                      [class.today-cell]="cell.isToday"
+                      [class.selected-day]="cell.isSelected"
+                      (click)="selectDay(cell)"
+                    >
+                      <div class="day-cell-top">
+                        <span class="day-number font-mono">{{ cell.day }}</span>
+                        @if (cell.isToday) {
+                          <span class="today-dot" title="Today"></span>
+                        }
+                      </div>
+
+                      <!-- Compact Class Blocks inside the Day -->
+                      <div class="day-events-container">
+                        @for (cls of cell.classes.slice(0, 2); track cls.id) {
+                          <div class="class-event-block" [ngClass]="getTypeClass(cls.scheduleType)">
+                            <div class="event-time font-mono">{{ cls.startTime }}</div>
+                            <div class="event-title" [title]="cls.title">{{ cls.courseCode || cls.title }}</div>
+                          </div>
+                        }
+
+                        @if (cell.classes.length > 2) {
+                          <span class="overflow-pill font-mono">
+                            +{{ cell.classes.length - 2 }} more
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else if (selectedView() === 'Week') {
+              <!-- Week View -->
+              <div class="week-view-wrapper">
+                <div class="week-grid">
+                  @for (cell of currentWeekCells(); track cell.dateStr) {
+                    <div
+                      class="week-day-col"
+                      [class.selected-day]="cell.isSelected"
+                      (click)="selectDay(cell)"
+                    >
+                      <div class="week-col-header">
+                        <span class="week-name">{{ cell.date | date:'EEE' }}</span>
+                        <span class="week-num font-mono" [class.today-circle]="cell.isToday">{{ cell.day }}</span>
+                      </div>
+                      <div class="week-events-list">
+                        @for (cls of cell.classes; track cls.id) {
+                          <div class="week-event-card" [ngClass]="getTypeClass(cls.scheduleType)">
+                            <span class="time font-mono">{{ cls.startTime }} - {{ cls.endTime }}</span>
+                            <span class="title">{{ cls.title }}</span>
+                            <span class="loc"><mat-icon>location_on</mat-icon> {{ cls.location }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else {
+              <!-- Day View -->
+              <div class="day-view-wrapper">
+                <div class="day-header-banner">
+                  <h3>{{ selectedDate() | date:'fullDate' }}</h3>
+                  <span class="count-tag font-mono">{{ selectedDayClasses().length }} Classes Scheduled</span>
+                </div>
+                <div class="day-classes-list">
+                  @for (cls of selectedDayClasses(); track cls.id) {
+                    <div class="day-view-item" [ngClass]="getTypeClass(cls.scheduleType)">
+                      <div class="time-col font-mono">
+                        <span class="start">{{ cls.startTime }}</span>
+                        <span class="end">{{ cls.endTime }}</span>
+                      </div>
+                      <div class="info-col">
+                        <h4>{{ cls.title }}</h4>
+                        <span class="course-badge font-mono">{{ cls.courseCode }} - {{ cls.courseTitle }}</span>
+                        <div class="meta-row">
+                          <span><mat-icon>person</mat-icon> {{ cls.instructorName || cls.picName }}</span>
+                          <span><mat-icon>business</mat-icon> {{ cls.location }}</span>
+                          <span><mat-icon>meeting_room</mat-icon> {{ cls.room }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
                 </div>
               </div>
             }
-          </div>
-        }
+          }
+        </div>
       </div>
 
-      <!-- Right Selected Schedule Details Drawer -->
-      <div class="schedule-details-section">
-        <mat-card class="details-card eduva-card">
-          @if (selectedSchedule()) {
-            <div class="details-content">
-              <div class="details-header">
-                <span class="type-badge" [ngClass]="getTypeClass(selectedSchedule()!.scheduleType)">
-                  {{ selectedSchedule()!.scheduleType || 'Lecture' }}
-                </span>
-                <span class="details-date font-mono">{{ selectedSchedule()!.date | date:'fullDate' }}</span>
-              </div>
+      <!-- Right Area: Selected Day Schedule Details -->
+      <div class="calendar-sidebar-col">
+        <div class="eduva-card right-schedules-card">
+          <!-- Header -->
+          <div class="schedules-header">
+            <div>
+              <h3 class="schedules-title">Schedules</h3>
+              <span class="schedules-date font-mono">{{ selectedDate() | date:'MMMM d' }}</span>
+            </div>
+            <span class="classes-count-badge font-mono">
+              {{ selectedDayClasses().length }} {{ selectedDayClasses().length === 1 ? 'Class' : 'Classes' }}
+            </span>
+          </div>
 
-              <h3 class="details-title">{{ selectedSchedule()!.title }}</h3>
-
-              @if (selectedSchedule()!.courseTitle) {
-                <div class="details-course-banner">
-                  <mat-icon>menu_book</mat-icon>
-                  <div>
-                    <div class="course-name">{{ selectedSchedule()!.courseTitle }}</div>
-                    <div class="course-code font-mono">{{ selectedSchedule()!.courseCode }}</div>
+          <!-- Schedule Detail Cards List -->
+          @if (selectedDayClasses().length > 0) {
+            <div class="selected-day-list">
+              @for (c of selectedDayClasses(); track c.id) {
+                <div class="class-detail-card" [ngClass]="getTypeClass(c.scheduleType)">
+                  <div class="detail-card-top">
+                    <span class="date-chip font-mono">{{ c.date | date:'MMM d':'UTC' }}</span>
+                    <span class="type-chip font-mono">{{ c.scheduleType || 'Lecture' }}</span>
+                    <span class="time-chip font-mono">{{ c.startTime }} - {{ c.endTime }}</span>
                   </div>
-                </div>
-              }
 
-              <div class="details-grid">
-                <div class="detail-row">
-                  <span class="label">Time</span>
-                  <span class="val font-mono">{{ selectedSchedule()!.startTime }} - {{ selectedSchedule()!.endTime }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">Location</span>
-                  <span class="val">{{ selectedSchedule()!.location }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">Instructor</span>
-                  <span class="val">{{ selectedSchedule()!.picName }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">Category</span>
-                  <span class="val">{{ selectedSchedule()!.category }}</span>
-                </div>
-              </div>
+                  <h4 class="class-name">{{ c.title }}</h4>
 
-              @if (selectedSchedule()!.notes) {
-                <div class="details-notes">
-                  <span class="notes-label">Preparation Notes</span>
-                  <p class="notes-text">{{ selectedSchedule()!.notes }}</p>
+                  @if (c.courseTitle) {
+                    <div class="course-identifier">
+                      <span class="code font-mono">{{ c.courseCode }}</span>
+                      <span class="title">{{ c.courseTitle }}</span>
+                    </div>
+                  }
+
+                  <div class="class-attributes">
+                    <div class="attr-row">
+                      <div class="attr-icon"><mat-icon>person</mat-icon></div>
+                      <div class="attr-content">
+                        <span class="attr-label">Instructor</span>
+                        <span class="attr-val">{{ c.instructorName || c.picName || 'Faculty Instructor' }}</span>
+                      </div>
+                    </div>
+
+                    <div class="attr-row">
+                      <div class="attr-icon"><mat-icon>business</mat-icon></div>
+                      <div class="attr-content">
+                        <span class="attr-label">Location</span>
+                        <span class="attr-val">{{ c.location || 'Main Training Center' }}</span>
+                      </div>
+                    </div>
+
+                    <div class="attr-row">
+                      <div class="attr-icon"><mat-icon>meeting_room</mat-icon></div>
+                      <div class="attr-content">
+                        <span class="attr-label">Room</span>
+                        <span class="attr-val font-mono">{{ c.room || 'Room 204' }}</span>
+                      </div>
+                    </div>
+
+                    @if (c.notes) {
+                      <div class="attr-notes-box">
+                        <span class="notes-lbl">Notes:</span>
+                        <p class="notes-val">{{ c.notes }}</p>
+                      </div>
+                    }
+                  </div>
                 </div>
               }
             </div>
           } @else {
-            <div class="no-selection-box">
-              <mat-icon>info</mat-icon>
-              <span>Select a class from the list to view its complete details.</span>
+            <!-- Empty State for Date with No Schedule -->
+            <div class="no-schedule-box">
+              <div class="empty-icon-circle">
+                <mat-icon>event_busy</mat-icon>
+              </div>
+              <h4 class="empty-title">No classes scheduled</h4>
+              <p class="empty-desc">
+                You don't have any classes scheduled for {{ selectedDate() | date:'MMMM d' }}.
+              </p>
             </div>
           }
-        </mat-card>
+        </div>
       </div>
     </div>
   </div>

@@ -32,46 +32,56 @@ export class AdminDashboardComponent implements OnInit {
   readonly dashboard = signal<AdminDashboardMetrics | null>(null);
   readonly isLoading = signal(false);
   readonly selectedMonth = signal('February');
-  readonly selectedCalendarDay = signal(16);
+  readonly currentDate = signal(new Date());
+  readonly selectedCalendarDay = signal(new Date().getDate());
 
-  // Mini Calendar Data for May 2030
-  readonly calendarDays = [
-    { day: 28, isCurrentMonth: false },
-    { day: 29, isCurrentMonth: false },
-    { day: 30, isCurrentMonth: false },
-    { day: 1, isCurrentMonth: true },
-    { day: 2, isCurrentMonth: true },
-    { day: 3, isCurrentMonth: true },
-    { day: 4, isCurrentMonth: true },
-    { day: 5, isCurrentMonth: true },
-    { day: 6, isCurrentMonth: true },
-    { day: 7, isCurrentMonth: true },
-    { day: 8, isCurrentMonth: true },
-    { day: 9, isCurrentMonth: true },
-    { day: 10, isCurrentMonth: true },
-    { day: 11, isCurrentMonth: true },
-    { day: 12, isCurrentMonth: true },
-    { day: 13, isCurrentMonth: true },
-    { day: 14, isCurrentMonth: true },
-    { day: 15, isCurrentMonth: true },
-    { day: 16, isCurrentMonth: true, isSelected: true },
-    { day: 17, isCurrentMonth: true },
-    { day: 18, isCurrentMonth: true },
-    { day: 19, isCurrentMonth: true },
-    { day: 20, isCurrentMonth: true },
-    { day: 21, isCurrentMonth: true },
-    { day: 22, isCurrentMonth: true },
-    { day: 23, isCurrentMonth: true },
-    { day: 24, isCurrentMonth: true },
-    { day: 25, isCurrentMonth: true },
-    { day: 26, isCurrentMonth: true },
-    { day: 27, isCurrentMonth: true },
-    { day: 28, isCurrentMonth: true },
-    { day: 29, isCurrentMonth: true },
-    { day: 30, isCurrentMonth: true },
-    { day: 31, isCurrentMonth: true },
-    { day: 1, isCurrentMonth: false }
-  ];
+  get calendarDays() {
+    const d = this.currentDate();
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const days: { day: number; isCurrentMonth: boolean }[] = [];
+    for (let x = firstDayIndex; x > 0; x--) {
+      days.push({ day: daysInPrevMonth - x + 1, isCurrentMonth: false });
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({ day: i, isCurrentMonth: true });
+    }
+    const remaining = 35 - days.length;
+    for (let j = 1; j <= (remaining > 0 ? remaining : 0); j++) {
+      days.push({ day: j, isCurrentMonth: false });
+    }
+    return days;
+  }
+
+  prevMonth(): void {
+    const d = new Date(this.currentDate());
+    d.setMonth(d.getMonth() - 1);
+    this.currentDate.set(d);
+  }
+
+  nextMonth(): void {
+    const d = new Date(this.currentDate());
+    d.setMonth(d.getMonth() + 1);
+    this.currentDate.set(d);
+  }
+
+  getRevenuePercent(val: number): number {
+    const list = this.dashboard()?.revenueHistory;
+    if (!list || list.length === 0) return 0;
+    const max = Math.max(...list.map(r => r.revenue), 1);
+    return Math.round((val / max) * 100);
+  }
+
+  getTrendPercent(val: number): number {
+    const list = this.dashboard()?.enrollmentTrends;
+    if (!list || list.length === 0) return 0;
+    const max = Math.max(...list.map(r => r.count), 1);
+    return Math.round((val / max) * 100);
+  }
 
   ngOnInit(): void {
     this.loadDashboard();

@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, signal, computed, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
@@ -30,6 +30,7 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./courses.component.scss']
 })
 export class CoursesComponent implements OnInit {
+  private router = inject(Router);
   private courseService = inject(CourseService);
   private authService = inject(AuthService);
   private enrollmentService = inject(EnrollmentService);
@@ -40,6 +41,10 @@ export class CoursesComponent implements OnInit {
   readonly courses = signal<Course[]>([]);
   readonly selectedStatus = signal<string>('All');
   readonly selectedCategory = signal<string>('All Category');
+  readonly selectedSkillLevel = signal<string>('All');
+  readonly selectedSubject = signal<string>('All');
+  readonly selectedAvailability = signal<string>('All');
+
   readonly viewMode = signal<'list' | 'grid'>('grid');
   readonly selectedCourse = signal<Course | null>(null);
   readonly showDetailsDrawer = signal<boolean>(false);
@@ -49,7 +54,32 @@ export class CoursesComponent implements OnInit {
   // Pagination
   currentPage = 1;
   pageSize = 8;
-  totalCount = 320;
+  totalCount = 0;
+
+  readonly availableSubjects = computed(() => {
+    const set = new Set<string>(['Computer Science', 'Web Development', 'Design', 'Marketing', 'Communication', 'Language']);
+    for (const c of this.courses()) {
+      if (c.department) set.add(c.department);
+      if (c.category) set.add(c.category);
+    }
+    return Array.from(set).sort();
+  });
+
+  readonly categoryCounts = computed(() => {
+    const list = this.courses();
+    const map = new Map<string, number>();
+    for (const c of list) {
+      const cat = c.category || 'General';
+      map.set(cat, (map.get(cat) || 0) + 1);
+    }
+    const colors = ['sq-design', 'sq-webdev', 'sq-marketing', 'sq-business', 'sq-others'];
+    return Array.from(map.entries()).map(([name, count], idx) => ({
+      name,
+      count,
+      colorClass: colors[idx % colors.length],
+      percent: list.length > 0 ? Math.round((count / list.length) * 100) : 0
+    }));
+  });
 
   private sub?: Subscription;
 
@@ -85,12 +115,30 @@ export class CoursesComponent implements OnInit {
 
   loadCourses(): void {
     this.isLoading.set(true);
-    const filter = {
-      pageNumber: this.currentPage,
-      pageSize: this.pageSize,
-      status: this.selectedStatus() === 'All' ? undefined : this.selectedStatus(),
-      category: this.selectedCategory() === 'All Category' ? undefined : this.selectedCategory()
+
+    const filter: any = {
+      page: this.currentPage,
+      pageSize: this.pageSize
     };
+
+    if (this.isStudent()) {
+      if (this.selectedSkillLevel() !== 'All' && this.selectedSkillLevel() !== 'All Levels') {
+        filter.skillLevel = this.selectedSkillLevel();
+      }
+      if (this.selectedSubject() !== 'All' && this.selectedSubject() !== 'All Subjects') {
+        filter.subjectMatter = this.selectedSubject();
+      }
+      if (this.selectedAvailability() !== 'All') {
+        filter.availability = this.selectedAvailability();
+      }
+    } else {
+      if (this.selectedCategory() !== 'All' && this.selectedCategory() !== 'All Category') {
+        filter.category = this.selectedCategory();
+      }
+      if (this.selectedStatus() !== 'All') {
+        filter.status = this.selectedStatus();
+      }
+    }
 
     const call$ = this.isStudent()
       ? this.courseService.getCatalog(filter)
@@ -99,12 +147,11 @@ export class CoursesComponent implements OnInit {
     call$.subscribe({
       next: (res) => {
         this.courses.set(res.items);
-        if (res.totalCount) this.totalCount = res.totalCount;
+        if (res.totalCount !== undefined) this.totalCount = res.totalCount;
         this.isLoading.set(false);
 
         if (!this.selectedCourse() && res.items.length > 0) {
-          const python = res.items.find(c => c.title.includes('Python')) || res.items[0];
-          this.selectedCourse.set(python);
+          this.selectedCourse.set(res.items[0]);
         }
       },
       error: () => this.isLoading.set(false)
@@ -112,29 +159,55 @@ export class CoursesComponent implements OnInit {
   }
 
   enrollInCourse(course: Course): void {
-    const studentId = this.authService.currentUser()?.studentId || 1;
+    const studentId = this.authService.currentUser()?.studentId || 0;
     this.isEnrolling.set(true);
 
     this.enrollmentService.enrollStudent({
       studentId: studentId,
       courseId: course.id,
-      fee: course.price,
-      batch: 'Batch 1'
+      batch: 'Batch 1',
+      status: 'Active'
     }).subscribe({
       next: () => {
         this.isEnrolling.set(false);
         this.snackBar.open(`Successfully registered for ${course.title}!`, 'Close', { duration: 4000 });
-        course.isStudentEnrolled = true;
-        course.studentEnrollmentStatus = 'Active';
-        this.selectedCourse.set({ ...course });
-        this.loadCourses();
+
+        const currentEnrolled = course.enrolledCount ?? 0;
+        const newEnrolled = currentEnrolled + 1;
+        const newAvailable = Math.max(0, (course.maxCapacity ?? 30) - newEnrolled);
+
+        this.courses.update(list => list.map(c => c.id === course.id ? {
+          ...c,
+          isStudentEnrolled: true,
+          studentEnrollmentStatus: 'Active',
+          enrolledCount: newEnrolled,
+          availableSeats: newAvailable
+        } : c));
       },
       error: (err) => {
         this.isEnrolling.set(false);
-        const msg = err.error?.message || 'Enrollment request failed.';
+        const msg = err.error?.message || 'Enrollment failed. Please try again.';
         this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });
+  }
+
+  filterSkillLevel(level: string): void {
+    this.selectedSkillLevel.set(level);
+    this.currentPage = 1;
+    this.loadCourses();
+  }
+
+  filterSubject(subject: string): void {
+    this.selectedSubject.set(subject);
+    this.currentPage = 1;
+    this.loadCourses();
+  }
+
+  filterAvailability(availability: string): void {
+    this.selectedAvailability.set(availability);
+    this.currentPage = 1;
+    this.loadCourses();
   }
 
   filterStatus(status: string): void {
@@ -154,8 +227,17 @@ export class CoursesComponent implements OnInit {
   }
 
   openCourseDetails(course: Course): void {
+    if (this.isStudent()) {
+      this.router.navigate(['/student/courses', course.id]);
+      return;
+    }
     this.selectedCourse.set(course);
     this.showDetailsDrawer.set(true);
+  }
+
+  viewCourse(course: Course, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.router.navigate(['/student/courses', course.id]);
   }
 
   closeCourseDetails(): void {

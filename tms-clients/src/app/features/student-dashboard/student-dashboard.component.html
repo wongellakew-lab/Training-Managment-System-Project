@@ -91,7 +91,7 @@
             <mat-icon>notifications_active</mat-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ dashboardData()?.unreadNotificationCount ?? 0 }}</div>
+            <div class="metric-value">{{ notificationService.unreadCount() }}</div>
             <div class="metric-label">Unread Alerts</div>
           </div>
         </div>

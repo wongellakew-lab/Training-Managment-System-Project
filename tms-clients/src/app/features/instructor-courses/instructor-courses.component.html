@@ -1,0 +1,93 @@
+<app-layout pageTitle="My Courses & Builder" [showGreeting]="false">
+  <div class="courses-page-wrapper">
+    <!-- Header Card -->
+    <div class="page-header-card">
+      <div class="header-left">
+        <h1>Assigned Courses & Content Builder</h1>
+        <p>Curate lessons, upload PDF resources, track student enrollments, and launch the Course Content Builder.</p>
+      </div>
+
+      <div class="header-right">
+        <button mat-flat-button color="primary" *ngIf="courses().length > 0" (click)="openBuilder(courses()[0].id)" class="add-course-btn">
+          <mat-icon>add</mat-icon>
+          <span>Open Content Builder</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading your courses...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && courses().length === 0" class="empty-state-card">
+      <mat-icon>auto_stories</mat-icon>
+      <h3>No Courses Assigned</h3>
+      <p>You have not been assigned to instruct any courses yet.</p>
+    </div>
+
+    <!-- Courses Grid -->
+    <div *ngIf="!isLoading() && courses().length > 0" class="courses-grid">
+      <div *ngFor="let c of courses()" class="course-card">
+        <!-- Thumbnail -->
+        <div class="course-image-box">
+          <img [src]="c.imageUrl || '/assets/default-course.jpg'" [alt]="c.title" />
+          <div class="course-badges">
+            <span class="category-badge">{{ c.category }}</span>
+            <span class="level-badge">{{ c.level }}</span>
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div class="course-content-body">
+          <div class="code-status-row">
+            <span class="course-code">{{ c.code }}</span>
+            <span class="course-status" [class.active]="c.status === 'Active'">{{ c.status }}</span>
+          </div>
+
+          <h3 class="course-title">{{ c.title }}</h3>
+          <p class="course-desc">{{ c.description || c.about }}</p>
+
+          <!-- Metrics Row -->
+          <div class="course-metrics-row">
+            <div class="metric-item">
+              <mat-icon>groups</mat-icon>
+              <span>{{ c.activeStudentsCount }} Students</span>
+            </div>
+            <div class="metric-item">
+              <mat-icon>menu_book</mat-icon>
+              <span>{{ c.lessonsCount }} Lessons</span>
+            </div>
+            <div class="metric-item">
+              <mat-icon>picture_as_pdf</mat-icon>
+              <span>{{ c.resourcesCount }} PDFs</span>
+            </div>
+            <div class="metric-item">
+              <mat-icon>schedule</mat-icon>
+              <span>{{ c.durationHours }}h</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="course-actions-bar">
+          <button mat-flat-button color="primary" (click)="openBuilder(c.id)" class="builder-btn">
+            <mat-icon>edit_note</mat-icon>
+            <span>Content Builder</span>
+          </button>
+          <button mat-stroked-button (click)="openAttendance(c.id)" title="Digital Roll Call">
+            <mat-icon>fact_check</mat-icon>
+          </button>
+          <button mat-stroked-button (click)="openAssignments(c.id)" title="Assignments">
+            <mat-icon>assignment</mat-icon>
+          </button>
+          <button mat-stroked-button (click)="openGradebook(c.id)" title="Gradebook">
+            <mat-icon>table_chart</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-layout>

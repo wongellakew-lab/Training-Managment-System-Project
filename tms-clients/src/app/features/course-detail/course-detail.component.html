@@ -14,9 +14,6 @@
             <span class="category-badge">{{ course()?.category || 'General' }}</span>
             <span class="credits-badge">{{ course()?.credits }} Academic Credits</span>
           </div>
-          @if (course()?.price) {
-            <div class="price-tag">${{ course()?.price }}</div>
-          }
         </div>
 
         <h1 class="course-title">{{ course()?.title }}</h1>
@@ -47,6 +44,52 @@
             <div class="stat-label">Lead Faculty Instructor</div>
             <div class="stat-val text-accent-val">{{ course()?.instructorName || 'Department Faculty' }}</div>
           </div>
+        </div>
+
+        <!-- Dedicated Course Schedule Section -->
+        <div class="schedule-section">
+          <div class="schedule-header-row">
+            <div class="schedule-title-wrap">
+              <mat-icon class="schedule-icon">calendar_month</mat-icon>
+              <h3 class="schedule-heading">Course Schedule</h3>
+            </div>
+            <div class="schedule-badges">
+              <span class="duration-pill font-mono">{{ course()?.durationWeeks || 6 }} Weeks</span>
+              @if (course()?.startDate && course()?.endDate) {
+                <span class="date-range-pill font-mono">
+                  {{ course()!.startDate! | date:'MMM d' }} – {{ course()!.endDate! | date:'MMM d, yyyy' }}
+                </span>
+              }
+            </div>
+          </div>
+
+          @if (course()?.schedules && course()!.schedules!.length > 0) {
+            <div class="recurring-days-grid">
+              @for (sched of course()!.schedules!; track sched.id) {
+                <div class="recurring-day-card">
+                  <div class="day-chip-row">
+                    <span class="day-name font-mono">{{ sched.dayName | slice:0:3 | uppercase }}</span>
+                    <span class="sched-type">{{ sched.scheduleType || 'Lecture' }}</span>
+                  </div>
+                  <div class="day-time-row font-mono">
+                    <mat-icon>schedule</mat-icon>
+                    <span>{{ sched.startTime }} – {{ sched.endTime }}</span>
+                  </div>
+                  @if (sched.room) {
+                    <div class="day-room-row">
+                      <mat-icon>location_on</mat-icon>
+                      <span>{{ sched.room }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="no-schedules-placeholder">
+              <mat-icon>info</mat-icon>
+              <span>Schedule timetable is being finalized by department administrators.</span>
+            </div>
+          }
         </div>
 
         <!-- Feedback Alert Banner -->

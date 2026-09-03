@@ -1,0 +1,160 @@
+<app-layout pageTitle="Digital Roll Call" [showGreeting]="false">
+  <div class="attendance-page-container">
+    <!-- Filters & Actions Top Card -->
+    <div class="filter-header-card">
+      <div class="header-left">
+        <h1>Digital Roll Call</h1>
+        <p>Record and update session attendance for your enrolled students. Changes persist immediately to PostgreSQL.</p>
+      </div>
+
+      <div class="header-controls">
+        <div class="controls-row">
+          <mat-form-field appearance="outline" class="course-select-field">
+            <mat-label>Select Course</mat-label>
+            <mat-select [(ngModel)]="selectedCourseId" (selectionChange)="onCourseChange()">
+              <mat-option *ngFor="let c of courses()" [value]="c.id">
+                {{ c.code }} - {{ c.title }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="date-picker-field">
+            <mat-label>Session Date</mat-label>
+            <input
+              matInput
+              type="date"
+              [(ngModel)]="selectedDate"
+              (change)="onDateChange()"
+            />
+          </mat-form-field>
+        </div>
+
+        <div class="actions-row">
+          <button mat-stroked-button (click)="markAllPresent()" [disabled]="isLoading() || students().length === 0">
+            <mat-icon>done_all</mat-icon>
+            <span>Mark All Present</span>
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="saveAttendance()"
+            [disabled]="isSaving() || isLoading() || students().length === 0"
+            class="save-btn"
+          >
+            <mat-icon>save</mat-icon>
+            <span>{{ isSaving() ? 'Saving...' : 'Save Attendance' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance Stats Strip -->
+    <div class="stats-strip">
+      <div class="stat-pill">
+        <span class="stat-label">Total Enrolled</span>
+        <span class="stat-num">{{ students().length }}</span>
+      </div>
+      <div class="stat-pill present">
+        <span class="stat-label">Present</span>
+        <span class="stat-num">{{ presentCount() }}</span>
+      </div>
+      <div class="stat-pill late">
+        <span class="stat-label">Late</span>
+        <span class="stat-num">{{ lateCount() }}</span>
+      </div>
+      <div class="stat-pill absent">
+        <span class="stat-label">Absent</span>
+        <span class="stat-num">{{ absentCount() }}</span>
+      </div>
+      <div class="stat-pill rate">
+        <span class="stat-label">Attendance Rate</span>
+        <span class="stat-num">{{ attendanceRate() }}%</span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-state">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading course enrollment roster...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && students().length === 0" class="empty-roster-card">
+      <mat-icon>group_off</mat-icon>
+      <h3>No Students Enrolled</h3>
+      <p>There are currently no active students enrolled in this course section.</p>
+    </div>
+
+    <!-- Student Attendance List -->
+    <div *ngIf="!isLoading() && students().length > 0" class="roster-card">
+      <div class="roster-header">
+        <div class="col-student">Student</div>
+        <div class="col-reg">Registration #</div>
+        <div class="col-status">Roll Call Status</div>
+        <div class="col-remarks">Remarks / Notes</div>
+      </div>
+
+      <div class="roster-body">
+        <div *ngFor="let s of students()" class="student-row">
+          <!-- Student Info -->
+          <div class="col-student student-info-cell">
+            <div class="student-avatar">
+              <img *ngIf="s.avatarUrl" [src]="s.avatarUrl" [alt]="s.firstName" />
+              <span *ngIf="!s.avatarUrl">{{ s.firstName.charAt(0) }}{{ s.lastName.charAt(0) }}</span>
+            </div>
+            <div>
+              <span class="student-name">{{ s.firstName }} {{ s.lastName }}</span>
+              <span class="student-email">{{ s.email }}</span>
+            </div>
+          </div>
+
+          <!-- Registration Number -->
+          <div class="col-reg reg-cell">
+            <span class="reg-pill">{{ s.registrationNumber || 'REG-PENDING' }}</span>
+          </div>
+
+          <!-- 1-Click Status Pills -->
+          <div class="col-status status-buttons-cell">
+            <button
+              type="button"
+              class="status-btn present"
+              [class.active]="s.statusCode === 1"
+              (click)="setStatus(s, 1)"
+            >
+              <mat-icon>check_circle</mat-icon>
+              <span>Present</span>
+            </button>
+            <button
+              type="button"
+              class="status-btn late"
+              [class.active]="s.statusCode === 2"
+              (click)="setStatus(s, 2)"
+            >
+              <mat-icon>schedule</mat-icon>
+              <span>Late</span>
+            </button>
+            <button
+              type="button"
+              class="status-btn absent"
+              [class.active]="s.statusCode === 3"
+              (click)="setStatus(s, 3)"
+            >
+              <mat-icon>cancel</mat-icon>
+              <span>Absent</span>
+            </button>
+          </div>
+
+          <!-- Remarks Input -->
+          <div class="col-remarks remarks-cell">
+            <input
+              type="text"
+              class="remarks-input"
+              [(ngModel)]="s.remarks"
+              placeholder="e.g. Excused, arrived 15 min late..."
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-layout>

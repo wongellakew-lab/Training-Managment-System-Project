@@ -4,25 +4,26 @@
   <mat-card-header class="course-card-header">
     <div class="header-badges">
       <span class="badge badge-primary font-mono text-xs">{{ course.code }}</span>
+      <span class="level-badge font-mono">{{ course.level || 'Beginner' }}</span>
       <span class="credits-badge">{{ course.credits }} Credits</span>
     </div>
 
     <mat-card-title class="card-title">{{ course.title }}</mat-card-title>
     <mat-card-subtitle class="card-dept">
       <mat-icon>domain</mat-icon>
-      <span>{{ course.department }}</span>
+      <span>{{ course.department || course.category }}</span>
     </mat-card-subtitle>
   </mat-card-header>
 
   <mat-card-content class="course-card-content">
     <p class="course-desc">{{ course.description }}</p>
 
-    <!-- Capacity Bar -->
+    <!-- Capacity Section -->
     <div class="capacity-section">
       <div class="capacity-labels">
-        <span class="cap-title">Class Capacity</span>
-        <span class="cap-count" [class.full-count]="isFull">
-          {{ course.enrolledCount }} / {{ course.maxCapacity }}
+        <span class="cap-title">Enrollment Capacity</span>
+        <span class="cap-count font-mono" [class.full-count]="isFull">
+          {{ course.enrolledCount }} / {{ course.maxCapacity }} Students Enrolled
         </span>
       </div>
       <mat-progress-bar
@@ -31,6 +32,18 @@
         [color]="isFull ? 'warn' : 'primary'"
         class="capacity-bar"
       ></mat-progress-bar>
+      <div class="capacity-footer-row">
+        @if (isFull) {
+          <span class="status-full-pill font-mono">FULL</span>
+        } @else {
+          <span class="status-avail-pill font-mono">
+            {{ (course.availableSeats !== undefined ? course.availableSeats : (course.maxCapacity - course.enrolledCount)) }} Seats Available
+          </span>
+        }
+        @if (course.durationWeeks) {
+          <span class="duration-text font-mono">{{ course.durationWeeks }} Weeks</span>
+        }
+      </div>
     </div>
   </mat-card-content>
 
@@ -39,17 +52,24 @@
       <div class="instructor-avatar">
         {{ (course.instructorName || 'P')[0] }}
       </div>
-      <span class="instructor-name">{{ course.instructorName || 'Unassigned' }}</span>
+      <span class="instructor-name">{{ course.instructorName || 'Faculty Instructor' }}</span>
     </div>
 
-    <button
-      mat-flat-button
-      color="primary"
-      (click)="actionClicked.emit(course)"
-      [disabled]="isFull && actionLabel === 'Enroll'"
-      class="card-action-btn"
-    >
-      {{ isFull && actionLabel === 'Enroll' ? 'Class Full' : actionLabel }}
-    </button>
+    @if (course.isStudentEnrolled) {
+      <div class="enrolled-badge-pill">
+        <mat-icon>check_circle</mat-icon>
+        <span>Enrolled</span>
+      </div>
+    } @else {
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="actionClicked.emit(course)"
+        [disabled]="isFull"
+        class="card-action-btn"
+      >
+        {{ isFull ? 'Course Full' : 'Enroll Now' }}
+      </button>
+    }
   </mat-card-actions>
 </mat-card>

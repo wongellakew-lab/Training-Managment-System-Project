@@ -16,6 +16,10 @@ export interface StudentProfile {
   gpa: number;
   enrollmentDate: string;
   roles: string[];
+  totalEnrollments?: number;
+  completedCourses?: number;
+  activeCourses?: number;
+  earnedCertificates?: number;
 }
 
 export interface UpdateProfilePayload {

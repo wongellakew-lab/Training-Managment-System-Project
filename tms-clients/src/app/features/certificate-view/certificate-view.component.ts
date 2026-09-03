@@ -9,7 +9,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { NavbarComponent } from '../../ui/navbar/navbar.component';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { LayoutComponent } from '../../ui/layout/layout.component';
 import { CertificateService } from '../../services/certificate.service';
 import { TranscriptService } from '../../services/transcript.service';
 import { AuthService } from '../../services/auth.service';
@@ -23,14 +24,15 @@ import { LiveSyncService } from '../../services/live-sync.service';
     CommonModule,
     FormsModule,
     RouterModule,
-    NavbarComponent,
+    LayoutComponent,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatSnackBarModule
   ],
   templateUrl: './certificate-view.component.html',
   styleUrls: ['./certificate-view.component.scss']
@@ -38,8 +40,9 @@ import { LiveSyncService } from '../../services/live-sync.service';
 export class CertificateViewComponent implements OnInit {
   private certificateService = inject(CertificateService);
   private transcriptService = inject(TranscriptService);
-  private authService = inject(AuthService);
+  readonly authService = inject(AuthService);
   private liveSync = inject(LiveSyncService);
+  private snackBar = inject(MatSnackBar);
 
   certificates = signal<CertificateResponse[]>([]);
   isLoading = signal(false);
@@ -52,6 +55,9 @@ export class CertificateViewComponent implements OnInit {
   isVerifying = signal(false);
   verificationResult = signal<CertificateResponse | null>(null);
   verificationError = signal<string | null>(null);
+
+  // Preview Modal state
+  selectedCertificate = signal<CertificateResponse | null>(null);
 
   ngOnInit(): void {
     this.loadCertificates();
@@ -70,19 +76,23 @@ export class CertificateViewComponent implements OnInit {
   }
 
   loadCertificates(): void {
-    const studentId = this.authService.currentUser()?.studentId || 1;
     this.isLoading.set(true);
-    this.certificateService.getStudentCertificates(studentId).subscribe({
+
+    // Only load certificates belonging to the authenticated student via token
+    this.certificateService.getMyCertificates().subscribe({
       next: (certs) => {
         this.certificates.set(certs);
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false)
+      error: () => {
+        this.isLoading.set(false);
+        this.snackBar.open('Unable to load certificates. Please try again.', 'Close', { duration: 3000 });
+      }
     });
   }
 
   requestTranscript(): void {
-    const studentId = this.authService.currentUser()?.studentId || 1;
+    const studentId = this.authService.currentUser()?.studentId || 0;
     this.isRequestingTranscript.set(true);
     this.transcriptService.requestTranscript(studentId).subscribe({
       next: (job) => {
@@ -90,7 +100,10 @@ export class CertificateViewComponent implements OnInit {
         this.transcriptJob.set(job);
         this.pollTranscriptStatus(job.jobId);
       },
-      error: () => this.isRequestingTranscript.set(false)
+      error: () => {
+        this.isRequestingTranscript.set(false);
+        this.snackBar.open('Failed to queue transcript generation.', 'Close', { duration: 3000 });
+      }
     });
   }
 
@@ -109,12 +122,13 @@ export class CertificateViewComponent implements OnInit {
   }
 
   verifyCode(): void {
-    if (!this.verificationCode) return;
+    const trimmed = this.verificationCode.trim();
+    if (!trimmed) return;
     this.isVerifying.set(true);
     this.verificationResult.set(null);
     this.verificationError.set(null);
 
-    this.certificateService.verifyCertificate(this.verificationCode).subscribe({
+    this.certificateService.verifyCertificate(trimmed).subscribe({
       next: (res) => {
         this.isVerifying.set(false);
         this.verificationResult.set(res);
@@ -124,5 +138,24 @@ export class CertificateViewComponent implements OnInit {
         this.verificationError.set('Certificate code is invalid or does not exist.');
       }
     });
+  }
+
+  openPreview(cert: CertificateResponse): void {
+    this.selectedCertificate.set(cert);
+  }
+
+  closePreview(): void {
+    this.selectedCertificate.set(null);
+  }
+
+  downloadCertificate(cert: CertificateResponse, event?: Event): void {
+    if (event) event.stopPropagation();
+    window.open(this.certificateService.getDownloadUrl(cert.id), '_blank');
+  }
+
+  getStudentFullName(): string {
+    const user = this.authService.currentUser();
+    if (!user) return 'Student';
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
   }
 }

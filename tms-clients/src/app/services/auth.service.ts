@@ -70,6 +70,14 @@ export class AuthService {
     return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
+  updateUserProfile(partial: Partial<User>): void {
+    const current = this.currentUserSignal();
+    if (!current) return;
+    const updated = { ...current, ...partial };
+    localStorage.setItem(this.USER_KEY, JSON.stringify(updated));
+    this.currentUserSignal.set(updated);
+  }
+
   private handleAuthSuccess(res: AuthResponse): void {
     if (res.token) {
       localStorage.setItem(this.TOKEN_KEY, res.token);

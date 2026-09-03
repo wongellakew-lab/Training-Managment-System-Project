@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,7 +7,6 @@ import { MatMenuModule } from '@angular/material/menu';
 import { LayoutComponent } from '../../ui/layout/layout.component';
 import { EnrollmentService } from '../../services/enrollment.service';
 import { Enrollment } from '../../models/enrollment.model';
-import { PaymentStatusBreakdown } from '../../models/dashboard.model';
 
 @Component({
   selector: 'app-enrollments-page',
@@ -27,8 +26,25 @@ export class EnrollmentsComponent implements OnInit {
   private enrollmentService = inject(EnrollmentService);
 
   readonly enrollments = signal<Enrollment[]>([]);
-  readonly breakdown = signal<PaymentStatusBreakdown | null>(null);
   readonly isLoading = signal(false);
+
+  readonly activeCount = computed(() =>
+    this.enrollments().filter(e => {
+      const s = (e.status || '').toLowerCase();
+      return s === 'active' || s === 'enrolled' || s === 'approved' || s === 'completed';
+    }).length
+  );
+
+  readonly pendingCount = computed(() =>
+    this.enrollments().filter(e => {
+      const s = (e.status || '').toLowerCase();
+      return s === 'pending' || s === 'applied';
+    }).length
+  );
+
+  readonly waitlistedCount = computed(() =>
+    this.enrollments().filter(e => (e.status || '').toLowerCase() === 'waitlisted').length
+  );
 
   // Filters
   searchTerm = '';
@@ -36,7 +52,7 @@ export class EnrollmentsComponent implements OnInit {
   selectedTime = 'All Time';
   currentPage = 1;
   pageSize = 8;
-  totalCount = 18540;
+  totalCount = 0;
 
   ngOnInit(): void {
     this.loadData();
@@ -56,10 +72,6 @@ export class EnrollmentsComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
-    });
-
-    this.enrollmentService.getPaymentBreakdown().subscribe({
-      next: (data) => this.breakdown.set(data)
     });
   }
 
@@ -104,12 +116,5 @@ export class EnrollmentsComponent implements OnInit {
     if (s === 'pending' || s === 'applied') return 'Applied';
     if (s === 'waitlisted') return 'Waitlisted';
     return status;
-  }
-
-  getPaymentClass(payment?: string): string {
-    const p = (payment || 'paid').toLowerCase();
-    if (p === 'paid') return 'paid';
-    if (p === 'pending') return 'pending';
-    return 'unpaid';
   }
 }

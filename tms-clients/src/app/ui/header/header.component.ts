@@ -1,4 +1,4 @@
-import { Component, Input, inject, signal, computed } from '@angular/core';
+import { Component, Input, OnInit, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,9 +7,9 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AuthService } from '../../services/auth.service';
-import { NotificationService } from '../../services/notification.service';
-import { LiveSyncService } from '../../services/live-sync.service';
+import { NotificationService, TmsNotification } from '../../services/notification.service';
 
 @Component({
   selector: 'app-header',
@@ -22,21 +22,21 @@ import { LiveSyncService } from '../../services/live-sync.service';
     MatMenuModule,
     MatBadgeModule,
     MatDividerModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatSnackBarModule
   ],
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss']
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnInit {
   @Input() pageTitle: string = 'Dashboard';
   @Input() showGreeting: boolean = false;
 
   private authService = inject(AuthService);
   readonly notificationService = inject(NotificationService);
-  private liveSync = inject(LiveSyncService);
+  private snackBar = inject(MatSnackBar);
 
   currentUser = this.authService.currentUser;
-  readonly isConnected = this.liveSync.isConnected;
 
   /** Dashboard path based on role */
   readonly dashboardPath = computed(() => {
@@ -52,6 +52,13 @@ export class HeaderComponent {
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   });
+
+  ngOnInit(): void {
+    if (this.authService.isAuthenticated()) {
+      this.notificationService.loadNotifications(1, 20).subscribe({ error: () => {} });
+      this.notificationService.loadUnreadCount().subscribe({ error: () => {} });
+    }
+  }
 
   getUserName(): string {
     const user = this.currentUser();
@@ -71,8 +78,20 @@ export class HeaderComponent {
     return this.authService.userRole() || 'User';
   }
 
+  markNotificationRead(n: TmsNotification): void {
+    this.notificationService.markAsRead(n.id).subscribe({
+      error: () => {
+        this.snackBar.open('Failed to mark notification as read.', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
   markAllRead(): void {
-    this.notificationService.markAllAsRead().subscribe({ error: console.warn });
+    this.notificationService.markAllAsRead().subscribe({
+      error: () => {
+        this.snackBar.open('Failed to mark all notifications as read.', 'Close', { duration: 3000 });
+      }
+    });
   }
 
   logout(): void {

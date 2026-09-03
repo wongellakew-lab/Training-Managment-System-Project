@@ -2,135 +2,329 @@
   <div class="profile-page-container">
     @if (isLoading()) {
       <div class="loading-state eduva-card">
-        <mat-spinner diameter="36"></mat-spinner>
-        <span>Retrieving your profile data...</span>
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading authenticated profile data...</span>
       </div>
     } @else {
-      <!-- Top Profile Overview Card -->
-      <mat-card class="profile-header-card eduva-card">
-        <div class="avatar-section">
-          <div class="avatar-wrapper">
-            <img
-              [src]="profile()?.profilePictureUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'"
-              alt="Avatar"
-              class="avatar-img"
-            />
-            <label class="avatar-upload-btn" title="Change profile photo">
-              <mat-icon>camera_alt</mat-icon>
-              <input type="file" (change)="onFileSelected($event)" accept="image/*" class="file-input" />
-            </label>
+      <!-- Profile Hero Header Card -->
+      <mat-card class="profile-hero-card eduva-card">
+        <div class="hero-main-row">
+          <!-- Avatar Section -->
+          <div class="avatar-column">
+            <div class="avatar-ring">
+              @if (profile()?.profilePictureUrl) {
+                <img [src]="profile()?.profilePictureUrl" alt="Student Avatar" class="avatar-img" />
+              } @else {
+                <div class="avatar-initials">{{ getUserInitials() }}</div>
+              }
+              <label class="avatar-edit-badge" title="Change profile photo">
+                <mat-icon>photo_camera</mat-icon>
+                <input type="file" (change)="onFileSelected($event)" accept="image/jpeg,image/png,image/webp" class="file-input" />
+              </label>
+            </div>
+            @if (isUploadingAvatar()) {
+              <div class="uploading-indicator">
+                <mat-spinner diameter="14"></mat-spinner>
+                <span>Uploading...</span>
+              </div>
+            }
           </div>
-          @if (isUploadingAvatar()) {
-            <span class="uploading-pill">Uploading...</span>
-          }
+
+          <!-- Identity Details -->
+          <div class="identity-column">
+            <div class="badge-row">
+              <span class="role-chip">Student Member</span>
+              <span class="reg-number-chip font-mono">
+                <mat-icon>badge</mat-icon>
+                {{ profile()?.registrationNumber }}
+              </span>
+              <span class="verified-status-chip">
+                <mat-icon>verified_user</mat-icon>
+                Verified Account
+              </span>
+            </div>
+
+            <h1 class="student-full-name">{{ profile()?.firstName }} {{ profile()?.lastName }}</h1>
+            <div class="contact-subline">
+              <span class="email-text font-mono">
+                <mat-icon>email</mat-icon>
+                {{ profile()?.email }}
+              </span>
+              @if (profile()?.phoneNumber) {
+                <span class="meta-dot">&bull;</span>
+                <span class="phone-text font-mono">
+                  <mat-icon>phone</mat-icon>
+                  {{ profile()?.phoneNumber }}
+                </span>
+              }
+            </div>
+
+            @if (profile()?.bio) {
+              <p class="student-bio-quote">"{{ profile()?.bio }}"</p>
+            }
+          </div>
         </div>
 
-        <div class="header-details">
-          <div class="header-tags">
-            <span class="role-badge">Student</span>
-            <span class="reg-number font-mono">{{ profile()?.registrationNumber }}</span>
+        <!-- Academic Key Stats Strip -->
+        <div class="academic-stats-strip">
+          <div class="stat-card">
+            <div class="stat-icon-wrapper gpa-glow">
+              <mat-icon>auto_awesome</mat-icon>
+            </div>
+            <div class="stat-meta">
+              <div class="stat-number font-mono">{{ profile()?.gpa?.toFixed(2) || '0.00' }}</div>
+              <div class="stat-label">Cumulative GPA</div>
+              <div class="stat-tag" [ngClass]="getGpaTierClass(profile()?.gpa)">
+                {{ getGpaTier(profile()?.gpa) }}
+              </div>
+            </div>
           </div>
-          <h2 class="user-fullname">{{ profile()?.firstName }} {{ profile()?.lastName }}</h2>
-          <p class="user-email font-mono">{{ profile()?.email }}</p>
-          <p class="user-bio">{{ profile()?.bio }}</p>
 
-          <div class="quick-stats">
-            <div class="stat-pill">
-              <span class="label">Cumulative GPA</span>
-              <span class="val font-mono">{{ profile()?.gpa?.toFixed(2) }}</span>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper courses-glow">
+              <mat-icon>menu_book</mat-icon>
             </div>
-            <div class="stat-pill">
-              <span class="label">Department</span>
-              <span class="val">{{ profile()?.department }}</span>
+            <div class="stat-meta">
+              <div class="stat-number font-mono">{{ profile()?.totalEnrollments ?? 0 }}</div>
+              <div class="stat-label">Total Courses Enrolled</div>
+              <div class="stat-tag sub">{{ profile()?.activeCourses ?? 0 }} Currently Active</div>
             </div>
-            <div class="stat-pill">
-              <span class="label">Enrolled Since</span>
-              <span class="val font-mono">{{ profile()?.enrollmentDate | date:'mediumDate' }}</span>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper completed-glow">
+              <mat-icon>task_alt</mat-icon>
+            </div>
+            <div class="stat-meta">
+              <div class="stat-number font-mono">{{ profile()?.completedCourses ?? 0 }}</div>
+              <div class="stat-label">Completed Courses</div>
+              <div class="stat-tag success">Requirements Satisfied</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper certs-glow">
+              <mat-icon>workspace_premium</mat-icon>
+            </div>
+            <div class="stat-meta">
+              <div class="stat-number font-mono">{{ profile()?.earnedCertificates ?? 0 }}</div>
+              <div class="stat-label">Earned Diplomas</div>
+              <div class="stat-tag cert">
+                <a routerLink="/student/certificates" class="link-action">View Certificates &rarr;</a>
+              </div>
             </div>
           </div>
         </div>
       </mat-card>
 
-      <!-- Profile Edit & Password Change Layout -->
-      <div class="forms-grid">
-        <!-- Edit Personal Information -->
-        <mat-card class="form-card eduva-card">
-          <div class="card-header">
-            <h3 class="card-title">Personal Information</h3>
-            <span class="card-sub">Update your contact information and student bio</span>
+      <!-- Main Profile Sections Grid -->
+      <div class="profile-sections-grid">
+        <!-- 1. Academic & Student Information Card -->
+        <mat-card class="section-card eduva-card">
+          <div class="card-title-bar">
+            <div class="title-icon-box academic-icon">
+              <mat-icon>school</mat-icon>
+            </div>
+            <div>
+              <h2 class="section-heading">Student & Academic Information</h2>
+              <p class="section-subheading">Official institutional student registration and academic details</p>
+            </div>
           </div>
 
-          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="form-body">
-            <div class="form-row">
+          <div class="info-details-list">
+            <div class="info-row">
+              <div class="info-label">Student Registration ID</div>
+              <div class="info-value font-mono highlight">{{ profile()?.registrationNumber }}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Academic Department</div>
+              <div class="info-value">{{ profile()?.department || 'General Academic Program' }}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Enrolled Since</div>
+              <div class="info-value font-mono">{{ profile()?.enrollmentDate | date:'mediumDate' }}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Academic Standing</div>
+              <div class="info-value">
+                <span class="status-pill standing-good">
+                  <mat-icon>check_circle</mat-icon>
+                  {{ getGpaTier(profile()?.gpa) }}
+                </span>
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Program Progress</div>
+              <div class="info-value">
+                <span class="prog-text">{{ profile()?.completedCourses ?? 0 }} / {{ profile()?.totalEnrollments ?? 0 }} Courses Completed</span>
+              </div>
+            </div>
+          </div>
+        </mat-card>
+
+        <!-- 2. Personal & Contact Information (Editable) -->
+        <mat-card class="section-card eduva-card">
+          <div class="card-title-bar">
+            <div class="title-icon-box personal-icon">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div>
+              <h2 class="section-heading">Personal & Contact Information</h2>
+              <p class="section-subheading">Update your identity and communication details</p>
+            </div>
+          </div>
+
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-edit-form">
+            <div class="form-row-duo">
               <mat-form-field appearance="outline" class="form-field">
                 <mat-label>First Name</mat-label>
-                <input matInput formControlName="firstName" />
+                <input matInput formControlName="firstName" required />
+                <mat-icon matPrefix>badge</mat-icon>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="form-field">
                 <mat-label>Last Name</mat-label>
-                <input matInput formControlName="lastName" />
+                <input matInput formControlName="lastName" required />
+                <mat-icon matPrefix>badge</mat-icon>
               </mat-form-field>
             </div>
 
-            <div class="form-row">
+            <div class="form-row-duo">
               <mat-form-field appearance="outline" class="form-field">
                 <mat-label>Phone Number</mat-label>
                 <input matInput formControlName="phoneNumber" placeholder="+1 (555) 000-0000" />
+                <mat-icon matPrefix>phone</mat-icon>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="form-field">
                 <mat-label>Department</mat-label>
-                <input matInput formControlName="department" placeholder="e.g. Design & Technology" />
+                <input matInput formControlName="department" placeholder="e.g. Computer Science & AI" />
+                <mat-icon matPrefix>domain</mat-icon>
               </mat-form-field>
             </div>
 
             <mat-form-field appearance="outline" class="form-field full-width">
-              <mat-label>Student Bio</mat-label>
-              <textarea matInput formControlName="bio" rows="3" placeholder="Tell instructors about your learning goals..."></textarea>
+              <mat-label>Student Bio & Learning Objectives</mat-label>
+              <textarea
+                matInput
+                formControlName="bio"
+                rows="3"
+                placeholder="Share your academic interests, focus areas, and learning goals..."
+              ></textarea>
+              <mat-icon matPrefix>description</mat-icon>
             </mat-form-field>
 
-            <div class="form-actions">
-              <button mat-flat-button color="primary" type="submit" [disabled]="isSavingProfile() || profileForm.invalid">
+            <div class="form-action-bar">
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                [disabled]="isSavingProfile() || profileForm.invalid"
+                class="save-btn"
+              >
                 @if (isSavingProfile()) {
-                  <span>Saving...</span>
+                  <mat-spinner diameter="18"></mat-spinner>
+                  <span>Saving Updates...</span>
                 } @else {
-                  <span>Save Profile</span>
+                  <span>Save Personal Details</span>
                 }
               </button>
             </div>
           </form>
         </mat-card>
 
-        <!-- Change Password -->
-        <mat-card class="form-card eduva-card">
-          <div class="card-header">
-            <h3 class="card-title">Security & Password</h3>
-            <span class="card-sub">Update your authentication credentials securely</span>
+        <!-- 3. Account & Credentials Information -->
+        <mat-card class="section-card eduva-card">
+          <div class="card-title-bar">
+            <div class="title-icon-box account-icon">
+              <mat-icon>admin_panel_settings</mat-icon>
+            </div>
+            <div>
+              <h2 class="section-heading">Account Information</h2>
+              <p class="section-subheading">System credentials, user identity, and role assignment</p>
+            </div>
           </div>
 
-          <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="form-body">
+          <div class="info-details-list">
+            <div class="info-row">
+              <div class="info-label">Account Email</div>
+              <div class="info-value font-mono">
+                {{ profile()?.email }}
+                <span class="verified-tag">Verified</span>
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">System User ID</div>
+              <div class="info-value font-mono">{{ profile()?.id }}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Assigned Roles</div>
+              <div class="info-value">
+                <div class="role-tags-list">
+                  @for (role of profile()?.roles; track role) {
+                    <span class="role-tag">{{ role }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Account Security</div>
+              <div class="info-value">
+                <span class="sec-status">
+                  <mat-icon>shield</mat-icon>
+                  Password Protected (JWT Active)
+                </span>
+              </div>
+            </div>
+          </div>
+        </mat-card>
+
+        <!-- 4. Security & Password Update Card -->
+        <mat-card class="section-card eduva-card">
+          <div class="card-title-bar">
+            <div class="title-icon-box security-icon">
+              <mat-icon>lock</mat-icon>
+            </div>
+            <div>
+              <h2 class="section-heading">Security & Password</h2>
+              <p class="section-subheading">Update your password securely</p>
+            </div>
+          </div>
+
+          <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="profile-edit-form">
             <mat-form-field appearance="outline" class="form-field full-width">
               <mat-label>Current Password</mat-label>
-              <input matInput type="password" formControlName="currentPassword" />
+              <input matInput type="password" formControlName="currentPassword" required />
+              <mat-icon matPrefix>key</mat-icon>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="form-field full-width">
-              <mat-label>New Password</mat-label>
-              <input matInput type="password" formControlName="newPassword" />
-            </mat-form-field>
+            <div class="form-row-duo">
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-label>New Password (min. 6 chars)</mat-label>
+                <input matInput type="password" formControlName="newPassword" required />
+                <mat-icon matPrefix>lock_outline</mat-icon>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="form-field full-width">
-              <mat-label>Confirm New Password</mat-label>
-              <input matInput type="password" formControlName="confirmNewPassword" />
-            </mat-form-field>
+              <mat-form-field appearance="outline" class="form-field">
+                <mat-label>Confirm New Password</mat-label>
+                <input matInput type="password" formControlName="confirmNewPassword" required />
+                <mat-icon matPrefix>check</mat-icon>
+              </mat-form-field>
+            </div>
 
-            <div class="form-actions">
-              <button mat-flat-button color="primary" type="submit" [disabled]="isChangingPassword() || passwordForm.invalid">
+            <div class="form-action-bar">
+              <button
+                mat-flat-button
+                color="warn"
+                type="submit"
+                [disabled]="isChangingPassword() || passwordForm.invalid"
+                class="save-btn"
+              >
                 @if (isChangingPassword()) {
+                  <mat-spinner diameter="18"></mat-spinner>
                   <span>Updating Password...</span>
                 } @else {
-                  <span>Change Password</span>
+                  <span>Update Password</span>
                 }
               </button>
             </div>

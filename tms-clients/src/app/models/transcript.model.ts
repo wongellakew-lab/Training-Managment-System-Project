@@ -25,6 +25,7 @@ export interface CertificateResponse {
   courseTitle: string;
   issuedAt: string;
   isValid: boolean;
+  verificationUrl?: string;
 }
 
 export interface IssueCertificateRequest {

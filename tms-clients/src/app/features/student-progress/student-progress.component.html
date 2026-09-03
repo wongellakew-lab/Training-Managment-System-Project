@@ -54,6 +54,12 @@
               </div>
 
               <div class="card-stats-row">
+                @if (course.totalModules) {
+                  <div class="stat-col">
+                    <span class="stat-val font-mono">{{ course.completedModules ?? 0 }} / {{ course.totalModules }}</span>
+                    <span class="stat-label">Modules Completed</span>
+                  </div>
+                }
                 <div class="stat-col">
                   <span class="stat-val font-mono">{{ course.completedAssignments }} / {{ course.totalAssignments }}</span>
                   <span class="stat-label">Milestones Met</span>

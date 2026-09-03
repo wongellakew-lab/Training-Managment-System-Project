@@ -1,6 +1,6 @@
 <app-layout pageTitle="Courses">
-  <!-- Analytics Header Row (Top of Picture 5) -->
-  @if (viewMode() === 'grid' || !showDetailsDrawer()) {
+  <!-- Analytics Header Row (Only for Admin/Instructors) -->
+  @if (!isStudent() && (viewMode() === 'grid' || !showDetailsDrawer())) {
     <div class="courses-analytics-row">
       <!-- Courses by Category Card -->
       <div class="eduva-card category-breakdown-card">
@@ -12,51 +12,27 @@
         </div>
 
         <div class="category-stat-total">
-          <span class="total-big-num">321</span>
+          <span class="total-big-num font-mono">{{ totalCount }}</span>
           <span class="total-sub">Courses</span>
         </div>
 
         <!-- Segmented Category Bar -->
         <div class="segmented-bar-wrapper">
           <div class="seg-bar-container">
-            <div class="seg-item seg-design" style="width: 28%;"></div>
-            <div class="seg-item seg-webdev" style="width: 25%;"></div>
-            <div class="seg-item seg-marketing" style="width: 23%;"></div>
-            <div class="seg-item seg-business" style="width: 18%;"></div>
-            <div class="seg-item seg-others" style="width: 6%;"></div>
+            @for (cat of categoryCounts(); track cat.name) {
+              <div class="seg-item" [ngClass]="cat.colorClass" [style.width.%]="cat.percent"></div>
+            }
           </div>
 
           <div class="category-legend-grid">
-            <div class="cat-legend-cell">
-              <span class="legend-box sq-design"></span>
-              <span class="cat-name">Design</span>
-              <span class="cat-pct">28%</span>
-              <span class="cat-count">90</span>
-            </div>
-            <div class="cat-legend-cell">
-              <span class="legend-box sq-webdev"></span>
-              <span class="cat-name">Web Dev</span>
-              <span class="cat-pct">25%</span>
-              <span class="cat-count">80</span>
-            </div>
-            <div class="cat-legend-cell">
-              <span class="legend-box sq-marketing"></span>
-              <span class="cat-name">Marketing</span>
-              <span class="cat-pct">23%</span>
-              <span class="cat-count">74</span>
-            </div>
-            <div class="cat-legend-cell">
-              <span class="legend-box sq-business"></span>
-              <span class="cat-name">Business</span>
-              <span class="cat-pct">18%</span>
-              <span class="cat-count">58</span>
-            </div>
-            <div class="cat-legend-cell">
-              <span class="legend-box sq-others"></span>
-              <span class="cat-name">Others</span>
-              <span class="cat-pct">6%</span>
-              <span class="cat-count">19</span>
-            </div>
+            @for (cat of categoryCounts(); track cat.name) {
+              <div class="cat-legend-cell">
+                <span class="legend-box" [ngClass]="cat.colorClass"></span>
+                <span class="cat-name">{{ cat.name }}</span>
+                <span class="cat-pct font-mono">{{ cat.percent }}%</span>
+                <span class="cat-count font-mono">{{ cat.count }}</span>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -207,30 +183,63 @@
     <div class="catalog-main-content">
       <!-- Filter Bar & View Mode Switcher -->
       <div class="catalog-toolbar">
-        <h3 class="catalog-heading">All Courses</h3>
+        <h3 class="catalog-heading">{{ isStudent() ? 'Course Catalog' : 'All Courses' }}</h3>
 
         <div class="catalog-filters">
-          <!-- Status Filter Tabs -->
-          <div class="status-tab-group">
-            <button class="status-tab" [class.active]="selectedStatus() === 'All'" (click)="filterStatus('All')">All</button>
-            <button class="status-tab" [class.active]="selectedStatus() === 'Active'" (click)="filterStatus('Active')">Active</button>
-            <button class="status-tab" [class.active]="selectedStatus() === 'Draft'" (click)="filterStatus('Draft')">Draft</button>
-            <button class="status-tab" [class.active]="selectedStatus() === 'Archived'" (click)="filterStatus('Archived')">Archived</button>
-          </div>
+          @if (isStudent()) {
+            <!-- Student Filters: By Skill Level -->
+            <div class="status-tab-group">
+              <button class="status-tab" [class.active]="selectedSkillLevel() === 'All'" (click)="filterSkillLevel('All')">All Levels</button>
+              <button class="status-tab" [class.active]="selectedSkillLevel() === 'Beginner'" (click)="filterSkillLevel('Beginner')">Beginner</button>
+              <button class="status-tab" [class.active]="selectedSkillLevel() === 'Intermediate'" (click)="filterSkillLevel('Intermediate')">Intermediate</button>
+              <button class="status-tab" [class.active]="selectedSkillLevel() === 'Advanced'" (click)="filterSkillLevel('Advanced')">Advanced</button>
+            </div>
 
-          <!-- Category Dropdown -->
-          <button class="filter-dropdown-btn" [matMenuTriggerFor]="courseCatMenu">
-            <span>{{ selectedCategory() }}</span>
-            <mat-icon>keyboard_arrow_down</mat-icon>
-          </button>
-          <mat-menu #courseCatMenu="matMenu">
-            <button mat-menu-item (click)="filterCategory('All Category')">All Category</button>
-            <button mat-menu-item (click)="filterCategory('Design')">Design</button>
-            <button mat-menu-item (click)="filterCategory('Marketing')">Marketing</button>
-            <button mat-menu-item (click)="filterCategory('Web Dev')">Web Dev</button>
-            <button mat-menu-item (click)="filterCategory('Language')">Language</button>
-            <button mat-menu-item (click)="filterCategory('Communication')">Communication</button>
-          </mat-menu>
+            <!-- Student Filter: By Subject Matter -->
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="subjectMenu">
+              <span>{{ selectedSubject() === 'All' ? 'By Subject Matter' : selectedSubject() }}</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #subjectMenu="matMenu">
+              <button mat-menu-item (click)="filterSubject('All')">All Subjects</button>
+              @for (subj of availableSubjects(); track subj) {
+                <button mat-menu-item (click)="filterSubject(subj)">{{ subj }}</button>
+              }
+            </mat-menu>
+
+            <!-- Student Filter: By Availability -->
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="availMenu">
+              <span>{{ selectedAvailability() === 'All' ? 'Availability' : (selectedAvailability() === 'Available' ? 'Available Seats' : 'Full Courses') }}</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #availMenu="matMenu">
+              <button mat-menu-item (click)="filterAvailability('All')">All Availability</button>
+              <button mat-menu-item (click)="filterAvailability('Available')">Available Seats</button>
+              <button mat-menu-item (click)="filterAvailability('Full')">Full Courses</button>
+            </mat-menu>
+          } @else {
+            <!-- Admin / Instructor: Status Filter Tabs -->
+            <div class="status-tab-group">
+              <button class="status-tab" [class.active]="selectedStatus() === 'All'" (click)="filterStatus('All')">All</button>
+              <button class="status-tab" [class.active]="selectedStatus() === 'Active'" (click)="filterStatus('Active')">Active</button>
+              <button class="status-tab" [class.active]="selectedStatus() === 'Draft'" (click)="filterStatus('Draft')">Draft</button>
+              <button class="status-tab" [class.active]="selectedStatus() === 'Archived'" (click)="filterStatus('Archived')">Archived</button>
+            </div>
+
+            <!-- Category Dropdown -->
+            <button class="filter-dropdown-btn" [matMenuTriggerFor]="courseCatMenu">
+              <span>{{ selectedCategory() }}</span>
+              <mat-icon>keyboard_arrow_down</mat-icon>
+            </button>
+            <mat-menu #courseCatMenu="matMenu">
+              <button mat-menu-item (click)="filterCategory('All Category')">All Category</button>
+              <button mat-menu-item (click)="filterCategory('Design')">Design</button>
+              <button mat-menu-item (click)="filterCategory('Marketing')">Marketing</button>
+              <button mat-menu-item (click)="filterCategory('Web Dev')">Web Dev</button>
+              <button mat-menu-item (click)="filterCategory('Language')">Language</button>
+              <button mat-menu-item (click)="filterCategory('Communication')">Communication</button>
+            </mat-menu>
+          }
 
           <!-- View Switcher -->
           <div class="view-mode-toggle">
@@ -277,7 +286,13 @@
                   <h4 class="course-row-title">{{ course.title }}</h4>
                   <div class="row-category-price">
                     <span class="pill-badge" [ngClass]="getCategoryClass(course.category)">{{ course.category }}</span>
-                    <span class="row-price">${{ course.price }}</span>
+                    @if (course.enrolledCount >= course.maxCapacity) {
+                      <span class="pill-badge status-full-tag font-mono font-bold">FULL</span>
+                    } @else {
+                      <span class="pill-badge status-available-tag font-mono">
+                        {{ (course.availableSeats !== undefined ? course.availableSeats : (course.maxCapacity - course.enrolledCount)) }} Seats Available
+                      </span>
+                    }
                   </div>
                 </div>
 
@@ -295,21 +310,24 @@
                   <div class="meta-stats-group">
                     <span class="meta-item"><mat-icon>signal_cellular_alt</mat-icon> {{ course.level }}</span>
                     <span class="meta-divider">&bull;</span>
-                    <span class="meta-item"><mat-icon>schedule</mat-icon> {{ course.durationHours }}h</span>
+                    <span class="meta-item font-mono font-bold">{{ course.enrolledCount }} / {{ course.maxCapacity }} Enrolled</span>
                     <span class="meta-divider">&bull;</span>
-                    <span class="meta-item">{{ course.lessonsCount }} Lessons</span>
+                    <span class="meta-item">{{ course.durationWeeks || 6 }} Weeks</span>
                   </div>
 
                   <div class="student-counter-group">
-                    @if (course.enrolledStudentsCount > 0) {
-                      <div class="avatar-stack">
-                        <span class="av a1"></span>
-                        <span class="av a2"></span>
-                        <span class="av a3"></span>
-                      </div>
-                      <span class="count-num">{{ course.enrolledStudentsCount }}</span>
+                    @if (isStudent()) {
+                      <button mat-stroked-button color="primary" class="btn-view-course" (click)="viewCourse(course, $event)">
+                        View Course
+                      </button>
                     } @else {
-                      <span class="meta-item"><mat-icon>group_off</mat-icon> 0</span>
+                      @if (course.isStudentEnrolled) {
+                        <span class="pill-badge status-enrolled-tag font-bold">Enrolled</span>
+                      } @else if (course.enrolledCount >= course.maxCapacity) {
+                        <span class="pill-badge status-full-tag font-bold">Full</span>
+                      } @else {
+                        <span class="pill-badge status-open-tag font-bold">Open</span>
+                      }
                     }
                   </div>
                 </div>
@@ -327,8 +345,8 @@
               <!-- Card Image Banner -->
               <div class="card-image-box">
                 <img [src]="course.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=500&auto=format&fit=crop&q=80'" alt="Course Banner" class="grid-card-img" />
-                <span class="pill-badge card-status-badge" [ngClass]="getStatusClass(course.status)">
-                  &bull; {{ course.status }}
+                <span class="pill-badge card-status-badge" [ngClass]="course.enrolledCount >= course.maxCapacity ? 'badge-danger' : getStatusClass(course.status)">
+                  &bull; {{ course.enrolledCount >= course.maxCapacity ? 'FULL' : course.status }}
                 </span>
               </div>
 
@@ -336,7 +354,13 @@
               <div class="grid-card-body">
                 <div class="category-price-line">
                   <span class="pill-badge" [ngClass]="getCategoryClass(course.category)">{{ course.category }}</span>
-                  <span class="card-price">${{ course.price }}</span>
+                  @if (course.enrolledCount >= course.maxCapacity) {
+                    <span class="status-full-tag font-mono font-bold">FULL</span>
+                  } @else {
+                    <span class="status-available-tag font-mono">
+                      {{ (course.availableSeats !== undefined ? course.availableSeats : (course.maxCapacity - course.enrolledCount)) }} Seats Available
+                    </span>
+                  }
                 </div>
 
                 <h4 class="grid-card-title">{{ course.title }}</h4>
@@ -355,22 +379,18 @@
 
                 <div class="grid-card-footer">
                   <div class="student-count-wrapper">
-                    @if (course.enrolledStudentsCount > 0) {
-                      <div class="avatar-stack">
-                        <span class="av a1"></span>
-                        <span class="av a2"></span>
-                        <span class="av a3"></span>
-                      </div>
-                      <span class="count-num">{{ course.enrolledStudentsCount }}</span>
-                    } @else {
-                      <span class="zero-students"><mat-icon>group_off</mat-icon> 0</span>
-                    }
+                    <span class="count-num font-mono font-bold">{{ course.enrolledCount }} / {{ course.maxCapacity }} Enrolled</span>
                   </div>
 
-                  <div class="duration-lessons-meta">
-                    <span><mat-icon>schedule</mat-icon> {{ course.durationHours }}h</span>
-                    <span>{{ course.lessonsCount }} Lessons</span>
-                  </div>
+                  @if (isStudent()) {
+                    <button mat-stroked-button color="primary" class="btn-grid-view-course" (click)="viewCourse(course, $event)">
+                      View Course
+                    </button>
+                  } @else {
+                    <div class="duration-lessons-meta">
+                      <span><mat-icon>schedule</mat-icon> {{ course.durationWeeks || 6 }} Weeks</span>
+                    </div>
+                  }
                 </div>
               </div>
             </div>
@@ -420,10 +440,9 @@
             <span class="hero-level-badge">{{ selectedCourse()!.level }}</span>
           </div>
 
-          <!-- Title & Price -->
+          <!-- Title -->
           <div class="drawer-title-price-row">
             <h2 class="drawer-course-name">{{ selectedCourse()!.title }}</h2>
-            <span class="drawer-course-price">${{ selectedCourse()!.price }}</span>
           </div>
 
           <!-- Capacity & Enrollment CTA -->
@@ -477,7 +496,7 @@
               alt="Instructor"
               class="drawer-inst-av"
             />
-            <span class="drawer-inst-name">{{ selectedCourse()!.instructorName || 'Gina Alexander' }}</span>
+            <span class="drawer-inst-name">{{ selectedCourse()!.instructorName || 'Faculty Instructor' }}</span>
           </div>
 
           <!-- Badges & Student Count Row -->
@@ -485,28 +504,23 @@
             <span class="pill-badge status-active">&bull; {{ selectedCourse()!.status }}</span>
             <span class="pill-badge category-webdev">{{ selectedCourse()!.category }}</span>
             <div class="drawer-students-stack">
-              <div class="avatar-stack">
-                <span class="av a1"></span>
-                <span class="av a2"></span>
-                <span class="av a3"></span>
-              </div>
-              <span class="student-num">{{ selectedCourse()!.enrolledStudentsCount || 350 }}</span>
+              <span class="student-num font-mono">{{ selectedCourse()!.enrolledCount }} Enrolled</span>
             </div>
           </div>
 
-          <!-- Stats 3-Column Box (Duration, Lessons, Rating) -->
+          <!-- Stats 3-Column Box (Duration, Lessons, Credits) -->
           <div class="drawer-stats-grid">
             <div class="drawer-stat-item">
-              <span class="stat-lbl">Duration</span>
-              <span class="stat-val">{{ selectedCourse()!.durationHours }} Hours</span>
+              <span class="stat-lbl">Capacity</span>
+              <span class="stat-val font-mono">{{ selectedCourse()!.maxCapacity }}</span>
             </div>
             <div class="drawer-stat-item">
-              <span class="stat-lbl">Lessons</span>
-              <span class="stat-val">{{ selectedCourse()!.lessonsCount }} Lessons</span>
+              <span class="stat-lbl">Credits</span>
+              <span class="stat-val font-mono">{{ selectedCourse()!.credits }} Credits</span>
             </div>
             <div class="drawer-stat-item">
-              <span class="stat-lbl">Rating</span>
-              <span class="stat-val rating-val"><mat-icon>star</mat-icon> {{ selectedCourse()!.rating }} <small>{{ selectedCourse()!.reviewsCount }} Reviews</small></span>
+              <span class="stat-lbl">Available Seats</span>
+              <span class="stat-val font-mono">{{ selectedCourse()!.availableSeats }}</span>
             </div>
           </div>
 
@@ -514,70 +528,28 @@
           <div class="drawer-section">
             <h4 class="section-title">About the Course</h4>
             <p class="section-text">
-              {{ selectedCourse()!.about || 'The course focuses on practical coding exercises, problem-solving techniques, and beginner-friendly projects to help students build confidence in writing and understanding code for real-world applications.' }}
+              {{ selectedCourse()!.description || 'Comprehensive syllabus and curriculum managed through the institutional academic catalog.' }}
             </p>
           </div>
 
-          <!-- Features Checklist -->
+          <!-- Course Details & Academic Requirements -->
           <div class="drawer-section">
-            <h4 class="section-title">Features</h4>
-            <ul class="features-check-list">
-              <li><mat-icon class="check-icon">check_circle</mat-icon> Beginner-friendly coding lessons</li>
-              <li><mat-icon class="check-icon">check_circle</mat-icon> Hands-on Python practice exercises</li>
-              <li><mat-icon class="check-icon">check_circle</mat-icon> Real-world mini projects</li>
-              <li><mat-icon class="check-icon">check_circle</mat-icon> Step-by-step programming tutorials</li>
-              <li><mat-icon class="check-icon">check_circle</mat-icon> Interactive coding challenges</li>
-              <li><mat-icon class="check-icon">check_circle</mat-icon> Certificate of completion</li>
-            </ul>
-          </div>
-
-          <!-- Resources Downloads -->
-          <div class="drawer-section">
-            <h4 class="section-title">Resources</h4>
-            <div class="resources-download-list">
-              <div class="resource-download-card">
-                <div class="res-icon pdf"><mat-icon>picture_as_pdf</mat-icon></div>
-                <div class="res-info">
-                  <span class="res-name">Python Beginner Handbook</span>
-                  <span class="res-size">PDF &bull; 4.1 MB</span>
-                </div>
-                <button class="download-trigger-btn" (click)="downloadResource('Python Beginner Handbook')">
-                  <mat-icon>download</mat-icon>
-                </button>
+            <h4 class="section-title">Academic Specifications</h4>
+            <div class="detail-grid">
+              <div class="detail-row">
+                <span class="label">Course Code:</span>
+                <span class="val font-mono">{{ selectedCourse()!.code }}</span>
               </div>
-
-              <div class="resource-download-card">
-                <div class="res-icon pdf"><mat-icon>picture_as_pdf</mat-icon></div>
-                <div class="res-info">
-                  <span class="res-name">Python Syntax Cheat Sheet</span>
-                  <span class="res-size">PDF &bull; 1.2 MB</span>
-                </div>
-                <button class="download-trigger-btn" (click)="downloadResource('Python Syntax Cheat Sheet')">
-                  <mat-icon>download</mat-icon>
-                </button>
+              <div class="detail-row">
+                <span class="label">Department:</span>
+                <span class="val">{{ selectedCourse()!.department }}</span>
               </div>
-
-              <div class="resource-download-card">
-                <div class="res-icon ppt"><mat-icon>slideshow</mat-icon></div>
-                <div class="res-info">
-                  <span class="res-name">Variables &amp; Functions Slides</span>
-                  <span class="res-size">PPTX &bull; 3.6 MB</span>
+              @if (selectedCourse()!.prerequisites) {
+                <div class="detail-row">
+                  <span class="label">Prerequisites:</span>
+                  <span class="val">{{ selectedCourse()!.prerequisites }}</span>
                 </div>
-                <button class="download-trigger-btn" (click)="downloadResource('Variables & Functions Slides')">
-                  <mat-icon>download</mat-icon>
-                </button>
-              </div>
-
-              <div class="resource-download-card">
-                <div class="res-icon zip"><mat-icon>folder_zip</mat-icon></div>
-                <div class="res-info">
-                  <span class="res-name">Beginner Coding Exercises</span>
-                  <span class="res-size">ZIP &bull; 24.3 MB</span>
-                </div>
-                <button class="download-trigger-btn" (click)="downloadResource('Beginner Coding Exercises')">
-                  <mat-icon>download</mat-icon>
-                </button>
-              </div>
+              }
             </div>
           </div>
         </div>
