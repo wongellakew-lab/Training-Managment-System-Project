@@ -35,7 +35,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CourseCategory, opt => opt.MapFrom(src => src.Course != null ? src.Course.Category : "Design"));
         CreateMap<CreateEnrollmentDto, Enrollment>();
 
-        CreateMap<Schedule, ScheduleDto>();
+        CreateMap<Schedule, ScheduleDto>()
+            .ForMember(dest => dest.CourseTitle, opt => opt.MapFrom(src => src.Course != null ? src.Course.Title : string.Empty))
+            .ForMember(dest => dest.CourseCode, opt => opt.MapFrom(src => src.Course != null ? src.Course.Code : string.Empty));
         CreateMap<CreateScheduleDto, Schedule>();
         CreateMap<UpdateScheduleDto, Schedule>();
 

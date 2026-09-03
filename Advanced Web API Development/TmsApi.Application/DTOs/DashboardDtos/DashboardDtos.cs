@@ -4,14 +4,76 @@ using TmsApi.Application.DTOs.ScheduleDtos;
 
 namespace TmsApi.Application.DTOs.DashboardDtos;
 
+public class StudentUpcomingClassDto
+{
+    public int ScheduleId { get; set; }
+    public int? CourseId { get; set; }
+    public string CourseTitle { get; set; } = string.Empty;
+    public string CourseCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string ScheduleType { get; set; } = "Lecture";
+    public DateTime Date { get; set; }
+    public string StartTime { get; set; } = string.Empty;
+    public string EndTime { get; set; } = string.Empty;
+    public string Location { get; set; } = string.Empty;
+    public string InstructorName { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+}
+
+public class StudentPendingAssignmentDto
+{
+    public int Id { get; set; }
+    public int CourseId { get; set; }
+    public string CourseTitle { get; set; } = string.Empty;
+    public string CourseCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public decimal MaxScore { get; set; }
+    public DateTime DueDate { get; set; }
+    public string Status { get; set; } = "Pending";
+}
+
+public class StudentRecentGradeDto
+{
+    public int AssessmentId { get; set; }
+    public int CourseId { get; set; }
+    public string CourseTitle { get; set; } = string.Empty;
+    public string CourseCode { get; set; } = string.Empty;
+    public string AssessmentTitle { get; set; } = string.Empty;
+    public decimal ScoredPoints { get; set; }
+    public decimal MaxScore { get; set; }
+    public string LetterGrade { get; set; } = string.Empty;
+    public string? Feedback { get; set; }
+    public DateTime? GradedAt { get; set; }
+}
+
+public class StudentCourseProgressDto
+{
+    public int CourseId { get; set; }
+    public string CourseTitle { get; set; } = string.Empty;
+    public string CourseCode { get; set; } = string.Empty;
+    public int CompletedAssignments { get; set; }
+    public int TotalAssignments { get; set; }
+    public decimal CompletionPercentage { get; set; }
+    public string Status { get; set; } = "Active";
+    public decimal? CurrentGrade { get; set; }
+}
+
 public class StudentDashboardDto
 {
     public decimal CumulativeGpa { get; set; }
+    public int EarnedCredits { get; set; }
+    public string CurrentSemester { get; set; } = "Summer 2030";
     public int ActiveEnrollmentsCount { get; set; }
     public int CompletedCoursesCount { get; set; }
-    public int EarnedCredits { get; set; }
     public int CertificatesCount { get; set; }
     public int TotalEnrollmentsCount { get; set; }
+    public int UnreadNotificationCount { get; set; }
+
+    public IEnumerable<StudentUpcomingClassDto> UpcomingClasses { get; set; } = new List<StudentUpcomingClassDto>();
+    public IEnumerable<StudentPendingAssignmentDto> PendingAssignments { get; set; } = new List<StudentPendingAssignmentDto>();
+    public IEnumerable<StudentRecentGradeDto> RecentGrades { get; set; } = new List<StudentRecentGradeDto>();
+    public IEnumerable<StudentCourseProgressDto> CourseProgress { get; set; } = new List<StudentCourseProgressDto>();
     public IEnumerable<EnrollmentDto> RecentEnrollments { get; set; } = new List<EnrollmentDto>();
     public IEnumerable<ScheduleDto> UpcomingSchedules { get; set; } = new List<ScheduleDto>();
 }

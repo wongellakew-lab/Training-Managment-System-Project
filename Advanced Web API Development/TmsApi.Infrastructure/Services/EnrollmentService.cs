@@ -162,11 +162,26 @@ public class EnrollmentService : IEnrollmentService
         if (course == null)
             throw new InvalidOperationException($"Course with ID {dto.CourseId} not found.");
 
+        // Check course status
+        if (course.Status != "Active")
+            throw new InvalidOperationException($"Cannot enroll in course '{course.Title}' because it is currently {course.Status}.");
+
+        // Check enrollment deadline if set
+        if (course.EnrollmentDeadline.HasValue && DateTime.UtcNow > course.EnrollmentDeadline.Value)
+            throw new InvalidOperationException($"The enrollment period for '{course.Title}' closed on {course.EnrollmentDeadline.Value:MMM dd, yyyy}.");
+
         // Check if already enrolled
         var existing = await _context.Enrollments
             .FirstOrDefaultAsync(e => e.StudentId == dto.StudentId && e.CourseId == dto.CourseId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected, cancellationToken);
         if (existing != null)
             throw new InvalidOperationException($"Student is already enrolled or has a pending enrollment in this course.");
+
+        // Check course capacity
+        var activeOrPendingCount = await _context.Enrollments
+            .CountAsync(e => e.CourseId == dto.CourseId && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Pending), cancellationToken);
+
+        if (activeOrPendingCount >= course.MaxCapacity)
+            throw new InvalidOperationException($"Course '{course.Title}' has reached its maximum capacity of {course.MaxCapacity} students.");
 
         var enrollment = new Enrollment
         {

@@ -28,6 +28,7 @@ public class DashboardService : IDashboardService
     }
 
     // ─── Student Dashboard ─────────────────────────────────────────────────
+    // ─── Student Dashboard ─────────────────────────────────────────────────
     public async Task<StudentDashboardDto> GetStudentDashboardAsync(int studentId, CancellationToken cancellationToken = default)
     {
         var student = await _context.Students
@@ -37,13 +38,36 @@ public class DashboardService : IDashboardService
         var enrollments = await _context.Enrollments
             .AsNoTracking()
             .Include(e => e.Course)
-            .Where(e => e.StudentId == studentId)
+                .ThenInclude(c => c!.Instructor)
+            .Where(e => e.StudentId == studentId && !e.IsDeleted)
             .OrderByDescending(e => e.EnrolledAt)
             .ToListAsync(cancellationToken);
 
         var activeEnrollments = enrollments.Where(e => e.Status == EnrollmentStatus.Active).ToList();
         var completedEnrollments = enrollments.Where(e => e.Status == EnrollmentStatus.Completed).ToList();
+        var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToList();
 
+        // Calculate dynamic GPA from graded enrollments and course credits
+        var gradedEnrollments = enrollments.Where(e => e.Grade.HasValue && e.Course != null).ToList();
+        decimal cumulativeGpa = 0.0m;
+        if (gradedEnrollments.Any())
+        {
+            decimal totalGradePoints = 0m;
+            int gpaCredits = 0;
+            foreach (var ge in gradedEnrollments)
+            {
+                var credits = ge.Course?.Credits ?? 3;
+                totalGradePoints += ge.Grade!.Value * credits;
+                gpaCredits += credits;
+            }
+            cumulativeGpa = gpaCredits > 0 ? Math.Round(totalGradePoints / gpaCredits, 2) : 0m;
+        }
+        else if (student != null && student.Gpa > 0)
+        {
+            cumulativeGpa = student.Gpa;
+        }
+
+        // Earned credits from completed courses
         var earnedCredits = completedEnrollments
             .Where(e => e.Course != null)
             .Sum(e => e.Course!.Credits);
@@ -52,21 +76,148 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .CountAsync(c => c.StudentId == studentId, cancellationToken);
 
+        // Upcoming classes from schedules for enrolled courses
         var upcomingSchedules = await _context.Schedules
             .AsNoTracking()
-            .Where(s => !s.IsDeleted && s.Date >= DateTime.UtcNow)
+            .Include(s => s.Course)
+                .ThenInclude(c => c!.Instructor)
+            .Where(s => !s.IsDeleted && s.CourseId.HasValue && enrolledCourseIds.Contains(s.CourseId.Value))
             .OrderBy(s => s.Date)
+            .Take(8)
+            .ToListAsync(cancellationToken);
+
+        // Fallback to general upcoming schedules if student has none yet
+        if (!upcomingSchedules.Any())
+        {
+            upcomingSchedules = await _context.Schedules
+                .AsNoTracking()
+                .Include(s => s.Course)
+                    .ThenInclude(c => c!.Instructor)
+                .Where(s => !s.IsDeleted)
+                .OrderBy(s => s.Date)
+                .Take(5)
+                .ToListAsync(cancellationToken);
+        }
+
+        var upcomingClassDtos = upcomingSchedules.Select(s => new StudentUpcomingClassDto
+        {
+            ScheduleId = s.Id,
+            CourseId = s.CourseId,
+            CourseTitle = s.Course?.Title ?? s.Title,
+            CourseCode = s.Course?.Code ?? "TMS",
+            Title = s.Title,
+            Category = s.Category,
+            ScheduleType = s.ScheduleType,
+            Date = s.Date,
+            StartTime = s.StartTime,
+            EndTime = s.EndTime,
+            Location = s.Location,
+            InstructorName = s.Course?.Instructor != null
+                ? $"{s.Course.Instructor.FirstName} {s.Course.Instructor.LastName}"
+                : (!string.IsNullOrEmpty(s.PicName) ? s.PicName : "Instructor"),
+            Notes = s.Notes
+        }).ToList();
+
+        // Pending assignments
+        var pendingAssessments = await _context.Assessments
+            .AsNoTracking()
+            .Include(a => a.Course)
+            .Where(a => a.StudentId == studentId && a.Status != "Graded")
+            .OrderBy(a => a.DueDate)
+            .Take(6)
+            .ToListAsync(cancellationToken);
+
+        var pendingDtos = pendingAssessments.Select(a => new StudentPendingAssignmentDto
+        {
+            Id = a.Id,
+            CourseId = a.CourseId,
+            CourseTitle = a.Course?.Title ?? "Course Assessment",
+            CourseCode = a.Course?.Code ?? "",
+            Title = a.Title,
+            MaxScore = a.MaxScore,
+            DueDate = a.DueDate,
+            Status = a.Status
+        }).ToList();
+
+        // Recent published grades with feedback
+        var recentGradedAssessments = await _context.Assessments
+            .AsNoTracking()
+            .Include(a => a.Course)
+            .Where(a => a.StudentId == studentId && a.IsPublished && a.ScoredPoints.HasValue)
+            .OrderByDescending(a => a.GradedAt ?? a.DueDate)
             .Take(5)
             .ToListAsync(cancellationToken);
 
+        var recentGradeDtos = recentGradedAssessments.Select(a =>
+        {
+            var pct = a.MaxScore > 0 ? (a.ScoredPoints!.Value / a.MaxScore) * 100m : 0m;
+            string letter = pct >= 90 ? "A" : pct >= 80 ? "B" : pct >= 70 ? "C" : pct >= 60 ? "D" : "F";
+            return new StudentRecentGradeDto
+            {
+                AssessmentId = a.Id,
+                CourseId = a.CourseId,
+                CourseTitle = a.Course?.Title ?? "Course",
+                CourseCode = a.Course?.Code ?? "",
+                AssessmentTitle = a.Title,
+                ScoredPoints = a.ScoredPoints!.Value,
+                MaxScore = a.MaxScore,
+                LetterGrade = letter,
+                Feedback = a.Feedback,
+                GradedAt = a.GradedAt
+            };
+        }).ToList();
+
+        // Course progress
+        var allStudentAssessments = await _context.Assessments
+            .AsNoTracking()
+            .Where(a => a.StudentId == studentId)
+            .ToListAsync(cancellationToken);
+
+        var courseProgressList = new List<StudentCourseProgressDto>();
+        foreach (var en in enrollments.Where(e => e.Course != null))
+        {
+            var courseAssessments = allStudentAssessments.Where(a => a.CourseId == en.CourseId).ToList();
+            int totalAssessments = courseAssessments.Count > 0 ? courseAssessments.Count : 4; // minimum expected course assessments
+            int completedAssessments = courseAssessments.Count(a => a.Status == "Graded" || a.Status == "Submitted");
+
+            decimal completionPct = en.Status == EnrollmentStatus.Completed
+                ? 100m
+                : totalAssessments > 0
+                    ? Math.Min(100m, Math.Round((completedAssessments / (decimal)totalAssessments) * 100m, 1))
+                    : 25m;
+
+            courseProgressList.Add(new StudentCourseProgressDto
+            {
+                CourseId = en.CourseId,
+                CourseTitle = en.Course!.Title,
+                CourseCode = en.Course.Code,
+                CompletedAssignments = completedAssessments,
+                TotalAssignments = totalAssessments,
+                CompletionPercentage = completionPct,
+                Status = en.Status.ToString(),
+                CurrentGrade = en.Grade
+            });
+        }
+
+        // Unread notifications count
+        var unreadNotifications = await _context.Notifications
+            .AsNoTracking()
+            .CountAsync(n => n.UserId == studentId.ToString() && !n.IsRead, cancellationToken);
+
         return new StudentDashboardDto
         {
-            CumulativeGpa = student?.Gpa ?? 0m,
+            CumulativeGpa = cumulativeGpa,
             ActiveEnrollmentsCount = activeEnrollments.Count,
             CompletedCoursesCount = completedEnrollments.Count,
             EarnedCredits = earnedCredits,
             CertificatesCount = certCount,
             TotalEnrollmentsCount = enrollments.Count,
+            CurrentSemester = "Summer 2030",
+            UnreadNotificationCount = unreadNotifications,
+            UpcomingClasses = upcomingClassDtos,
+            PendingAssignments = pendingDtos,
+            RecentGrades = recentGradeDtos,
+            CourseProgress = courseProgressList,
             RecentEnrollments = _mapper.Map<IEnumerable<EnrollmentDto>>(enrollments.Take(10)),
             UpcomingSchedules = _mapper.Map<IEnumerable<ScheduleDto>>(upcomingSchedules)
         };

@@ -41,6 +41,48 @@ public class ScheduleService : IScheduleService
         return _mapper.Map<IEnumerable<ScheduleDto>>(schedules);
     }
 
+    public async Task<IEnumerable<ScheduleDto>> GetStudentSchedulesAsync(int studentId, string? view = null, DateTime? date = null, CancellationToken cancellationToken = default)
+    {
+        // Find courses student is enrolled in
+        var enrolledCourseIds = await _context.Enrollments
+            .AsNoTracking()
+            .Where(e => e.StudentId == studentId && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && !e.IsDeleted)
+            .Select(e => e.CourseId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var query = _context.Schedules
+            .AsNoTracking()
+            .Include(s => s.Course)
+            .Where(s => !s.IsDeleted);
+
+        // If enrolled in courses, filter schedules to their courses + cohort events
+        if (enrolledCourseIds.Any())
+        {
+            query = query.Where(s => (s.CourseId.HasValue && enrolledCourseIds.Contains(s.CourseId.Value)) || !s.CourseId.HasValue);
+        }
+
+        var refDate = date ?? new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc); // Default to current academic semester date
+
+        if (string.Equals(view, "day", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(s => s.Date.Date == refDate.Date);
+        }
+        else if (string.Equals(view, "week", StringComparison.OrdinalIgnoreCase))
+        {
+            var startOfWeek = refDate.AddDays(-(int)refDate.DayOfWeek);
+            var endOfWeek = startOfWeek.AddDays(7);
+            query = query.Where(s => s.Date >= startOfWeek && s.Date < endOfWeek);
+        }
+        else if (string.Equals(view, "month", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(s => s.Date.Year == refDate.Year && s.Date.Month == refDate.Month);
+        }
+
+        var schedules = await query.OrderBy(s => s.Date).ThenBy(s => s.StartTime).ToListAsync(cancellationToken);
+        return _mapper.Map<IEnumerable<ScheduleDto>>(schedules);
+    }
+
     public async Task<ScheduleDto?> GetScheduleByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var schedule = await _context.Schedules

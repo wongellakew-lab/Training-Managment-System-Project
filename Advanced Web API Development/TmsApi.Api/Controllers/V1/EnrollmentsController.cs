@@ -112,6 +112,28 @@ public class EnrollmentsController : ControllerBase
         {
             var created = await _enrollmentService.CreateEnrollmentAsync(dto, cancellationToken);
             EnrollmentsCounter.Add(1);
+
+            // Create in-app notification in DB
+            await _notificationService.CreateNotificationAsync(
+                dto.StudentId.ToString(),
+                "Enrollment Submitted",
+                $"Your registration for '{created.CourseTitle}' ({created.CourseCode}) has been registered.",
+                "Enrollment",
+                created.Id,
+                "Enrollment",
+                cancellationToken);
+
+            // Emit real-time SignalR event
+            await _hubContext.Clients.Group($"Student_{dto.StudentId}").ReceiveEnrollmentNotification(new
+            {
+                studentId = dto.StudentId,
+                courseId = dto.CourseId,
+                status = created.Status
+            });
+            await _hubContext.Clients.Group($"Student_{dto.StudentId}").ReceiveNotification(
+                "Enrollment Submitted",
+                $"Your registration for '{created.CourseTitle}' has been registered.");
+
             return CreatedAtAction(nameof(GetEnrollmentById), new { version = "1.0", id = created.Id }, created);
         }
         catch (InvalidOperationException ex)

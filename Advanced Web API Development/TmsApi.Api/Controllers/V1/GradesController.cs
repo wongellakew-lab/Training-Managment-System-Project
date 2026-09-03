@@ -19,12 +19,18 @@ public class GradesController : ControllerBase
     private readonly TmsDbContext _context;
     private readonly GradingService _gradingService;
     private readonly INotificationService _notificationService;
+    private readonly Microsoft.AspNetCore.SignalR.IHubContext<TmsApi.Infrastructure.Hubs.TmsHub, TmsApi.Infrastructure.Hubs.ITmsClient> _hubContext;
 
-    public GradesController(TmsDbContext context, GradingService gradingService, INotificationService notificationService)
+    public GradesController(
+        TmsDbContext context,
+        GradingService gradingService,
+        INotificationService notificationService,
+        Microsoft.AspNetCore.SignalR.IHubContext<TmsApi.Infrastructure.Hubs.TmsHub, TmsApi.Infrastructure.Hubs.ITmsClient> hubContext)
     {
         _context = context;
         _gradingService = gradingService;
         _notificationService = notificationService;
+        _hubContext = hubContext;
     }
 
     public record AssignGradeInput(int EnrollmentId, string? LetterGrade, decimal? NumericScore, decimal? Grade);
@@ -59,6 +65,12 @@ public class GradesController : ControllerBase
         var completed = enrollments.Where(e => e.Status == EnrollmentStatus.Completed || e.Grade.HasValue).ToList();
         var totalCredits = completed.Where(e => e.Course != null).Sum(e => e.Course!.Credits);
 
+        var assessments = await _context.Assessments
+            .AsNoTracking()
+            .Include(a => a.Course)
+            .Where(a => a.StudentId == studentId && a.IsPublished)
+            .ToListAsync(cancellationToken);
+
         return Ok(new
         {
             studentId = student.Id,
@@ -66,18 +78,49 @@ public class GradesController : ControllerBase
             gpa = student.Gpa,
             totalCredits,
             completedCoursesCount = completed.Count,
-            grades = enrollments.Select(e => new
+            grades = enrollments.Select(e =>
             {
-                enrollmentId = e.Id,
-                courseId = e.CourseId,
-                courseCode = e.Course?.Code ?? string.Empty,
-                courseTitle = e.Course?.Title ?? string.Empty,
-                credits = e.Course?.Credits ?? 3,
-                numericScore = e.Grade.HasValue ? (e.Grade.Value <= 4.0m ? e.Grade.Value * 25 : e.Grade.Value) : (decimal?)null,
-                letterGrade = e.Grade.HasValue ? _gradingService.CalculateGradeLevel(e.Grade.Value).ToString() : null,
-                status = e.Status.ToString()
+                var courseAssessments = assessments.Where(a => a.CourseId == e.CourseId).Select(a => new
+                {
+                    id = a.Id,
+                    title = a.Title,
+                    maxScore = a.MaxScore,
+                    scoredPoints = a.ScoredPoints,
+                    dueDate = a.DueDate,
+                    status = a.Status,
+                    feedback = a.Feedback,
+                    gradedAt = a.GradedAt,
+                    rubricScoresJson = a.RubricScoresJson
+                }).ToList();
+
+                return new
+                {
+                    enrollmentId = e.Id,
+                    courseId = e.CourseId,
+                    courseCode = e.Course?.Code ?? string.Empty,
+                    courseTitle = e.Course?.Title ?? string.Empty,
+                    credits = e.Course?.Credits ?? 3,
+                    numericScore = e.Grade.HasValue ? (e.Grade.Value <= 4.0m ? e.Grade.Value * 25 : e.Grade.Value) : (decimal?)null,
+                    letterGrade = e.Grade.HasValue ? _gradingService.CalculateGradeLevel(e.Grade.Value).ToString() : null,
+                    status = e.Status.ToString(),
+                    assessments = courseAssessments
+                };
             })
         });
+    }
+
+    [Authorize]
+    [HttpGet("my-grades")]
+    public async Task<IActionResult> GetMyGrades(CancellationToken cancellationToken)
+    {
+        int studentId = 1;
+        var claim = User.FindFirst("studentId")?.Value;
+        if (int.TryParse(claim, out var parsed))
+        {
+            studentId = parsed;
+        }
+
+        return await GetStudentAcademicRecord(studentId, cancellationToken);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
@@ -129,6 +172,18 @@ public class GradesController : ControllerBase
                 enrollment.Id,
                 "Enrollment",
                 cancellationToken);
+
+            // SignalR live update
+            await _hubContext.Clients.Group($"Student_{enrollment.StudentId}").ReceiveNotification(
+                "Grade Published",
+                $"Your final grade for {enrollment.Course?.Code ?? "Course"} ({enrollment.Course?.Title}) is {letterGrade} ({numericScore:F0}%).");
+            await _hubContext.Clients.Group($"Student_{enrollment.StudentId}").ReceiveEnrollmentNotification(new
+            {
+                studentId = enrollment.StudentId,
+                courseId = enrollment.CourseId,
+                grade = gpaValue,
+                letterGrade
+            });
         }
 
         return Ok(new

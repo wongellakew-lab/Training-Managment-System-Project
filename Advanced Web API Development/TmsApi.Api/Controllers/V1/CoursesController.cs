@@ -38,7 +38,42 @@ public class CoursesController : ControllerBase
         var course = await _courseService.GetCourseByIdAsync(id, cancellationToken);
         if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
 
+        // If user is authenticated, check enrollment status
+        var claim = User.FindFirst("studentId")?.Value;
+        if (int.TryParse(claim, out var studentId))
+        {
+            var enrollment = course.Enrollments?.FirstOrDefault(e => e.StudentId == studentId && e.Status != Domain.Entities.EnrollmentStatus.Dropped && e.Status != Domain.Entities.EnrollmentStatus.Rejected);
+            if (enrollment != null)
+            {
+                course.IsStudentEnrolled = true;
+                course.StudentEnrollmentStatus = enrollment.Status.ToString();
+                course.StudentProgress = enrollment.Grade.HasValue ? enrollment.Grade.Value : null;
+            }
+        }
+
         return Ok(course);
+    }
+
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog([FromQuery] PagedRequest request, CancellationToken cancellationToken)
+    {
+        var response = await _courseService.GetCoursesAsync(request, cancellationToken);
+        var claim = User.FindFirst("studentId")?.Value;
+        if (int.TryParse(claim, out var studentId) && response.Items != null)
+        {
+            foreach (var item in response.Items)
+            {
+                // Check if current student is enrolled in this course
+                var courseDetail = await _courseService.GetCourseByIdAsync(item.Id, cancellationToken);
+                var enrollment = courseDetail?.Enrollments?.FirstOrDefault(e => e.StudentId == studentId && e.Status != Domain.Entities.EnrollmentStatus.Dropped && e.Status != Domain.Entities.EnrollmentStatus.Rejected);
+                if (enrollment != null)
+                {
+                    item.IsStudentEnrolled = true;
+                    item.StudentEnrollmentStatus = enrollment.Status.ToString();
+                }
+            }
+        }
+        return Ok(response);
     }
 
     [Authorize(Roles = "Admin,Instructor")]

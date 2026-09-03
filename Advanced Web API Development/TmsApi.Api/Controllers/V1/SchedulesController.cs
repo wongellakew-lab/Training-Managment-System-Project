@@ -29,6 +29,24 @@ public class SchedulesController : ControllerBase
         return Ok(schedules);
     }
 
+    [Authorize]
+    [HttpGet("my-schedule")]
+    public async Task<IActionResult> GetMySchedule(
+        [FromQuery] string? view,
+        [FromQuery] DateTime? date,
+        CancellationToken cancellationToken)
+    {
+        int studentId = 1;
+        var claim = User.FindFirst("studentId")?.Value;
+        if (int.TryParse(claim, out var parsed))
+        {
+            studentId = parsed;
+        }
+
+        var schedules = await _scheduleService.GetStudentSchedulesAsync(studentId, view, date, cancellationToken);
+        return Ok(schedules);
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetScheduleById(int id, CancellationToken cancellationToken)
     {

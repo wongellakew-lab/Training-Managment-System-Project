@@ -181,6 +181,8 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+app.UseStaticFiles();
+
 app.UseCors("AllowClient");
 
 app.UseAuthentication();

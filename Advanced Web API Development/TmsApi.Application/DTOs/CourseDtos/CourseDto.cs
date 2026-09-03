@@ -22,12 +22,19 @@ public class CourseDto
     public int EnrolledStudentsCount { get; set; } = 320;
     public int Credits { get; set; } = 3;
     public int MaxCapacity { get; set; } = 50;
+    public string Prerequisites { get; set; } = "None";
+    public DateTime? EnrollmentDeadline { get; set; }
     public int? InstructorId { get; set; }
     public string? InstructorName { get; set; }
     public string? InstructorAvatar { get; set; }
     public int EnrolledCount { get; set; }
+    public int AvailableSeats => Math.Max(0, MaxCapacity - EnrolledCount);
     public bool IsFull => EnrolledCount >= MaxCapacity;
     public bool IsActive => Status == "Active" && !IsFull;
+    public bool IsStudentEnrolled { get; set; } = false;
+    public string? StudentEnrollmentStatus { get; set; }
+    public decimal? StudentProgress { get; set; }
+    public IEnumerable<TmsApi.Application.DTOs.EnrollmentDtos.EnrollmentDto>? Enrollments { get; set; }
 }
 
 public class CreateCourseDto

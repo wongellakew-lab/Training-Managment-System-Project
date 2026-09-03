@@ -609,3 +609,5 @@ public static class DataSeeder
                 await db.SaveChangesAsync();
             }
         }
+    }
+}

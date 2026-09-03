@@ -13,6 +13,10 @@ public class ScheduleDto
     public string Location { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public int AttendeesCount { get; set; } = 0;
+    public int? CourseId { get; set; }
+    public string? CourseTitle { get; set; }
+    public string? CourseCode { get; set; }
+    public string ScheduleType { get; set; } = "Lecture";
     public DateTime CreatedAt { get; set; }
 }
 
