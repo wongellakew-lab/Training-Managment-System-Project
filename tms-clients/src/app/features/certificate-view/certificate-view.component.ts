@@ -14,7 +14,12 @@ import { LayoutComponent } from '../../ui/layout/layout.component';
 import { CertificateService } from '../../services/certificate.service';
 import { TranscriptService } from '../../services/transcript.service';
 import { AuthService } from '../../services/auth.service';
-import { CertificateResponse, TranscriptJobResponse, TranscriptStatusResponse } from '../../models/transcript.model';
+import {
+  CertificateResponse,
+  TranscriptDto,
+  TranscriptJobResponse,
+  TranscriptStatusResponse
+} from '../../models/transcript.model';
 import { LiveSyncService } from '../../services/live-sync.service';
 
 @Component({
@@ -44,23 +49,33 @@ export class CertificateViewComponent implements OnInit {
   private liveSync = inject(LiveSyncService);
   private snackBar = inject(MatSnackBar);
 
+  // Top tabs
+  activeTab = signal<'certificates' | 'transcript'>('certificates');
+
+  // Certificates State
   certificates = signal<CertificateResponse[]>([]);
-  isLoading = signal(false);
+  isLoadingCertificates = signal<boolean>(false);
+  selectedCertificate = signal<CertificateResponse | null>(null);
 
-  transcriptJob = signal<TranscriptJobResponse | null>(null);
-  transcriptStatus = signal<TranscriptStatusResponse | null>(null);
-  isRequestingTranscript = signal(false);
-
+  // Verification Form State
   verificationCode = '';
-  isVerifying = signal(false);
+  isVerifying = signal<boolean>(false);
   verificationResult = signal<CertificateResponse | null>(null);
   verificationError = signal<string | null>(null);
 
-  // Preview Modal state
-  selectedCertificate = signal<CertificateResponse | null>(null);
+  // Academic Transcript State
+  transcript = signal<TranscriptDto | null>(null);
+  isLoadingTranscript = signal<boolean>(false);
+  isGeneratingTranscript = signal<boolean>(false);
+  showTranscriptSheet = signal<boolean>(true);
+
+  // Background Job Notification State
+  transcriptJob = signal<TranscriptJobResponse | null>(null);
+  transcriptStatus = signal<TranscriptStatusResponse | null>(null);
 
   ngOnInit(): void {
     this.loadCertificates();
+    this.loadTranscript();
 
     // Listen to real-time SignalR transcript notifications
     this.liveSync.transcriptCompleted$.subscribe((evt) => {
@@ -71,54 +86,41 @@ export class CertificateViewComponent implements OnInit {
           status: 'Completed',
           downloadUrl: evt.downloadUrl
         });
+        this.loadTranscript();
       }
     });
   }
 
-  loadCertificates(): void {
-    this.isLoading.set(true);
+  setTab(tab: 'certificates' | 'transcript'): void {
+    this.activeTab.set(tab);
+  }
 
-    // Only load certificates belonging to the authenticated student via token
+  // ─── Certificates ────────────────────────────────────────────────────────
+  loadCertificates(): void {
+    this.isLoadingCertificates.set(true);
     this.certificateService.getMyCertificates().subscribe({
       next: (certs) => {
-        this.certificates.set(certs);
-        this.isLoading.set(false);
+        this.certificates.set(certs || []);
+        this.isLoadingCertificates.set(false);
       },
       error: () => {
-        this.isLoading.set(false);
-        this.snackBar.open('Unable to load certificates. Please try again.', 'Close', { duration: 3000 });
+        this.isLoadingCertificates.set(false);
+        this.snackBar.open('Unable to load certificates.', 'Close', { duration: 3000 });
       }
     });
   }
 
-  requestTranscript(): void {
-    const studentId = this.authService.currentUser()?.studentId || 0;
-    this.isRequestingTranscript.set(true);
-    this.transcriptService.requestTranscript(studentId).subscribe({
-      next: (job) => {
-        this.isRequestingTranscript.set(false);
-        this.transcriptJob.set(job);
-        this.pollTranscriptStatus(job.jobId);
-      },
-      error: () => {
-        this.isRequestingTranscript.set(false);
-        this.snackBar.open('Failed to queue transcript generation.', 'Close', { duration: 3000 });
-      }
-    });
+  openPreview(cert: CertificateResponse): void {
+    this.selectedCertificate.set(cert);
   }
 
-  pollTranscriptStatus(jobId: string): void {
-    const interval = setInterval(() => {
-      this.transcriptService.getJobStatus(jobId).subscribe({
-        next: (res) => {
-          this.transcriptStatus.set(res);
-          if (res.status === 'Completed' || res.status === 'Failed') {
-            clearInterval(interval);
-          }
-        },
-        error: () => clearInterval(interval)
-      });
-    }, 2000);
+  closePreview(): void {
+    this.selectedCertificate.set(null);
+  }
+
+  downloadCertificate(cert: CertificateResponse, event?: Event): void {
+    if (event) event.stopPropagation();
+    window.open(this.certificateService.getDownloadUrl(cert.id), '_blank');
   }
 
   verifyCode(): void {
@@ -140,17 +142,57 @@ export class CertificateViewComponent implements OnInit {
     });
   }
 
-  openPreview(cert: CertificateResponse): void {
-    this.selectedCertificate.set(cert);
+  // ─── Academic Transcript ──────────────────────────────────────────────────
+  loadTranscript(): void {
+    this.isLoadingTranscript.set(true);
+    this.transcriptService.getMyTranscript().subscribe({
+      next: (data) => {
+        this.transcript.set(data);
+        this.isLoadingTranscript.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load transcript:', err);
+        this.isLoadingTranscript.set(false);
+      }
+    });
   }
 
-  closePreview(): void {
-    this.selectedCertificate.set(null);
+  generateTranscript(): void {
+    this.isGeneratingTranscript.set(true);
+    this.transcriptService.requestTranscript().subscribe({
+      next: (res) => {
+        this.isGeneratingTranscript.set(false);
+        this.transcriptJob.set({
+          jobId: res.requestId,
+          status: 'Completed',
+          estimatedWaitSeconds: 0,
+          submittedAt: new Date().toISOString()
+        });
+        this.snackBar.open('Official academic transcript generated successfully from database.', 'OK', { duration: 3500 });
+        this.loadTranscript();
+      },
+      error: () => {
+        this.isGeneratingTranscript.set(false);
+        this.snackBar.open('Error generating transcript.', 'Dismiss', { duration: 3000 });
+      }
+    });
   }
 
-  downloadCertificate(cert: CertificateResponse, event?: Event): void {
-    if (event) event.stopPropagation();
-    window.open(this.certificateService.getDownloadUrl(cert.id), '_blank');
+  printTranscript(): void {
+    const docNum = this.transcript()?.documentNumber || 'official-transcript';
+    window.open(this.transcriptService.getDownloadUrl(`${docNum}.pdf`), '_blank');
+  }
+
+  downloadTranscript(): void {
+    const docNum = this.transcript()?.documentNumber || 'official-transcript';
+    const url = this.transcriptService.getDownloadUrl(`${docNum}.pdf`);
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.download = `${docNum}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   getStudentFullName(): string {

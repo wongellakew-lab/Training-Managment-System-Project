@@ -1,180 +1,174 @@
-<app-layout pageTitle="Certificates & Credentials" [showGreeting]="false">
+<app-layout pageTitle="Certificates & Academic Records" [showGreeting]="false">
   <div class="credentials-page">
-    <!-- Header Banner -->
-    <mat-card class="header-card eduva-card">
-      <div class="header-content">
-        <div class="header-left">
-          <div class="role-chip-container">
-            <span class="badge-credential">Academic Records</span>
-            <span class="header-prefix">Verified Credentials & Diplomas</span>
-          </div>
-          <h1 class="page-title">Certificates & Transcripts</h1>
+    <!-- Top Hero Banner with Tab Switcher -->
+    <div class="header-card">
+      <div class="header-top-row">
+        <div class="header-titles">
+          <div class="badge-credential">Official Credentials & Academic Records</div>
+          <h1 class="page-title">Certificates & Academic Transcripts</h1>
           <p class="page-desc">
-            View verified course completion diplomas, request background-processed academic transcripts, and validate authenticity codes.
+            Access verified diplomas conferred upon course completion and view or print your official database-driven academic transcript.
           </p>
         </div>
 
-        <div class="header-actions">
+        <div class="header-actions" *ngIf="activeTab() === 'transcript'">
           <button
             mat-flat-button
             color="primary"
-            (click)="requestTranscript()"
-            [disabled]="isRequestingTranscript()"
-            class="request-btn"
+            (click)="generateTranscript()"
+            [disabled]="isGeneratingTranscript()"
+            class="generate-btn"
           >
-            <mat-icon>description</mat-icon>
-            <span>{{ isRequestingTranscript() ? 'Queuing Request...' : 'Request Official Transcript' }}</span>
+            <mat-icon>refresh</mat-icon>
+            <span>{{ isGeneratingTranscript() ? 'Updating...' : 'Generate Transcript' }}</span>
+          </button>
+          <button
+            mat-stroked-button
+            (click)="printTranscript()"
+            [disabled]="!transcript() || transcript()!.courseRecords.length === 0"
+            class="print-btn"
+          >
+            <mat-icon>print</mat-icon>
+            <span>Print / Save PDF</span>
           </button>
         </div>
       </div>
-    </mat-card>
 
-    <!-- Transcript Job Progress Card -->
-    @if (transcriptJob()) {
-      <mat-card class="job-card eduva-card">
-        <div class="job-header">
-          <div class="job-icon-box">
-            <mat-icon>hourglass_top</mat-icon>
-          </div>
-          <div class="job-info">
-            <div class="job-title">Academic Transcript Generation (#{{ transcriptJob()?.jobId }})</div>
-            <div class="job-status">
-              Status: <strong>{{ transcriptStatus()?.status || transcriptJob()?.status }}</strong> • Est. Wait: {{ transcriptJob()?.estimatedWaitSeconds }}s
+      <!-- Segmented Tab Navigation -->
+      <div class="tab-bar">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="activeTab() === 'certificates'"
+          (click)="setTab('certificates')"
+        >
+          <mat-icon>workspace_premium</mat-icon>
+          <span>Earned Diplomas & Certificates</span>
+          <span class="count-pill">{{ certificates().length }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="activeTab() === 'transcript'"
+          (click)="setTab('transcript')"
+        >
+          <mat-icon>history_edu</mat-icon>
+          <span>Official Academic Transcript</span>
+          <span class="gpa-pill" *ngIf="transcript()">GPA: {{ transcript()?.summary?.cumulativeGpa | number:'1.2-2' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: CERTIFICATES & DIPLOMAS                                      -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div *ngIf="activeTab() === 'certificates'" class="tab-pane">
+      <div class="content-split-grid">
+        <!-- Earned Certificates List -->
+        <div class="certs-card">
+          <div class="section-header-bar">
+            <div>
+              <h2 class="section-title">Conferred Course Diplomas</h2>
+              <p class="section-subtitle">Official verified certificates awarded upon meeting course requirements</p>
             </div>
+            <span class="cert-count-badge">{{ certificates().length }} Total</span>
           </div>
-        </div>
 
-        @if (transcriptStatus()?.status === 'Completed' || transcriptStatus()?.downloadUrl) {
-          <a
-            mat-flat-button
-            color="primary"
-            [href]="transcriptStatus()?.downloadUrl"
-            target="_blank"
-            class="download-btn"
-          >
-            <mat-icon>download</mat-icon>
-            <span>Download Transcript PDF</span>
-          </a>
-        } @else {
-          <div class="job-spinner-row">
-            <mat-spinner diameter="20"></mat-spinner>
-            <span>Processing digital transcript in background...</span>
-          </div>
-        }
-      </mat-card>
-    }
-
-    <!-- Main Content Split Grid -->
-    <div class="content-split-grid">
-      <!-- Earned Certificates List -->
-      <mat-card class="certs-card eduva-card">
-        <div class="certs-header-bar">
-          <div>
-            <h2 class="section-title">Earned Course Certificates</h2>
-            <p class="section-subtitle">Official certificates awarded upon passing course requirements</p>
-          </div>
-          <span class="cert-count-badge">{{ certificates().length }} Earned</span>
-        </div>
-
-        @if (isLoading()) {
-          <div class="loading-state">
+          <div *ngIf="isLoadingCertificates()" class="loading-state">
             <mat-spinner diameter="36"></mat-spinner>
             <span>Retrieving academic certificates...</span>
           </div>
-        } @else if (certificates().length === 0) {
-          <div class="empty-state">
+
+          <div *ngIf="!isLoadingCertificates() && certificates().length === 0" class="empty-state">
             <div class="empty-icon-box">
               <mat-icon>workspace_premium</mat-icon>
             </div>
             <h3 class="empty-title">No certificates earned yet</h3>
             <p class="empty-desc">
-              Complete enrolled courses with passing grades (GPA &ge; 2.0) to earn official verified certificates of completion.
+              Complete enrolled courses with passing grades to earn official verified completion diplomas. You can still access your full academic history in the Transcript tab.
             </p>
-            <a mat-flat-button color="primary" routerLink="/student/catalog" class="empty-action-btn">
-              <mat-icon>menu_book</mat-icon>
-              <span>Explore Course Catalog</span>
-            </a>
+            <button mat-stroked-button color="primary" (click)="setTab('transcript')">
+              <mat-icon>history_edu</mat-icon>
+              <span>View Academic Transcript</span>
+            </button>
           </div>
-        } @else {
-          <div class="certs-list">
-            @for (cert of certificates(); track cert.id) {
-              <div class="cert-card-item">
-                <div class="cert-card-main">
-                  <div class="cert-badge-icon">
-                    <mat-icon>verified</mat-icon>
-                  </div>
-                  <div class="cert-details">
-                    <div class="cert-course-title">{{ cert.courseTitle }}</div>
-                    <div class="cert-meta-row">
-                      <span class="cert-code font-mono">Code: {{ cert.certificateCode }}</span>
-                      <span class="meta-dot">&bull;</span>
-                      <span class="cert-date">Issued {{ cert.issuedAt | date:'mediumDate' }}</span>
-                    </div>
-                  </div>
-                  <span class="credential-status-pill">
-                    <mat-icon>check_circle</mat-icon>
-                    Verified
-                  </span>
-                </div>
 
-                <div class="cert-card-actions">
-                  <button mat-stroked-button (click)="openPreview(cert)" class="action-btn">
-                    <mat-icon>visibility</mat-icon>
-                    <span>View Diploma</span>
-                  </button>
-                  <button mat-flat-button color="primary" (click)="downloadCertificate(cert, $event)" class="action-btn">
-                    <mat-icon>download</mat-icon>
-                    <span>Download PDF</span>
-                  </button>
+          <div *ngIf="!isLoadingCertificates() && certificates().length > 0" class="certs-list">
+            <div *ngFor="let cert of certificates()" class="cert-card-item">
+              <div class="cert-card-main">
+                <div class="cert-badge-icon">
+                  <mat-icon>verified</mat-icon>
                 </div>
+                <div class="cert-details">
+                  <div class="cert-course-title">{{ cert.courseTitle }}</div>
+                  <div class="cert-meta-row">
+                    <span class="cert-code font-mono">{{ cert.certificateCode }}</span>
+                    <span class="meta-dot">&bull;</span>
+                    <span class="cert-date">Conferred {{ cert.issuedAt | date:'mediumDate' }}</span>
+                  </div>
+                </div>
+                <span class="credential-status-pill">
+                  <mat-icon>check_circle</mat-icon>
+                  Verified
+                </span>
               </div>
-            }
-          </div>
-        }
-      </mat-card>
 
-      <!-- Certificate Verification Card -->
-      <mat-card class="verify-card eduva-card">
-        <div class="verify-header-bar">
-          <div class="verify-icon-box">
-            <mat-icon>qr_code_scanner</mat-icon>
-          </div>
-          <div>
-            <h2 class="section-title">Verify Certificate</h2>
-            <p class="section-subtitle">Validate authenticity of any student certificate code</p>
+              <div class="cert-card-actions">
+                <button mat-stroked-button (click)="openPreview(cert)" class="action-btn">
+                  <mat-icon>visibility</mat-icon>
+                  <span>View Diploma</span>
+                </button>
+                <button mat-flat-button color="primary" (click)="downloadCertificate(cert, $event)" class="action-btn">
+                  <mat-icon>download</mat-icon>
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <form (ngSubmit)="verifyCode()" class="verify-form">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Verification Code</mat-label>
-            <input
-              matInput
-              [(ngModel)]="verificationCode"
-              name="verificationCode"
-              placeholder="e.g. CERT-2026-0001-0001"
-              class="font-mono uppercase"
-              required
-            />
-            <mat-icon matPrefix>qr_code</mat-icon>
-          </mat-form-field>
+        <!-- Certificate Verification Card -->
+        <div class="verify-card">
+          <div class="verify-header-bar">
+            <div class="verify-icon-box">
+              <mat-icon>qr_code_scanner</mat-icon>
+            </div>
+            <div>
+              <h2 class="section-title">Verify Certificate</h2>
+              <p class="section-subtitle">Validate authenticity of any student diploma</p>
+            </div>
+          </div>
 
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="isVerifying() || !verificationCode.trim()"
-            class="full-width verify-btn"
-          >
-            {{ isVerifying() ? 'Validating Credential...' : 'Verify Authenticity' }}
-          </button>
-        </form>
+          <form (ngSubmit)="verifyCode()" class="verify-form">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Verification Code</mat-label>
+              <input
+                matInput
+                [(ngModel)]="verificationCode"
+                name="verificationCode"
+                placeholder="e.g. CERT-2026-0001-0001"
+                class="font-mono uppercase"
+                required
+              />
+              <mat-icon matPrefix>qr_code</mat-icon>
+            </mat-form-field>
 
-        @if (verificationResult()) {
-          <div class="verify-success-box">
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="isVerifying() || !verificationCode.trim()"
+              class="full-width verify-btn"
+            >
+              {{ isVerifying() ? 'Validating Credential...' : 'Verify Authenticity' }}
+            </button>
+          </form>
+
+          <div *ngIf="verificationResult()" class="verify-success-box">
             <div class="verify-badge-row">
               <mat-icon>verified</mat-icon>
-              <span>Authentic Verified Certificate</span>
+              <span>Authentic Verified Diploma</span>
             </div>
             <div class="verify-grid">
               <div class="verify-field">
@@ -195,67 +189,266 @@
               </div>
             </div>
           </div>
-        } @else if (verificationError()) {
-          <div class="verify-error-box">
+
+          <div *ngIf="verificationError()" class="verify-error-box">
             <mat-icon>error_outline</mat-icon>
             <span>{{ verificationError() }}</span>
           </div>
-        }
-      </mat-card>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: ACADEMIC TRANSCRIPT                                          -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div *ngIf="activeTab() === 'transcript'" class="tab-pane">
+      <!-- Loading State -->
+      <div *ngIf="isLoadingTranscript()" class="loading-state card-bg">
+        <mat-spinner diameter="44"></mat-spinner>
+        <p>Retrieving student academic history and calculating verified GPA...</p>
+      </div>
+
+      <!-- Content Area -->
+      <div *ngIf="!isLoadingTranscript()">
+        <!-- Summary KPI Strip -->
+        <div class="summary-kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon-box blue">
+              <mat-icon>school</mat-icon>
+            </div>
+            <div class="kpi-meta">
+              <span class="kpi-val">{{ transcript()?.summary?.cumulativeGpa | number:'1.2-2' }}</span>
+              <span class="kpi-lbl">Cumulative GPA / 4.00</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon-box green">
+              <mat-icon>check_circle</mat-icon>
+            </div>
+            <div class="kpi-meta">
+              <span class="kpi-val">{{ transcript()?.summary?.totalCoursesCompleted }} / {{ transcript()?.summary?.totalCoursesAttempted }}</span>
+              <span class="kpi-lbl">Courses Completed</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon-box purple">
+              <mat-icon>military_tech</mat-icon>
+            </div>
+            <div class="kpi-meta">
+              <span class="kpi-val">{{ transcript()?.summary?.totalCreditsEarned }}</span>
+              <span class="kpi-lbl">Total Credits Earned</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon-box amber">
+              <mat-icon>stars</mat-icon>
+            </div>
+            <div class="kpi-meta">
+              <span class="kpi-val standing-pill">{{ transcript()?.summary?.academicStanding }}</span>
+              <span class="kpi-lbl">Academic Standing</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State if no courses -->
+        <div *ngIf="transcript() && transcript()!.courseRecords.length === 0" class="empty-state card-bg mt-4">
+          <mat-icon class="empty-icon">history_edu</mat-icon>
+          <h3>No Academic Records Available</h3>
+          <p>You have not completed or enrolled in any courses yet. Once you complete graded coursework, your official academic transcript will populate here automatically.</p>
+        </div>
+
+        <!-- Standard Academic Transcript Document Sheet -->
+        <div *ngIf="transcript() && transcript()!.courseRecords.length > 0" class="transcript-sheet-wrapper">
+          <div class="transcript-sheet">
+            <!-- Sheet Header -->
+            <div class="sheet-header">
+              <div class="sheet-inst-col">
+                <div class="inst-logo-badge">
+                  <mat-icon>account_balance</mat-icon>
+                  <span>{{ transcript()?.institutionName }}</span>
+                </div>
+                <h2 class="doc-main-title">Official Academic Transcript</h2>
+                <div class="doc-sub-title">OFFICE OF THE REGISTRAR &bull; PERMANENT ACADEMIC RECORD</div>
+              </div>
+
+              <div class="sheet-meta-col">
+                <div class="doc-ref-pill">
+                  <span class="ref-label">DOCUMENT REF</span>
+                  <span class="ref-num">{{ transcript()?.documentNumber }}</span>
+                </div>
+                <div class="issue-date-text">
+                  Issued: <strong>{{ transcript()?.generatedAt | date:'mediumDate' }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Student Identification Section -->
+            <div class="sheet-section-title">Student Identification</div>
+            <div class="student-info-table">
+              <div class="info-cell">
+                <span class="cell-lbl">Student Name</span>
+                <span class="cell-val">{{ transcript()?.student?.fullName }}</span>
+              </div>
+              <div class="info-cell">
+                <span class="cell-lbl">Student ID (Reg #)</span>
+                <span class="cell-val font-mono">{{ transcript()?.student?.registrationNumber }}</span>
+              </div>
+              <div class="info-cell">
+                <span class="cell-lbl">Department / Program</span>
+                <span class="cell-val">{{ transcript()?.student?.department }}</span>
+              </div>
+              <div class="info-cell">
+                <span class="cell-lbl">Email Address</span>
+                <span class="cell-val">{{ transcript()?.student?.email }}</span>
+              </div>
+              <div class="info-cell">
+                <span class="cell-lbl">Matriculation Date</span>
+                <span class="cell-val">{{ transcript()?.student?.enrollmentDate | date:'mediumDate' }}</span>
+              </div>
+              <div class="info-cell">
+                <span class="cell-lbl">Academic Record Status</span>
+                <span class="cell-val text-success">Active & Certified</span>
+              </div>
+            </div>
+
+            <!-- Academic Course Records Table -->
+            <div class="sheet-section-title mt-4">Academic Course Records</div>
+            <div class="course-table-container">
+              <table class="academic-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Course Title & Subject</th>
+                    <th class="text-center">Credits</th>
+                    <th class="text-center">Term</th>
+                    <th class="text-center">Final Score</th>
+                    <th class="text-center">Grade</th>
+                    <th class="text-center">Point</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let r of transcript()?.courseRecords">
+                    <td class="code-cell font-mono">{{ r.courseCode }}</td>
+                    <td class="title-cell">
+                      <strong>{{ r.courseTitle }}</strong>
+                      <span class="sub-meta-line">{{ r.category }} &bull; {{ r.durationHours }} Hours</span>
+                    </td>
+                    <td class="text-center font-bold">{{ r.credits }}</td>
+                    <td class="text-center">{{ r.term }}</td>
+                    <td class="text-center">{{ r.finalScore !== null ? (r.finalScore | number:'1.1-1') + '%' : '-' }}</td>
+                    <td class="text-center">
+                      <span class="grade-letter-pill grade-{{ r.gradeLetter }}">{{ r.gradeLetter }}</span>
+                    </td>
+                    <td class="text-center font-bold">{{ r.gradePoint | number:'1.1-1' }}</td>
+                    <td class="text-center">
+                      <span class="status-badge status-{{ r.status.toLowerCase() }}">{{ r.status }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Academic Summary Block -->
+            <div class="sheet-section-title mt-4">Cumulative Academic Summary</div>
+            <div class="academic-summary-sheet-box">
+              <div class="sum-cell">
+                <span class="sum-lbl">Courses Completed</span>
+                <span class="sum-num">{{ transcript()?.summary?.totalCoursesCompleted }} of {{ transcript()?.summary?.totalCoursesAttempted }}</span>
+              </div>
+              <div class="sum-cell">
+                <span class="sum-lbl">Total Credits Earned</span>
+                <span class="sum-num">{{ transcript()?.summary?.totalCreditsEarned }} Credits</span>
+              </div>
+              <div class="sum-cell">
+                <span class="sum-lbl">Cumulative GPA</span>
+                <span class="sum-num text-primary">{{ transcript()?.summary?.cumulativeGpa | number:'1.2-2' }} <small>/ 4.00</small></span>
+              </div>
+              <div class="sum-cell">
+                <span class="sum-lbl">Academic Standing</span>
+                <span class="sum-num text-success">{{ transcript()?.summary?.academicStanding }}</span>
+              </div>
+            </div>
+
+            <!-- Institutional Certification Block -->
+            <div class="sheet-cert-block">
+              <div class="cert-statement">
+                <div class="cert-title">
+                  <mat-icon>verified</mat-icon>
+                  <span>OFFICIAL INSTITUTIONAL CERTIFICATION</span>
+                </div>
+                <p>
+                  This official transcript represents the authentic academic record of the student as maintained by the Office of the Academic Registrar at {{ transcript()?.institutionName }}. All courses and credits listed have been certified against registrar gradebook logs.
+                </p>
+                <div class="verify-code-line">
+                  Verification Code: <span class="font-mono">{{ transcript()?.documentNumber }}</span>
+                </div>
+              </div>
+
+              <div class="cert-seal-col">
+                <div class="sig-line"></div>
+                <div class="sig-name">Office of the Academic Registrar</div>
+                <div class="sig-inst">{{ transcript()?.institutionName }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- Certificate Preview Modal -->
-  @if (selectedCertificate()) {
-    <div class="modal-backdrop" (click)="closePreview()">
-      <div class="modal-dialog" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <div class="modal-title">Official Certificate Preview</div>
-          <button mat-icon-button (click)="closePreview()" aria-label="Close dialog">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
+  <div *ngIf="selectedCertificate()" class="modal-backdrop" (click)="closePreview()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Official Certificate Preview</div>
+        <button mat-icon-button (click)="closePreview()" aria-label="Close dialog">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
 
-        <div class="certificate-parchment">
-          <div class="parchment-border">
-            <div class="cert-institution">Training Management System &bull; Academic Portal</div>
-            <h2 class="cert-diploma-title">Certificate of Completion</h2>
-            <div class="cert-conferred">This official diploma is proudly conferred upon</div>
-            <div class="cert-student-name">{{ selectedCertificate()?.studentName || getStudentFullName() }}</div>
-            <div class="cert-text">
-              having demonstrated academic excellence and successfully fulfilled all curricular requirements for
-              <strong class="cert-course-name">{{ selectedCertificate()?.courseTitle }}</strong>
+      <div class="certificate-parchment">
+        <div class="parchment-border">
+          <div class="cert-institution">Training Management System &bull; Academic Portal</div>
+          <h2 class="cert-diploma-title">Certificate of Completion</h2>
+          <div class="cert-conferred">This official diploma is proudly conferred upon</div>
+          <div class="cert-student-name">{{ selectedCertificate()?.studentName || getStudentFullName() }}</div>
+          <div class="cert-text">
+            having demonstrated academic excellence and successfully fulfilled all curricular requirements for
+            <strong class="cert-course-name">{{ selectedCertificate()?.courseTitle }}</strong>
+          </div>
+
+          <div class="cert-signatures">
+            <div class="sig-block">
+              <div class="sig-line"></div>
+              <div class="sig-label">Academic Dean</div>
             </div>
-
-            <div class="cert-signatures">
-              <div class="sig-block">
-                <div class="sig-line"></div>
-                <div class="sig-label">Academic Dean</div>
-              </div>
-              <div class="cert-seal-badge">
-                <mat-icon>verified</mat-icon>
-                <span>VERIFIED</span>
-              </div>
-              <div class="sig-block">
-                <div class="sig-line"></div>
-                <div class="sig-label">Issued: {{ selectedCertificate()?.issuedAt | date:'mediumDate' }}</div>
-              </div>
+            <div class="cert-seal-badge">
+              <mat-icon>verified</mat-icon>
+              <span>VERIFIED</span>
             </div>
-
-            <div class="cert-footer-code font-mono">
-              Verification ID: {{ selectedCertificate()?.certificateCode }}
+            <div class="sig-block">
+              <div class="sig-line"></div>
+              <div class="sig-label">Issued: {{ selectedCertificate()?.issuedAt | date:'mediumDate' }}</div>
             </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button mat-stroked-button (click)="closePreview()">Close</button>
-          <button mat-flat-button color="primary" (click)="downloadCertificate(selectedCertificate()!)">
-            <mat-icon>print</mat-icon>
-            <span>Print / Save PDF</span>
-          </button>
+          <div class="cert-footer-code font-mono">
+            Verification ID: {{ selectedCertificate()?.certificateCode }}
+          </div>
         </div>
       </div>
+
+      <div class="modal-footer">
+        <button mat-stroked-button (click)="closePreview()">Close</button>
+        <button mat-flat-button color="primary" (click)="downloadCertificate(selectedCertificate()!)">
+          <mat-icon>print</mat-icon>
+          <span>Print / Save PDF</span>
+        </button>
+      </div>
     </div>
-  }
+  </div>
 </app-layout>
