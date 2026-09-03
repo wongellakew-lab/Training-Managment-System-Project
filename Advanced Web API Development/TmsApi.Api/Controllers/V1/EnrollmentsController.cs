@@ -12,6 +12,7 @@ using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Hubs;
 using TmsApi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using TmsApi.Api.Extensions;
 using static TmsApi.Api.Diagnostics.Diagnostics;
 
 namespace TmsApi.Api.Controllers.V1;
@@ -41,10 +42,9 @@ public class EnrollmentsController : ControllerBase
         _context = context;
     }
 
-    private int? GetCurrentStudentId()
+    private async Task<int?> GetCurrentStudentIdAsync()
     {
-        var claim = User.FindFirst("studentId")?.Value;
-        return int.TryParse(claim, out var id) ? id : null;
+        return await User.ResolveStudentIdAsync(_context);
     }
 
     [Authorize]
@@ -62,21 +62,13 @@ public class EnrollmentsController : ControllerBase
         // If caller is student, constrain to their own studentId
         if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
         {
-            var currentStudentId = GetCurrentStudentId();
+            var currentStudentId = await GetCurrentStudentIdAsync();
             if (currentStudentId.HasValue)
                 studentId = currentStudentId.Value;
         }
 
         var response = await _enrollmentService.GetEnrollmentsAsync(page, pageSize, studentId, courseId, search, status, category, cancellationToken);
         return Ok(response);
-    }
-
-    [Authorize]
-    [HttpGet("breakdown")]
-    public async Task<IActionResult> GetPaymentBreakdown(CancellationToken cancellationToken)
-    {
-        var result = await _enrollmentService.GetPaymentBreakdownAsync(cancellationToken);
-        return Ok(result);
     }
 
     [Authorize]
@@ -89,7 +81,7 @@ public class EnrollmentsController : ControllerBase
 
         if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
         {
-            var currentStudentId = GetCurrentStudentId();
+            var currentStudentId = await GetCurrentStudentIdAsync();
             if (currentStudentId.HasValue && enrollment.StudentId != currentStudentId.Value)
                 return Forbid();
         }
@@ -103,9 +95,10 @@ public class EnrollmentsController : ControllerBase
     {
         if (User.IsInRole("Student") && !User.IsInRole("Admin"))
         {
-            var currentStudentId = GetCurrentStudentId();
-            if (currentStudentId.HasValue)
-                dto.StudentId = currentStudentId.Value;
+            var currentStudentId = await GetCurrentStudentIdAsync();
+            if (!currentStudentId.HasValue)
+                return Unauthorized(new { message = "Student profile not found for authenticated user." });
+            dto.StudentId = currentStudentId.Value;
         }
 
         try
@@ -113,9 +106,12 @@ public class EnrollmentsController : ControllerBase
             var created = await _enrollmentService.CreateEnrollmentAsync(dto, cancellationToken);
             EnrollmentsCounter.Add(1);
 
+            var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Id == dto.StudentId, cancellationToken);
+            var notifUserId = student?.UserId ?? dto.StudentId.ToString();
+
             // Create in-app notification in DB
             await _notificationService.CreateNotificationAsync(
-                dto.StudentId.ToString(),
+                notifUserId,
                 "Enrollment Submitted",
                 $"Your registration for '{created.CourseTitle}' ({created.CourseCode}) has been registered.",
                 "Enrollment",
@@ -130,9 +126,29 @@ public class EnrollmentsController : ControllerBase
                 courseId = dto.CourseId,
                 status = created.Status
             });
-            await _hubContext.Clients.Group($"Student_{dto.StudentId}").ReceiveNotification(
-                "Enrollment Submitted",
-                $"Your registration for '{created.CourseTitle}' has been registered.");
+
+            if (!string.IsNullOrEmpty(student?.UserId))
+            {
+                await _hubContext.Clients.Group($"User_{student.UserId}").ReceiveNotification(
+                    "Enrollment Submitted",
+                    $"Your registration for '{created.CourseTitle}' has been registered.");
+            }
+
+            // Real-time calendar schedule update
+            await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "enrolled", studentId = dto.StudentId, courseId = dto.CourseId });
+
+            // Real-time capacity update
+            var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.CourseId, cancellationToken);
+            if (course != null)
+            {
+                var enrolledCount = await _context.Enrollments.CountAsync(e => e.CourseId == dto.CourseId && (e.Status == Domain.Entities.EnrollmentStatus.Active || e.Status == Domain.Entities.EnrollmentStatus.Pending) && !e.IsDeleted, cancellationToken);
+                await _hubContext.Clients.All.ReceiveCapacityAlert(new
+                {
+                    courseId = course.Id,
+                    enrolledCount = enrolledCount,
+                    maxCapacity = course.MaxCapacity
+                });
+            }
 
             return CreatedAtAction(nameof(GetEnrollmentById), new { version = "1.0", id = created.Id }, created);
         }
@@ -146,8 +162,10 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateEnrollmentStatus(int id, [FromBody] UpdateEnrollmentStatusDto dto, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, dto.Status, dto.PaymentStatus, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, dto.Status, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
+
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "statusChanged", id });
         return NoContent();
     }
 
@@ -155,12 +173,13 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/approve")]
     public async Task<IActionResult> ApproveEnrollment(int id, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Active, "Paid", cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Active, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         await NotifyStudentOnStatusChange(id, "Enrollment Approved",
             "Your course enrollment has been approved! You are now an active student.", "Enrollment", cancellationToken);
 
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "approved", id });
         return Ok(new { message = "Enrollment approved successfully." });
     }
 
@@ -168,12 +187,13 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/reject")]
     public async Task<IActionResult> RejectEnrollment(int id, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Rejected, null, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Rejected, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
 
         await NotifyStudentOnStatusChange(id, "Enrollment Rejected",
             "Your enrollment request was not approved. Please contact your instructor for details.", "Enrollment", cancellationToken);
 
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "rejected", id });
         return Ok(new { message = "Enrollment rejected." });
     }
 
@@ -181,8 +201,10 @@ public class EnrollmentsController : ControllerBase
     [HttpPut("{id:int}/drop")]
     public async Task<IActionResult> DropEnrollment(int id, CancellationToken cancellationToken)
     {
-        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Dropped, null, cancellationToken);
+        var updated = await _enrollmentService.UpdateEnrollmentStatusAsync(id, EnrollmentStatus.Dropped, cancellationToken);
         if (!updated) return NotFound(new { message = $"Enrollment with ID {id} not found." });
+
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "dropped", id });
         return Ok(new { message = "Course enrollment dropped." });
     }
 

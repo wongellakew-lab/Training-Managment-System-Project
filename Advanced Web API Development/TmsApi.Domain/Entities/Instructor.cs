@@ -10,6 +10,8 @@ public class Instructor
     public string Department { get; set; } = string.Empty;
     public DateTime HireDate { get; set; } = DateTime.UtcNow;
     public bool IsDeleted { get; set; } = false;
+    public string? UserId { get; set; }
+    public virtual TmsUser? User { get; set; }
 
     public ICollection<Course> Courses { get; set; } = new List<Course>();
 }

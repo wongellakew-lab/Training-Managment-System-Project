@@ -17,6 +17,12 @@ public class InstructorConfiguration : IEntityTypeConfiguration<Instructor>
         builder.Property(i => i.Email).IsRequired().HasMaxLength(150);
         builder.Property(i => i.Department).HasMaxLength(100);
 
+        builder.HasOne(i => i.User)
+            .WithOne(u => u.Instructor)
+            .HasForeignKey<Instructor>(i => i.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(i => i.UserId).IsUnique();
+
         builder.Property<DateTime>("LastUpdated").HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property<uint>("Version").IsRowVersion();
 

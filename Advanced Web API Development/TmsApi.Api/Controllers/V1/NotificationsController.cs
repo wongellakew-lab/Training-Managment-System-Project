@@ -30,12 +30,13 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> GetNotifications(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] bool? unreadOnly = null,
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var result = await _notificationService.GetUserNotificationsAsync(userId, page, pageSize, cancellationToken);
+        var result = await _notificationService.GetUserNotificationsAsync(userId, page, pageSize, unreadOnly, cancellationToken);
         return Ok(result);
     }
 

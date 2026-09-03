@@ -51,7 +51,7 @@ public static class DataSeeder
 
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""Category"" character varying(100) NOT NULL DEFAULT 'General';
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""Level"" character varying(50) NOT NULL DEFAULT 'Beginner';
-                    ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""Price"" numeric NOT NULL DEFAULT 0.0;
+                    ALTER TABLE ""Courses"" DROP COLUMN IF EXISTS ""Price"";
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""Status"" character varying(50) NOT NULL DEFAULT 'Active';
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""DurationHours"" integer NOT NULL DEFAULT 0;
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""LessonsCount"" integer NOT NULL DEFAULT 0;
@@ -66,8 +66,6 @@ public static class DataSeeder
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""PhoneNumber"" character varying(50);
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Category"" character varying(100);
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Batch"" character varying(50);
-                    ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Fee"" numeric NOT NULL DEFAULT 0.0;
-                    ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""PaymentStatus"" character varying(50) NOT NULL DEFAULT 'Pending';
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Country"" character varying(100);
                 ");
             }
@@ -146,7 +144,9 @@ public static class DataSeeder
                 };
                 await userManager.CreateAsync(instUser, "Instructor123!");
                 await userManager.AddToRoleAsync(instUser, "Instructor");
+                inst.UserId = instUser.Id;
             }
+            await db.SaveChangesAsync();
         }
 
         // Seed Students
@@ -180,7 +180,48 @@ public static class DataSeeder
                 };
                 await userManager.CreateAsync(stUser, "Student123!");
                 await userManager.AddToRoleAsync(stUser, "Student");
+                st.UserId = stUser.Id;
             }
+            await db.SaveChangesAsync();
+        }
+
+        // Reconcile any existing students/instructors whose UserId is not set
+        var unlinkedStudents = await db.Students.Where(s => s.UserId == null).ToListAsync();
+        foreach (var st in unlinkedStudents)
+        {
+            var user = await userManager.FindByEmailAsync(st.Email);
+            if (user != null)
+            {
+                st.UserId = user.Id;
+                if (!user.StudentId.HasValue)
+                {
+                    user.StudentId = st.Id;
+                    await userManager.UpdateAsync(user);
+                }
+            }
+        }
+        if (unlinkedStudents.Any())
+        {
+            await db.SaveChangesAsync();
+        }
+
+        var unlinkedInstructors = await db.Instructors.Where(i => i.UserId == null).ToListAsync();
+        foreach (var inst in unlinkedInstructors)
+        {
+            var user = await userManager.FindByEmailAsync(inst.Email);
+            if (user != null)
+            {
+                inst.UserId = user.Id;
+                if (!user.InstructorId.HasValue)
+                {
+                    user.InstructorId = inst.Id;
+                    await userManager.UpdateAsync(user);
+                }
+            }
+        }
+        if (unlinkedInstructors.Any())
+        {
+            await db.SaveChangesAsync();
         }
 
         // Seed Courses
@@ -194,7 +235,6 @@ public static class DataSeeder
                     Code = "DES-101",
                     Title = "Graphic Design Fundamentals",
                     Category = "Design",
-                    Price = 99m,
                     Status = "Active",
                     Level = "Beginner",
                     DurationHours = 40,
@@ -212,7 +252,6 @@ public static class DataSeeder
                     Code = "MKT-201",
                     Title = "Digital Marketing Mastery",
                     Category = "Marketing",
-                    Price = 79m,
                     Status = "Active",
                     Level = "Intermediate",
                     DurationHours = 30,
@@ -230,7 +269,6 @@ public static class DataSeeder
                     Code = "WEB-101",
                     Title = "Python for Beginners",
                     Category = "Web Dev",
-                    Price = 89m,
                     Status = "Active",
                     Level = "Beginner",
                     DurationHours = 50,
@@ -248,8 +286,7 @@ public static class DataSeeder
                     Code = "LAN-101",
                     Title = "French for Beginners",
                     Category = "Language",
-                    Price = 69m,
-                    Status = "Draft",
+                    Status = "Active",
                     Level = "Beginner",
                     DurationHours = 25,
                     LessonsCount = 15,
@@ -266,7 +303,6 @@ public static class DataSeeder
                     Code = "COM-101",
                     Title = "Public Speaking & Presentation Skills",
                     Category = "Communication",
-                    Price = 69m,
                     Status = "Active",
                     Level = "Beginner",
                     DurationHours = 28,
@@ -284,7 +320,6 @@ public static class DataSeeder
                     Code = "MKT-301",
                     Title = "Social Media Strategies",
                     Category = "Marketing",
-                    Price = 109m,
                     Status = "Archived",
                     Level = "Advanced",
                     DurationHours = 40,
@@ -302,7 +337,6 @@ public static class DataSeeder
                     Code = "DES-201",
                     Title = "UX/UI Design Fundamentals",
                     Category = "Design",
-                    Price = 89m,
                     Status = "Active",
                     Level = "Beginner",
                     DurationHours = 35,
@@ -320,7 +354,6 @@ public static class DataSeeder
                     Code = "WEB-301",
                     Title = "Full Stack Web Development Bootcamp",
                     Category = "Web Dev",
-                    Price = 99m,
                     Status = "Active",
                     Level = "Intermediate",
                     DurationHours = 60,
@@ -335,6 +368,258 @@ public static class DataSeeder
                 }
             };
             await db.Courses.AddRangeAsync(courses);
+            await db.SaveChangesAsync();
+        }
+
+        // Seed Course Schedules (recurring)
+        if (!await db.CourseSchedules.AnyAsync())
+        {
+            var courses = await db.Courses.ToListAsync();
+            var courseSchedules = new List<CourseSchedule>();
+
+            var baseStart = new DateTime(2026, 9, 7, 0, 0, 0, DateTimeKind.Utc);
+            var baseEnd = baseStart.AddDays(42); // 6 weeks
+
+            foreach (var c in courses)
+            {
+                c.StartDate = baseStart;
+                c.EndDate = baseEnd;
+                c.DurationWeeks = 6;
+            }
+            await db.SaveChangesAsync();
+
+            // DES-101 – Mon/Wed/Fri (was wrongly using "DSN-101")
+            var cDes101 = courses.FirstOrDefault(c => c.Code == "DES-101");
+            if (cDes101 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cDes101.Id, DayOfWeek = DayOfWeek.Monday, StartTime = "09:00 AM", EndTime = "10:30 AM", Location = "Design Center", Room = "Design Studio 1", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cDes101.Id, DayOfWeek = DayOfWeek.Wednesday, StartTime = "09:00 AM", EndTime = "10:30 AM", Location = "Design Center", Room = "Design Studio 1", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cDes101.Id, DayOfWeek = DayOfWeek.Friday, StartTime = "10:00 AM", EndTime = "11:30 AM", Location = "Design Center", Room = "Design Lab 2", ScheduleType = "Workshop" });
+            }
+
+            // MKT-201 – Tue/Thu
+            var cMkt201 = courses.FirstOrDefault(c => c.Code == "MKT-201");
+            if (cMkt201 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cMkt201.Id, DayOfWeek = DayOfWeek.Tuesday, StartTime = "01:00 PM", EndTime = "02:30 PM", Location = "Business Wing", Room = "Seminar Room A", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cMkt201.Id, DayOfWeek = DayOfWeek.Thursday, StartTime = "01:00 PM", EndTime = "02:30 PM", Location = "Business Wing", Room = "Seminar Room A", ScheduleType = "Discussion" });
+            }
+
+            // WEB-101 – Mon/Wed/Fri
+            var cWeb101 = courses.FirstOrDefault(c => c.Code == "WEB-101");
+            if (cWeb101 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cWeb101.Id, DayOfWeek = DayOfWeek.Monday, StartTime = "03:00 PM", EndTime = "04:30 PM", Location = "Main Training Center", Room = "Room 204", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cWeb101.Id, DayOfWeek = DayOfWeek.Wednesday, StartTime = "03:00 PM", EndTime = "04:30 PM", Location = "Main Training Center", Room = "Room 204", ScheduleType = "Lab" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cWeb101.Id, DayOfWeek = DayOfWeek.Friday, StartTime = "03:00 PM", EndTime = "04:30 PM", Location = "Main Training Center", Room = "Room 204", ScheduleType = "Lecture" });
+            }
+
+            // LAN-101 – Mon/Wed
+            var cLan101 = courses.FirstOrDefault(c => c.Code == "LAN-101");
+            if (cLan101 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cLan101.Id, DayOfWeek = DayOfWeek.Monday, StartTime = "11:00 AM", EndTime = "12:00 PM", Location = "Language Lab", Room = "Room 101", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cLan101.Id, DayOfWeek = DayOfWeek.Wednesday, StartTime = "11:00 AM", EndTime = "12:00 PM", Location = "Language Lab", Room = "Room 101", ScheduleType = "Discussion" });
+            }
+
+            // COM-101 – Tue/Thu
+            var cCom101 = courses.FirstOrDefault(c => c.Code == "COM-101");
+            if (cCom101 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cCom101.Id, DayOfWeek = DayOfWeek.Tuesday, StartTime = "02:00 PM", EndTime = "03:30 PM", Location = "Auditorium", Room = "Hall A", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cCom101.Id, DayOfWeek = DayOfWeek.Thursday, StartTime = "02:00 PM", EndTime = "03:30 PM", Location = "Auditorium", Room = "Hall A", ScheduleType = "Workshop" });
+            }
+
+            // MKT-301 – Mon/Thu
+            var cMkt301 = courses.FirstOrDefault(c => c.Code == "MKT-301");
+            if (cMkt301 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cMkt301.Id, DayOfWeek = DayOfWeek.Monday, StartTime = "10:00 AM", EndTime = "11:30 AM", Location = "Business Wing", Room = "Conference Room B", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cMkt301.Id, DayOfWeek = DayOfWeek.Thursday, StartTime = "10:00 AM", EndTime = "11:30 AM", Location = "Business Wing", Room = "Conference Room B", ScheduleType = "Discussion" });
+            }
+
+            // DES-201 – Wed/Fri
+            var cDes201 = courses.FirstOrDefault(c => c.Code == "DES-201");
+            if (cDes201 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cDes201.Id, DayOfWeek = DayOfWeek.Wednesday, StartTime = "01:00 PM", EndTime = "02:30 PM", Location = "Design Center", Room = "UX Lab", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cDes201.Id, DayOfWeek = DayOfWeek.Friday, StartTime = "01:00 PM", EndTime = "02:30 PM", Location = "Design Center", Room = "UX Lab", ScheduleType = "Lab" });
+            }
+
+            // WEB-301 – Tue/Thu
+            var cWeb301 = courses.FirstOrDefault(c => c.Code == "WEB-301");
+            if (cWeb301 != null)
+            {
+                courseSchedules.Add(new CourseSchedule { CourseId = cWeb301.Id, DayOfWeek = DayOfWeek.Tuesday, StartTime = "10:00 AM", EndTime = "12:00 PM", Location = "Tech Campus West", Room = "Computer Lab 4", ScheduleType = "Lecture" });
+                courseSchedules.Add(new CourseSchedule { CourseId = cWeb301.Id, DayOfWeek = DayOfWeek.Thursday, StartTime = "10:00 AM", EndTime = "12:00 PM", Location = "Tech Campus West", Room = "Computer Lab 4", ScheduleType = "Lab" });
+            }
+
+            if (courseSchedules.Any())
+            {
+                await db.CourseSchedules.AddRangeAsync(courseSchedules);
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // Seed Course Modules & Lessons
+        if (!await db.CourseModules.AnyAsync())
+        {
+            var courses = await db.Courses.ToListAsync();
+            var modules = new List<CourseModule>();
+
+            foreach (var course in courses)
+            {
+                if (course.Code == "WEB-101")
+                {
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = "Programming Fundamentals & Syntax",
+                        Description = "Core concepts of computing, variables, conditional logic, and looping structures.",
+                        OrderIndex = 1,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Introduction to Python Environment & Tooling", OrderIndex = 1 },
+                            new() { Title = "Variables, Primitive Data Types & Expressions", OrderIndex = 2 },
+                            new() { Title = "Control Flow: Conditionals and Branching", OrderIndex = 3 },
+                            new() { Title = "Loops & Iterations", OrderIndex = 4 }
+                        }
+                    });
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = "Functions & Data Structures",
+                        Description = "Writing modular reusable code and managing composite data collections.",
+                        OrderIndex = 2,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Function Definitions, Scope & Return Values", OrderIndex = 1 },
+                            new() { Title = "Working with Lists, Tuples, and Dictionaries", OrderIndex = 2 },
+                            new() { Title = "List Comprehensions & Higher-Order Functions", OrderIndex = 3 }
+                        }
+                    });
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = "Object-Oriented Programming",
+                        Description = "Classes, instances, encapsulation, inheritance, and polymorphic patterns.",
+                        OrderIndex = 3,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Classes, Instances & Attribute Architecture", OrderIndex = 1 },
+                            new() { Title = "Inheritance & Method Overriding", OrderIndex = 2 },
+                            new() { Title = "Encapsulation & Polymorphism Principles", OrderIndex = 3 }
+                        }
+                    });
+                }
+                else if (course.Code == "MKT-201")
+                {
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = "Marketing Fundamentals & Brand Strategy",
+                        Description = "Foundational marketing principles, customer journeys, and brand positioning.",
+                        OrderIndex = 1,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Introduction to Digital Marketing Landscapes", OrderIndex = 1 },
+                            new() { Title = "Understanding Target Audiences & Buyer Personas", OrderIndex = 2 },
+                            new() { Title = "Marketing Funnel Architecture", OrderIndex = 3 },
+                            new() { Title = "Brand Positioning Essentials", OrderIndex = 4 }
+                        }
+                    });
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = "Search Engine Optimization (SEO)",
+                        Description = "Optimizing search visibility, technical performance, and organic authority.",
+                        OrderIndex = 2,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "On-Page SEO & Keyword Research", OrderIndex = 1 },
+                            new() { Title = "Technical SEO & Core Web Vitals", OrderIndex = 2 },
+                            new() { Title = "Backlink Strategies & Domain Authority", OrderIndex = 3 }
+                        }
+                    });
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = "Performance Advertising & Analytics",
+                        Description = "Paid acquisition channels, attribution modeling, and data-driven optimization.",
+                        OrderIndex = 3,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Google Search & Display Advertising", OrderIndex = 1 },
+                            new() { Title = "Paid Social Media Campaigns", OrderIndex = 2 },
+                            new() { Title = "Conversion Rate Optimization (CRO)", OrderIndex = 3 }
+                        }
+                    });
+                }
+                else
+                {
+                    // Generic default modules for other courses
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = $"{course.Title} - Core Concepts",
+                        Description = "Theoretical foundation and introductory methodologies.",
+                        OrderIndex = 1,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Orientation & Core Terminology", OrderIndex = 1 },
+                            new() { Title = "Principles & Frameworks", OrderIndex = 2 },
+                            new() { Title = "Foundational Exercises", OrderIndex = 3 }
+                        }
+                    });
+                    modules.Add(new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = $"{course.Title} - Applied Practice",
+                        Description = "Practical implementations, case studies, and advanced project work.",
+                        OrderIndex = 2,
+                        Lessons = new List<CourseLesson>
+                        {
+                            new() { Title = "Applied Case Study & Workflow", OrderIndex = 1 },
+                            new() { Title = "Best Practices & Standards", OrderIndex = 2 },
+                            new() { Title = "Capstone Project Review", OrderIndex = 3 }
+                        }
+                    });
+                }
+            }
+
+            await db.CourseModules.AddRangeAsync(modules);
+            await db.SaveChangesAsync();
+        }
+
+        // Seed Course Resources
+        if (!await db.CourseResources.AnyAsync())
+        {
+            var courses = await db.Courses.ToListAsync();
+            var resources = new List<CourseResource>();
+
+            foreach (var course in courses)
+            {
+                if (course.Code == "WEB-101")
+                {
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Python Programming Handbook", FileType = "PDF", FileSize = "3.8 MB", Url = "/resources/python-handbook.pdf" });
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Code Samples & Exercises", FileType = "DOCX", FileSize = "1.4 MB", Url = "/resources/python-exercises.docx" });
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Python Syntax Cheat Sheet", FileType = "PDF", FileSize = "0.9 MB", Url = "/resources/python-cheatsheet.pdf" });
+                }
+                else if (course.Code == "MKT-201")
+                {
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Digital Marketing Handbook", FileType = "PDF", FileSize = "4.3 MB", Url = "/resources/digital-marketing-handbook.pdf" });
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Social Media Campaign Guide", FileType = "PDF", FileSize = "1.6 MB", Url = "/resources/social-campaign-guide.pdf" });
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "SEO Checklist Template", FileType = "PDF", FileSize = "0.9 MB", Url = "/resources/seo-checklist.pdf" });
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Marketing Analytics Spreadsheet", FileType = "XLSX", FileSize = "3.2 MB", Url = "/resources/analytics-template.xlsx" });
+                }
+                else
+                {
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = $"{course.Title} Syllabus", FileType = "PDF", FileSize = "1.2 MB", Url = "/resources/syllabus.pdf" });
+                    resources.Add(new CourseResource { CourseId = course.Id, Title = "Lecture Slides & Study Notes", FileType = "PDF", FileSize = "2.5 MB", Url = "/resources/lecture-slides.pdf" });
+                }
+            }
+
+            await db.CourseResources.AddRangeAsync(resources);
             await db.SaveChangesAsync();
         }
 
@@ -502,14 +787,14 @@ public static class DataSeeder
             {
                 var enrollments = new List<Enrollment>
                 {
-                    new() { StudentId = stList[0].Id, CourseId = crList[6].Id, Status = EnrollmentStatus.Active, Batch = "Batch 12", Fee = 42m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0142", Country = "USA", EnrolledAt = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[1].Id, CourseId = crList[2].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 8", Fee = 55m, PaymentStatus = "Pending", PhoneNumber = "+1 202-555-0189", Country = "Canada", EnrolledAt = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[2].Id, CourseId = crList[4].Id, Status = EnrollmentStatus.Active, Batch = "Batch 5", Fee = 27m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0171", Country = "UK", EnrolledAt = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[3].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 10", Fee = 49m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0133", Country = "Australia", EnrolledAt = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[4].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 6", Fee = 32m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0160", Country = "Germany", EnrolledAt = new DateTime(2030, 5, 16, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[5].Id, CourseId = crList[7].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 4", Fee = 79m, PaymentStatus = "Pending", PhoneNumber = "+1 202-555-0194", Country = "USA", EnrolledAt = new DateTime(2030, 5, 16, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[6].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 9", Fee = 39m, PaymentStatus = "Paid", PhoneNumber = "+1 202-555-0118", Country = "USA", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) },
-                    new() { StudentId = stList[7].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 7", Fee = 51m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0125", Country = "UK", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) }
+                    new() { StudentId = stList[0].Id, CourseId = crList[6].Id, Status = EnrollmentStatus.Active, Batch = "Batch 12", PhoneNumber = "+1 202-555-0142", Country = "USA", EnrolledAt = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[1].Id, CourseId = crList[2].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 8", PhoneNumber = "+1 202-555-0189", Country = "Canada", EnrolledAt = new DateTime(2030, 5, 18, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[2].Id, CourseId = crList[4].Id, Status = EnrollmentStatus.Active, Batch = "Batch 5", PhoneNumber = "+1 202-555-0171", Country = "UK", EnrolledAt = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[3].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 10", PhoneNumber = "+1 202-555-0133", Country = "Australia", EnrolledAt = new DateTime(2030, 5, 17, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[4].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 6", PhoneNumber = "+1 202-555-0160", Country = "Germany", EnrolledAt = new DateTime(2030, 5, 16, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[5].Id, CourseId = crList[7].Id, Status = EnrollmentStatus.Pending, Batch = "Batch 4", PhoneNumber = "+1 202-555-0194", Country = "USA", EnrolledAt = new DateTime(2030, 5, 16, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[6].Id, CourseId = crList[0].Id, Status = EnrollmentStatus.Active, Batch = "Batch 9", PhoneNumber = "+1 202-555-0118", Country = "USA", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) },
+                    new() { StudentId = stList[7].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 7", PhoneNumber = "+1 202-555-0125", Country = "UK", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) }
                 };
 
                 // Assign grades for completed/active courses
@@ -532,6 +817,116 @@ public static class DataSeeder
                 scheds[i].CourseId = sampleCourses[i % sampleCourses.Count].Id;
                 scheds[i].ScheduleType = (i % 3 == 0) ? "Lecture" : (i % 3 == 1) ? "Lab" : "Workshop";
             }
+            await db.SaveChangesAsync();
+        }
+
+        // ─── Seed Student A + Course A/B/C (Requirement 18 exact scenario) ───────────────
+        const string studentAEmail = "student.a@eduva.com";
+        if (!await db.Courses.AnyAsync(c => c.Code == "CRS-A"))
+        {
+            var instList2 = await db.Instructors.ToListAsync();
+            var instrJohnDoe   = instList2.FirstOrDefault(i => i.FirstName == "Noah") ?? instList2.FirstOrDefault();
+            var instrElise     = instList2.FirstOrDefault(i => i.FirstName == "Elise") ?? instList2.FirstOrDefault();
+            var instrFabricio  = instList2.FirstOrDefault(i => i.FirstName == "Fabricio") ?? instList2.FirstOrDefault();
+
+            var courseA = new Course
+            {
+                Code = "CRS-A", Title = "Course A", Category = "Design", Status = "Active", Level = "Beginner",
+                DurationHours = 12, LessonsCount = 3, DurationWeeks = 3, Rating = 4.8m, ReviewsCount = 0, EnrolledStudentsCount = 0,
+                StartDate = new DateTime(2026, 9, 7, 0, 0, 0, DateTimeKind.Utc),
+                EndDate   = new DateTime(2026, 9, 21, 23, 59, 59, DateTimeKind.Utc),
+                Description = "Course A: 3 Weeks, Sep 7–Sep 21, Monday 3 PM–4 PM.",
+                About = "Requirement 18 scenario: Course A.",
+                ImageUrl = "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&auto=format&fit=crop&q=80",
+                InstructorId = instrJohnDoe?.Id
+            };
+            var courseB = new Course
+            {
+                Code = "CRS-B", Title = "Course B", Category = "Web Dev", Status = "Active", Level = "Intermediate",
+                DurationHours = 16, LessonsCount = 8, DurationWeeks = 4, Rating = 4.7m, ReviewsCount = 0, EnrolledStudentsCount = 0,
+                StartDate = new DateTime(2026, 9, 8, 0, 0, 0, DateTimeKind.Utc),
+                EndDate   = new DateTime(2026, 9, 29, 23, 59, 59, DateTimeKind.Utc),
+                Description = "Course B: 4 Weeks, Sep 8–Sep 29, Tue/Thu 10 AM–11 AM.",
+                About = "Requirement 18 scenario: Course B.",
+                ImageUrl = "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80",
+                InstructorId = instrElise?.Id
+            };
+            var courseC = new Course
+            {
+                Code = "CRS-C", Title = "Course C", Category = "Marketing", Status = "Active", Level = "Beginner",
+                DurationHours = 24, LessonsCount = 12, DurationWeeks = 6, Rating = 4.6m, ReviewsCount = 0, EnrolledStudentsCount = 0,
+                StartDate = new DateTime(2026, 9, 9, 0, 0, 0, DateTimeKind.Utc),
+                EndDate   = new DateTime(2026, 10, 16, 23, 59, 59, DateTimeKind.Utc),
+                Description = "Course C: 6 Weeks, Sep 9–Oct 16, Wed/Fri 1 PM–2 PM.",
+                About = "Requirement 18 scenario: Course C.",
+                ImageUrl = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80",
+                InstructorId = instrFabricio?.Id
+            };
+
+            await db.Courses.AddRangeAsync(courseA, courseB, courseC);
+            await db.SaveChangesAsync();
+
+            // Schedules for Course A/B/C
+            var schedA = new List<CourseSchedule>
+            {
+                new() { CourseId = courseA.Id, DayOfWeek = DayOfWeek.Monday, StartTime = "03:00 PM", EndTime = "04:00 PM", Location = "Main Training Center", Room = "Room 204", ScheduleType = "Lecture" }
+            };
+            var schedB = new List<CourseSchedule>
+            {
+                new() { CourseId = courseB.Id, DayOfWeek = DayOfWeek.Tuesday,  StartTime = "10:00 AM", EndTime = "11:00 AM", Location = "Tech Campus West", Room = "Computer Lab 4", ScheduleType = "Lecture" },
+                new() { CourseId = courseB.Id, DayOfWeek = DayOfWeek.Thursday, StartTime = "10:00 AM", EndTime = "11:00 AM", Location = "Tech Campus West", Room = "Computer Lab 4", ScheduleType = "Lecture" }
+            };
+            var schedC = new List<CourseSchedule>
+            {
+                new() { CourseId = courseC.Id, DayOfWeek = DayOfWeek.Wednesday, StartTime = "01:00 PM", EndTime = "02:00 PM", Location = "Design Center", Room = "Design Studio 1", ScheduleType = "Lecture" },
+                new() { CourseId = courseC.Id, DayOfWeek = DayOfWeek.Friday,    StartTime = "01:00 PM", EndTime = "02:00 PM", Location = "Design Center", Room = "Design Studio 1", ScheduleType = "Lecture" }
+            };
+            await db.CourseSchedules.AddRangeAsync(schedA);
+            await db.CourseSchedules.AddRangeAsync(schedB);
+            await db.CourseSchedules.AddRangeAsync(schedC);
+            await db.SaveChangesAsync();
+
+            // Create/find Student A
+            var studentA = await db.Students.FirstOrDefaultAsync(s => s.Email == studentAEmail);
+            if (studentA == null)
+            {
+                studentA = new Student
+                {
+                    FirstName = "Student", LastName = "A",
+                    Email = studentAEmail,
+                    RegistrationNumber = "REG-2026-SA1",
+                    Gpa = 4.0m
+                };
+                await db.Students.AddAsync(studentA);
+                await db.SaveChangesAsync();
+
+                var stAUser = await userManager.FindByEmailAsync(studentAEmail);
+                if (stAUser == null)
+                {
+                    stAUser = new TmsUser
+                    {
+                        UserName = studentAEmail, Email = studentAEmail,
+                        FirstName = "Student", LastName = "A",
+                        StudentId = studentA.Id,
+                        EmailConfirmed = true
+                    };
+                    await userManager.CreateAsync(stAUser, "StudentA123!");
+                    await userManager.AddToRoleAsync(stAUser, "Student");
+                }
+                studentA.UserId = stAUser.Id;
+                if (!stAUser.StudentId.HasValue)
+                {
+                    stAUser.StudentId = studentA.Id;
+                    await userManager.UpdateAsync(stAUser);
+                }
+                await db.SaveChangesAsync();
+            }
+
+            // Active enrollments for Student A in Course A, B, C
+            var enrollA = new Enrollment { StudentId = studentA.Id, CourseId = courseA.Id, Status = EnrollmentStatus.Active, Batch = "Batch 1", PhoneNumber = "+1 202-555-0001", Country = "USA", EnrolledAt = DateTime.UtcNow };
+            var enrollB = new Enrollment { StudentId = studentA.Id, CourseId = courseB.Id, Status = EnrollmentStatus.Active, Batch = "Batch 1", PhoneNumber = "+1 202-555-0001", Country = "USA", EnrolledAt = DateTime.UtcNow };
+            var enrollC = new Enrollment { StudentId = studentA.Id, CourseId = courseC.Id, Status = EnrollmentStatus.Active, Batch = "Batch 1", PhoneNumber = "+1 202-555-0001", Country = "USA", EnrolledAt = DateTime.UtcNow };
+            await db.Enrollments.AddRangeAsync(enrollA, enrollB, enrollC);
             await db.SaveChangesAsync();
         }
 
@@ -606,6 +1001,137 @@ public static class DataSeeder
                 };
 
                 await db.Assessments.AddRangeAsync(assessments);
+                await db.SaveChangesAsync();
+            }
+
+            // Seed Assignments for Courses if empty
+            if (!await db.Assignments.AnyAsync())
+            {
+                var allCourses = await db.Courses.Include(c => c.Modules).ThenInclude(m => m.Lessons).ToListAsync();
+                var enrollments = await db.Enrollments.Include(e => e.Student).ToListAsync();
+
+                foreach (var course in allCourses)
+                {
+                    var firstMod = course.Modules.FirstOrDefault();
+                    var firstLesson = firstMod?.Lessons.FirstOrDefault();
+
+                    var assign1 = new Assignment
+                    {
+                        CourseId = course.Id,
+                        CourseModuleId = firstMod?.Id,
+                        CourseLessonId = firstLesson?.Id,
+                        Title = $"{course.Title}: Foundations & Analysis",
+                        Instructions = "Analyze the primary core concepts covered in the initial modules. Provide practical case evaluations, structural frameworks, and documented findings in PDF format.",
+                        MaxPoints = 100m,
+                        DueDate = DateTime.UtcNow.AddDays(5),
+                        IsPublished = true,
+                        CreatedAt = DateTime.UtcNow.AddDays(-5),
+                        CreatedByInstructorId = course.InstructorId
+                    };
+
+                    var assign2 = new Assignment
+                    {
+                        CourseId = course.Id,
+                        CourseModuleId = firstMod?.Id,
+                        Title = $"{course.Title}: Practical Implementation Project",
+                        Instructions = "Implement the end-to-end practical solution demonstrating technical mastery and industry best practices. Submit your comprehensive project report.",
+                        MaxPoints = 100m,
+                        DueDate = DateTime.UtcNow.AddDays(12),
+                        IsPublished = true,
+                        CreatedAt = DateTime.UtcNow.AddDays(-2),
+                        CreatedByInstructorId = course.InstructorId
+                    };
+
+                    await db.Assignments.AddRangeAsync(assign1, assign2);
+                    await db.SaveChangesAsync();
+
+                    // Create student submission records for enrolled students
+                    var courseEnrollments = enrollments.Where(e => e.CourseId == course.Id).ToList();
+                    foreach (var en in courseEnrollments)
+                    {
+                        // Some submitted awaiting grading
+                        db.Assessments.Add(new Assessment
+                        {
+                            StudentId = en.StudentId,
+                            CourseId = course.Id,
+                            AssignmentId = assign1.Id,
+                            Title = assign1.Title,
+                            MaxScore = assign1.MaxPoints,
+                            ScoredPoints = null,
+                            DueDate = assign1.DueDate,
+                            SubmittedAt = DateTime.UtcNow.AddHours(-14),
+                            Status = "Submitted",
+                            SubmissionFileUrl = "/uploads/sample_submission.pdf",
+                            SubmissionText = "Completed comprehensive project report adhering to all specified guidelines and evaluation metrics.",
+                            IsPublished = true
+                        });
+                    }
+                }
+                await db.SaveChangesAsync();
+            }
+
+            // Seed Student Questions if empty
+            if (!await db.StudentQuestions.AnyAsync())
+            {
+                var activeCourses = await db.Courses.Take(4).ToListAsync();
+                var sampleStudents = await db.Students.Take(4).ToListAsync();
+
+                if (activeCourses.Any() && sampleStudents.Any())
+                {
+                    db.StudentQuestions.AddRange(
+                        new StudentQuestion
+                        {
+                            StudentId = sampleStudents[0].Id,
+                            CourseId = activeCourses[0].Id,
+                            Question = "Could you please clarify the required format for the final case study report in Module 2?",
+                            IsAnswered = false,
+                            CreatedAt = DateTime.UtcNow.AddHours(-3)
+                        },
+                        new StudentQuestion
+                        {
+                            StudentId = sampleStudents[1].Id,
+                            CourseId = activeCourses[0].Id,
+                            Question = "Is it acceptable to use TypeScript strict mode for the practical exercises?",
+                            Answer = "Yes, strict typing is strongly encouraged and aligns with production standards.",
+                            IsAnswered = true,
+                            CreatedAt = DateTime.UtcNow.AddDays(-1),
+                            AnsweredAt = DateTime.UtcNow.AddHours(-12),
+                            AnsweredByInstructorId = activeCourses[0].InstructorId
+                        },
+                        new StudentQuestion
+                        {
+                            StudentId = sampleStudents[2].Id,
+                            CourseId = activeCourses[Math.Min(1, activeCourses.Count - 1)].Id,
+                            Question = "Where can we access the supplemental PDF references mentioned during today's session?",
+                            IsAnswered = false,
+                            CreatedAt = DateTime.UtcNow.AddHours(-6)
+                        }
+                    );
+                    await db.SaveChangesAsync();
+                }
+            }
+
+            // Seed Initial Attendance Records if empty
+            if (!await db.Attendances.AnyAsync())
+            {
+                var courses = await db.Courses.Include(c => c.Enrollments).Take(4).ToListAsync();
+                foreach (var c in courses)
+                {
+                    var sessionDate = DateTime.UtcNow.Date;
+                    foreach (var en in c.Enrollments)
+                    {
+                        db.Attendances.Add(new Attendance
+                        {
+                            StudentId = en.StudentId,
+                            CourseId = c.Id,
+                            SessionDate = sessionDate,
+                            Status = en.StudentId % 3 == 0 ? AttendanceStatus.Late : (en.StudentId % 5 == 0 ? AttendanceStatus.Absent : AttendanceStatus.Present),
+                            RecordedAt = DateTime.UtcNow,
+                            RecordedByInstructorId = c.InstructorId,
+                            Remarks = en.StudentId % 3 == 0 ? "Arrived 10 mins late" : null
+                        });
+                    }
+                }
                 await db.SaveChangesAsync();
             }
         }

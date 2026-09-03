@@ -9,6 +9,16 @@ public class StudentDto
     public string Email { get; set; } = string.Empty;
     public DateTime EnrollmentDate { get; set; }
     public decimal Gpa { get; set; }
+    public int CoursesEnrolled { get; set; }
+    public string Status { get; set; } = "Active";
+    public string Avatar { get; set; } = string.Empty;
+}
+
+public class StudentStatsDto
+{
+    public int TotalStudents { get; set; }
+    public int ActiveEnrolled { get; set; }
+    public int CertificatesIssued { get; set; }
 }
 
 public class CreateStudentDto

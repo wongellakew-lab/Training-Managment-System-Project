@@ -34,6 +34,9 @@ public class PagedRequest
     public string? Department { get; set; }
     public string? Category { get; set; }
     public string? Status { get; set; }
+    public string? SkillLevel { get; set; }
+    public string? SubjectMatter { get; set; }
+    public string? Availability { get; set; }
     public string? SortBy { get; set; }
     public bool SortDescending { get; set; } = false;
     public string? Fields { get; set; }

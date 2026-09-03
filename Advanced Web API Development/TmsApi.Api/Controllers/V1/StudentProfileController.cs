@@ -41,24 +41,52 @@ public class StudentProfileController : ControllerBase
         {
             student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Id == user.StudentId.Value);
         }
+        if (student == null)
+        {
+            student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == user.Id);
+        }
 
         var roles = await _userManager.GetRolesAsync(user);
+
+        var totalEnrollments = student != null
+            ? await _context.Enrollments.CountAsync(e => e.StudentId == student.Id && !e.IsDeleted)
+            : 0;
+
+        var completedCourses = student != null
+            ? await _context.Enrollments.CountAsync(e => e.StudentId == student.Id && e.Status == EnrollmentStatus.Completed && !e.IsDeleted)
+            : 0;
+
+        var activeCourses = student != null
+            ? await _context.Enrollments.CountAsync(e => e.StudentId == student.Id && e.Status == EnrollmentStatus.Active && !e.IsDeleted)
+            : 0;
+
+        var earnedCertificates = student != null
+            ? await _context.Certificates.CountAsync(c => c.StudentId == student.Id)
+            : 0;
+
+        var regNum = !string.IsNullOrWhiteSpace(student?.RegistrationNumber)
+            ? student.RegistrationNumber
+            : (student != null ? $"STU-{student.Id:D5}" : $"STU-{user.Id[..Math.Min(6, user.Id.Length)].ToUpper()}");
 
         return Ok(new
         {
             id = user.Id,
-            studentId = user.StudentId,
+            studentId = user.StudentId ?? student?.Id,
             email = user.Email,
             firstName = user.FirstName,
             lastName = user.LastName,
-            phoneNumber = user.PhoneNumber ?? student?.PhoneNumber,
-            department = user.Department ?? student?.Department ?? "Design & Technology",
-            bio = user.Bio ?? student?.Bio ?? "Enthusiastic student in the Eduva TMS Program.",
+            phoneNumber = user.PhoneNumber ?? student?.PhoneNumber ?? string.Empty,
+            department = user.Department ?? student?.Department ?? "General Academic Program",
+            bio = user.Bio ?? student?.Bio ?? string.Empty,
             profilePictureUrl = user.ProfilePictureUrl ?? student?.ProfilePictureUrl,
-            registrationNumber = student?.RegistrationNumber ?? "REG-2030-001",
+            registrationNumber = regNum,
             gpa = student?.Gpa ?? 0m,
             enrollmentDate = student?.EnrollmentDate ?? user.CreatedAt,
-            roles
+            roles,
+            totalEnrollments,
+            completedCourses,
+            activeCourses,
+            earnedCertificates
         });
     }
 
@@ -81,18 +109,30 @@ public class StudentProfileController : ControllerBase
 
         await _userManager.UpdateAsync(user);
 
+        Student? student = null;
         if (user.StudentId.HasValue)
         {
-            var student = await _context.Students.FindAsync(user.StudentId.Value);
-            if (student != null)
+            student = await _context.Students.FindAsync(user.StudentId.Value);
+        }
+        if (student == null)
+        {
+            student = await _context.Students.FirstOrDefaultAsync(s => s.UserId == user.Id);
+        }
+
+        if (student != null)
+        {
+            student.FirstName = user.FirstName;
+            student.LastName = user.LastName;
+            student.PhoneNumber = user.PhoneNumber;
+            student.Department = user.Department;
+            student.Bio = user.Bio;
+            if (student.UserId == null) student.UserId = user.Id;
+            if (!user.StudentId.HasValue)
             {
-                student.FirstName = user.FirstName;
-                student.LastName = user.LastName;
-                student.PhoneNumber = user.PhoneNumber;
-                student.Department = user.Department;
-                student.Bio = user.Bio;
-                await _context.SaveChangesAsync();
+                user.StudentId = student.Id;
+                await _userManager.UpdateAsync(user);
             }
+            await _context.SaveChangesAsync();
         }
 
         return Ok(new { message = "Profile updated successfully." });
@@ -159,14 +199,21 @@ public class StudentProfileController : ControllerBase
         user.ProfilePictureUrl = avatarUrl;
         await _userManager.UpdateAsync(user);
 
+        Student? student = null;
         if (user.StudentId.HasValue)
         {
-            var student = await _context.Students.FindAsync(user.StudentId.Value);
-            if (student != null)
-            {
-                student.ProfilePictureUrl = avatarUrl;
-                await _context.SaveChangesAsync();
-            }
+            student = await _context.Students.FindAsync(user.StudentId.Value);
+        }
+        if (student == null)
+        {
+            student = await _context.Students.FirstOrDefaultAsync(s => s.UserId == user.Id);
+        }
+
+        if (student != null)
+        {
+            student.ProfilePictureUrl = avatarUrl;
+            if (student.UserId == null) student.UserId = user.Id;
+            await _context.SaveChangesAsync();
         }
 
         return Ok(new { avatarUrl, message = "Avatar uploaded successfully." });

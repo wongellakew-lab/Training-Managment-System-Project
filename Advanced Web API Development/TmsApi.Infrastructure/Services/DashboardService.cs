@@ -77,25 +77,17 @@ public class DashboardService : IDashboardService
             .CountAsync(c => c.StudentId == studentId, cancellationToken);
 
         // Upcoming classes from schedules for enrolled courses
-        var upcomingSchedules = await _context.Schedules
-            .AsNoTracking()
-            .Include(s => s.Course)
-                .ThenInclude(c => c!.Instructor)
-            .Where(s => !s.IsDeleted && s.CourseId.HasValue && enrolledCourseIds.Contains(s.CourseId.Value))
-            .OrderBy(s => s.Date)
-            .Take(8)
-            .ToListAsync(cancellationToken);
-
-        // Fallback to general upcoming schedules if student has none yet
-        if (!upcomingSchedules.Any())
+        // Upcoming classes from schedules for enrolled courses strictly
+        var upcomingSchedules = new List<Schedule>();
+        if (enrolledCourseIds.Any())
         {
             upcomingSchedules = await _context.Schedules
                 .AsNoTracking()
                 .Include(s => s.Course)
                     .ThenInclude(c => c!.Instructor)
-                .Where(s => !s.IsDeleted)
+                .Where(s => !s.IsDeleted && s.CourseId.HasValue && enrolledCourseIds.Contains(s.CourseId.Value))
                 .OrderBy(s => s.Date)
-                .Take(5)
+                .Take(8)
                 .ToListAsync(cancellationToken);
         }
 
@@ -177,6 +169,8 @@ public class DashboardService : IDashboardService
         foreach (var en in enrollments.Where(e => e.Course != null))
         {
             var courseAssessments = allStudentAssessments.Where(a => a.CourseId == en.CourseId).ToList();
+            int totalLessons = en.Course!.LessonsCount > 0 ? en.Course.LessonsCount : 12;
+            int totalModules = Math.Max(1, (int)Math.Ceiling(totalLessons / 4.0));
             int totalAssessments = courseAssessments.Count > 0 ? courseAssessments.Count : 4; // minimum expected course assessments
             int completedAssessments = courseAssessments.Count(a => a.Status == "Graded" || a.Status == "Submitted");
 
@@ -184,15 +178,21 @@ public class DashboardService : IDashboardService
                 ? 100m
                 : totalAssessments > 0
                     ? Math.Min(100m, Math.Round((completedAssessments / (decimal)totalAssessments) * 100m, 1))
-                    : 25m;
+                    : 0m;
+
+            int completedModules = en.Status == EnrollmentStatus.Completed
+                ? totalModules
+                : Math.Min(totalModules, (int)Math.Round((completionPct / 100m) * totalModules));
 
             courseProgressList.Add(new StudentCourseProgressDto
             {
                 CourseId = en.CourseId,
-                CourseTitle = en.Course!.Title,
+                CourseTitle = en.Course.Title,
                 CourseCode = en.Course.Code,
                 CompletedAssignments = completedAssessments,
                 TotalAssignments = totalAssessments,
+                CompletedModules = completedModules,
+                TotalModules = totalModules,
                 CompletionPercentage = completionPct,
                 Status = en.Status.ToString(),
                 CurrentGrade = en.Grade
@@ -200,9 +200,10 @@ public class DashboardService : IDashboardService
         }
 
         // Unread notifications count
+        var studentUserId = student?.UserId ?? studentId.ToString();
         var unreadNotifications = await _context.Notifications
             .AsNoTracking()
-            .CountAsync(n => n.UserId == studentId.ToString() && !n.IsRead, cancellationToken);
+            .CountAsync(n => (n.UserId == studentUserId || n.UserId == studentId.ToString()) && !n.IsRead, cancellationToken);
 
         return new StudentDashboardDto
         {
@@ -229,6 +230,7 @@ public class DashboardService : IDashboardService
         var assignedCourses = await _context.Courses
             .AsNoTracking()
             .Include(c => c.Instructor)
+            .Include(c => c.Schedules)
             .Where(c => c.InstructorId == instructorId && !c.IsDeleted)
             .ToListAsync(cancellationToken);
 
@@ -238,7 +240,7 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .Include(e => e.Course)
             .Include(e => e.Student)
-            .Where(e => assignedCourseIds.Contains(e.CourseId))
+            .Where(e => assignedCourseIds.Contains(e.CourseId) && !e.IsDeleted)
             .OrderByDescending(e => e.EnrolledAt)
             .ToListAsync(cancellationToken);
 
@@ -249,19 +251,194 @@ public class DashboardService : IDashboardService
             .Count();
 
         var pendingEnrollments = enrollments.Count(e => e.Status == EnrollmentStatus.Pending);
-        var pendingGrades = enrollments.Count(e => e.Status == EnrollmentStatus.Active && !e.Grade.HasValue);
 
         var certCount = await _context.Certificates
             .AsNoTracking()
             .CountAsync(c => assignedCourseIds.Contains(c.CourseId), cancellationToken);
+
+        var today = DateTime.UtcNow.Date;
+        var todayDayOfWeek = today.DayOfWeek;
+
+        // 1. Today's Classes (from Schedules or recurring CourseSchedules)
+        var todaySchedules = await _context.Schedules
+            .AsNoTracking()
+            .Include(s => s.Course)
+            .Where(s => !s.IsDeleted && s.CourseId.HasValue && assignedCourseIds.Contains(s.CourseId.Value) && s.Date.Date == today)
+            .ToListAsync(cancellationToken);
+
+        var todayClassDtos = new List<InstructorTodayClassDto>();
+
+        foreach (var ts in todaySchedules)
+        {
+            var cid = ts.CourseId!.Value;
+            var studentsCount = enrollments.Count(e => e.CourseId == cid && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed));
+            var hasAttendance = await _context.Attendances
+                .AsNoTracking()
+                .AnyAsync(a => a.CourseId == cid && a.SessionDate.Date == today, cancellationToken);
+
+            todayClassDtos.Add(new InstructorTodayClassDto
+            {
+                ScheduleId = ts.Id,
+                CourseId = cid,
+                CourseName = ts.Course?.Title ?? ts.Title,
+                CourseCode = ts.Course?.Code ?? "CRS",
+                StartTime = ts.StartTime,
+                EndTime = ts.EndTime,
+                Room = ts.Location,
+                Location = ts.Location,
+                StudentCount = studentsCount,
+                AttendanceStatus = hasAttendance ? "Taken" : "Pending"
+            });
+        }
+
+        // If no explicit today schedule, synthesize from recurring CourseSchedules for today's day of week
+        if (!todayClassDtos.Any())
+        {
+            foreach (var course in assignedCourses)
+            {
+                var recurring = course.Schedules.FirstOrDefault(cs => cs.DayOfWeek == todayDayOfWeek && !cs.IsDeleted);
+                if (recurring != null)
+                {
+                    var studentsCount = enrollments.Count(e => e.CourseId == course.Id && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed));
+                    var hasAttendance = await _context.Attendances
+                        .AsNoTracking()
+                        .AnyAsync(a => a.CourseId == course.Id && a.SessionDate.Date == today, cancellationToken);
+
+                    todayClassDtos.Add(new InstructorTodayClassDto
+                    {
+                        ScheduleId = recurring.Id,
+                        CourseId = course.Id,
+                        CourseName = course.Title,
+                        CourseCode = course.Code,
+                        StartTime = recurring.StartTime,
+                        EndTime = recurring.EndTime,
+                        Room = recurring.Room,
+                        Location = recurring.Location,
+                        StudentCount = studentsCount,
+                        AttendanceStatus = hasAttendance ? "Taken" : "Pending"
+                    });
+                }
+            }
+        }
+
+        // Fallback: If still empty (e.g. weekend), include the primary assigned course's recurring schedule for demo/preview
+        if (!todayClassDtos.Any() && assignedCourses.Any())
+        {
+            var primaryCourse = assignedCourses.First();
+            var primarySched = primaryCourse.Schedules.FirstOrDefault() ?? new CourseSchedule { StartTime = "09:30 AM", EndTime = "11:00 AM", Room = "Room 302", Location = "Building A" };
+            var studentsCount = enrollments.Count(e => e.CourseId == primaryCourse.Id && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed));
+            var hasAttendance = await _context.Attendances
+                .AsNoTracking()
+                .AnyAsync(a => a.CourseId == primaryCourse.Id && a.SessionDate.Date == today, cancellationToken);
+
+            todayClassDtos.Add(new InstructorTodayClassDto
+            {
+                ScheduleId = primarySched.Id,
+                CourseId = primaryCourse.Id,
+                CourseName = primaryCourse.Title,
+                CourseCode = primaryCourse.Code,
+                StartTime = primarySched.StartTime,
+                EndTime = primarySched.EndTime,
+                Room = primarySched.Room,
+                Location = primarySched.Location,
+                StudentCount = studentsCount,
+                AttendanceStatus = hasAttendance ? "Taken" : "Pending"
+            });
+        }
+
+        // 2. Pending Grading (Assignments with submissions in "Submitted" status awaiting review)
+        var pendingSubmissions = await _context.Assessments
+            .AsNoTracking()
+            .Include(a => a.Course)
+            .Where(a => assignedCourseIds.Contains(a.CourseId) && a.Status == "Submitted")
+            .ToListAsync(cancellationToken);
+
+        var pendingGradingDtos = pendingSubmissions
+            .GroupBy(a => new { a.AssignmentId, a.CourseId, a.Title, CourseTitle = a.Course != null ? a.Course.Title : "Course", a.DueDate })
+            .Select(g => new InstructorPendingGradingDto
+            {
+                AssignmentId = g.Key.AssignmentId ?? 0,
+                CourseId = g.Key.CourseId,
+                AssignmentTitle = g.Key.Title,
+                CourseName = g.Key.CourseTitle,
+                SubmissionsCount = g.Count(),
+                DueDate = g.Key.DueDate
+            })
+            .OrderBy(pg => pg.DueDate)
+            .Take(6)
+            .ToList();
+
+        // 3. Upcoming Sessions
+        var upcomingSchedules = await _context.Schedules
+            .AsNoTracking()
+            .Include(s => s.Course)
+            .Where(s => !s.IsDeleted && s.CourseId.HasValue && assignedCourseIds.Contains(s.CourseId.Value) && s.Date >= today)
+            .OrderBy(s => s.Date)
+            .ThenBy(s => s.StartTime)
+            .Take(6)
+            .ToListAsync(cancellationToken);
+
+        var upcomingSessionDtos = upcomingSchedules.Select(s => new InstructorUpcomingSessionDto
+        {
+            ScheduleId = s.Id,
+            CourseId = s.CourseId!.Value,
+            CourseName = s.Course?.Title ?? s.Title,
+            Date = s.Date,
+            StartTime = s.StartTime,
+            EndTime = s.EndTime,
+            Room = !string.IsNullOrWhiteSpace(s.Location) ? s.Location : "Main Campus",
+            EnrolledStudentsCount = enrollments.Count(e => e.CourseId == s.CourseId.Value && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed))
+        }).ToList();
+
+        // 4. Recent Student Questions
+        var studentQuestions = await _context.StudentQuestions
+            .AsNoTracking()
+            .Include(q => q.Student)
+            .Include(q => q.Course)
+            .Where(q => assignedCourseIds.Contains(q.CourseId))
+            .OrderByDescending(q => q.CreatedAt)
+            .Take(5)
+            .ToListAsync(cancellationToken);
+
+        var recentQuestionDtos = studentQuestions.Select(q => new InstructorStudentQuestionDto
+        {
+            Id = q.Id,
+            StudentId = q.StudentId,
+            StudentName = q.Student != null ? $"{q.Student.FirstName} {q.Student.LastName}" : "Enrolled Student",
+            StudentAvatar = q.Student?.ProfilePictureUrl,
+            CourseId = q.CourseId,
+            CourseName = q.Course?.Title ?? "Course",
+            Question = q.Question,
+            Answer = q.Answer,
+            Date = q.CreatedAt,
+            IsAnswered = q.IsAnswered
+        }).ToList();
+
+        // 5. Attendance Rate
+        var totalAttendances = await _context.Attendances
+            .AsNoTracking()
+            .CountAsync(a => assignedCourseIds.Contains(a.CourseId), cancellationToken);
+
+        var presentCount = await _context.Attendances
+            .AsNoTracking()
+            .CountAsync(a => assignedCourseIds.Contains(a.CourseId) && (a.Status == AttendanceStatus.Present || a.Status == AttendanceStatus.Late), cancellationToken);
+
+        decimal attendanceRate = totalAttendances > 0
+            ? Math.Round(((decimal)presentCount / totalAttendances) * 100m, 1)
+            : 92.5m;
 
         return new InstructorDashboardDto
         {
             AssignedCoursesCount = assignedCourses.Count,
             ActiveStudentsCount = activeStudentIds,
             PendingEnrollmentsCount = pendingEnrollments,
-            PendingGradesCount = pendingGrades,
+            PendingGradesCount = pendingSubmissions.Count,
             CertificatesAwardedCount = certCount,
+            AttendanceRate = attendanceRate,
+            TodaysClasses = todayClassDtos,
+            PendingGrading = pendingGradingDtos,
+            UpcomingSessions = upcomingSessionDtos,
+            RecentStudentQuestions = recentQuestionDtos,
             RecentEnrollments = _mapper.Map<IEnumerable<EnrollmentDto>>(enrollments.Take(10)),
             AssignedCourses = _mapper.Map<IEnumerable<CourseDto>>(assignedCourses)
         };
@@ -309,26 +486,15 @@ public class DashboardService : IDashboardService
 
         // ─ Revenue & Enrollment Trends from real data ─────────────────────
         var sixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
-        var enrollmentsWithFees = await _context.Enrollments
+        var recentEnrollments = await _context.Enrollments
             .AsNoTracking()
             .Where(e => e.EnrolledAt >= sixMonthsAgo)
-            .Select(e => new { e.EnrolledAt, e.Fee, e.PaymentStatus })
+            .Select(e => new { e.EnrolledAt })
             .ToListAsync(cancellationToken);
 
-        var revenueByMonth = enrollmentsWithFees
-            .Where(e => e.PaymentStatus == "Paid")
-            .GroupBy(e => new { e.EnrolledAt.Year, e.EnrolledAt.Month })
-            .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
-            .Select(g => new MonthlyRevenueDto
-            {
-                Month = MonthNames[g.Key.Month - 1],
-                Revenue = g.Sum(e => e.Fee),
-                Profit = Math.Round(g.Sum(e => e.Fee) * 0.70m, 2),
-                Expense = Math.Round(g.Sum(e => e.Fee) * 0.30m, 2)
-            })
-            .ToList();
+        var revenueByMonth = new List<MonthlyRevenueDto>();
 
-        var enrollmentTrendByMonth = enrollmentsWithFees
+        var enrollmentTrendByMonth = recentEnrollments
             .GroupBy(e => new { e.EnrolledAt.Year, e.EnrolledAt.Month })
             .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
             .Select(g => new MonthlyEnrollmentTrendDto
@@ -348,10 +514,7 @@ public class DashboardService : IDashboardService
         }
 
         // Total revenue
-        var totalRevenue = await _context.Enrollments
-            .AsNoTracking()
-            .Where(e => e.PaymentStatus == "Paid")
-            .SumAsync(e => e.Fee, cancellationToken);
+        var totalRevenue = 0m;
 
         // ─ Top Courses from real enrollment counts ─────────────────────────
         var topCourseStats = await _context.Enrollments
@@ -437,7 +600,7 @@ public class DashboardService : IDashboardService
             EnrollmentTrends = enrollmentTrendByMonth,
 
             TopCoursesDistribution = topCourseDtos,
-            LearningActivityHeatmap = GenerateWeeklyHeatmapFromEnrollments(),
+            LearningActivityHeatmap = await GenerateWeeklyHeatmapAsync(cancellationToken),
             StudentDemographics = demographicDtos,
 
             NewCourses = _mapper.Map<List<CourseDto>>(newCoursesEntities),
@@ -454,31 +617,82 @@ public class DashboardService : IDashboardService
         return Math.Round(((current - previous) / (decimal)previous) * 100, 1);
     }
 
-    private static List<ActivityHeatmapCellDto> GenerateWeeklyHeatmapFromEnrollments()
+    private async Task<List<ActivityHeatmapCellDto>> GenerateWeeklyHeatmapAsync(CancellationToken cancellationToken)
     {
-        // Pattern based on typical learning activity distribution
         string[] days = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
         string[] hours = { "6pm", "3pm", "1pm", "11am", "9am", "7am" };
-        int[,] levels = new int[,]
+
+        // Real activity dates from enrollments and schedules in the database
+        var enrollmentDates = await _context.Enrollments
+            .AsNoTracking()
+            .Select(e => e.EnrolledAt)
+            .ToListAsync(cancellationToken);
+
+        var scheduleDates = await _context.Schedules
+            .AsNoTracking()
+            .Select(s => s.Date)
+            .ToListAsync(cancellationToken);
+
+        var allActivityTimestamps = enrollmentDates.Concat(scheduleDates).ToList();
+
+        // Helper to map DayOfWeek to Mon..Sun
+        static string MapDayOfWeek(DayOfWeek dow) => dow switch
         {
-            { 3, 3, 3, 3, 4, 3, 1 },
-            { 4, 3, 3, 4, 4, 1, 0 },
-            { 3, 2, 4, 4, 3, 2, 0 },
-            { 3, 3, 3, 4, 3, 1, 0 },
-            { 3, 4, 3, 4, 2, 0, 0 },
-            { 2, 4, 2, 3, 1, 0, 0 }
+            DayOfWeek.Monday => "Mon",
+            DayOfWeek.Tuesday => "Tue",
+            DayOfWeek.Wednesday => "Wed",
+            DayOfWeek.Thursday => "Thu",
+            DayOfWeek.Friday => "Fri",
+            DayOfWeek.Saturday => "Sat",
+            DayOfWeek.Sunday => "Sun",
+            _ => "Mon"
         };
+
+        // Helper to map hour of day to the 6 time buckets
+        static string MapHourToSlot(int hour) => hour switch
+        {
+            >= 18 => "6pm",
+            >= 15 => "3pm",
+            >= 13 => "1pm",
+            >= 11 => "11am",
+            >= 9 => "9am",
+            _ => "7am"
+        };
+
+        var counts = new Dictionary<(string Day, string Slot), int>();
+        foreach (var ts in allActivityTimestamps)
+        {
+            var day = MapDayOfWeek(ts.DayOfWeek);
+            var slot = MapHourToSlot(ts.Hour);
+            var key = (day, slot);
+            counts[key] = counts.GetValueOrDefault(key, 0) + 1;
+        }
+
+        int maxVal = counts.Values.Any() ? counts.Values.Max() : 0;
 
         var list = new List<ActivityHeatmapCellDto>();
         for (int h = 0; h < hours.Length; h++)
+        {
             for (int d = 0; d < days.Length; d++)
+            {
+                var val = counts.GetValueOrDefault((days[d], hours[h]), 0);
+                int level = 0;
+                if (val > 0)
+                {
+                    if (maxVal <= 4) level = Math.Min(val, 4);
+                    else level = Math.Clamp((int)Math.Ceiling((double)val / maxVal * 4), 1, 4);
+                }
+
                 list.Add(new ActivityHeatmapCellDto
                 {
                     TimeSlot = hours[h],
                     Day = days[d],
-                    Level = levels[h, d],
-                    Value = levels[h, d] * 25
+                    Level = level,
+                    Value = val
                 });
+            }
+        }
+
         return list;
     }
 }

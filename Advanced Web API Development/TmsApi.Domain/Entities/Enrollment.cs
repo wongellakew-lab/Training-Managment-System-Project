@@ -13,8 +13,6 @@ public class Enrollment
     public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
     public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Pending; // Enrolled (Active/Completed), Applied (Pending), Waitlisted
     public string Batch { get; set; } = "Batch 1";
-    public decimal Fee { get; set; } = 49m;
-    public string PaymentStatus { get; set; } = "Paid"; // Paid, Pending, Unpaid
     public string PhoneNumber { get; set; } = "+1 202-555-0142";
     public string Country { get; set; } = "USA";
     public bool IsArchived { get; set; } = false;

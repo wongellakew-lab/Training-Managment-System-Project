@@ -9,7 +9,6 @@ public class Course
     public string Department { get; set; } = "Computer Science";
     public string Category { get; set; } = "Design"; // Design, Web Dev, Marketing, Language, Communication, Business, Wellness
     public string Level { get; set; } = "Beginner"; // Beginner, Intermediate, Advanced
-    public decimal Price { get; set; } = 89m;
     public string Status { get; set; } = "Active"; // Active, Draft, Archived
     public int DurationHours { get; set; } = 40;
     public int LessonsCount { get; set; } = 20;
@@ -24,10 +23,16 @@ public class Course
     public int MaxCapacity { get; set; } = 30;
     public string Prerequisites { get; set; } = "None";
     public DateTime? EnrollmentDeadline { get; set; }
+    public DateTime StartDate { get; set; } = DateTime.UtcNow.Date;
+    public DateTime EndDate { get; set; } = DateTime.UtcNow.Date.AddDays(42);
+    public int DurationWeeks { get; set; } = 6;
     public bool IsDeleted { get; set; } = false;
 
     public int? InstructorId { get; set; }
     public Instructor? Instructor { get; set; }
 
+    public ICollection<CourseSchedule> Schedules { get; set; } = new List<CourseSchedule>();
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+    public ICollection<CourseModule> Modules { get; set; } = new List<CourseModule>();
+    public ICollection<CourseResource> Resources { get; set; } = new List<CourseResource>();
 }

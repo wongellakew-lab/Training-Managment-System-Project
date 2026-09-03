@@ -3,8 +3,10 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using TmsApi.Api.Extensions;
 using TmsApi.Application.Interfaces;
-using TmsApi.Infrastructure.Identity;
+using TmsApi.Domain.Entities;
+using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Api.Controllers.V1;
 
@@ -15,31 +17,36 @@ public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;
     private readonly UserManager<TmsUser> _userManager;
+    private readonly TmsDbContext _context;
 
-    public DashboardController(IDashboardService dashboardService, UserManager<TmsUser> userManager)
+    public DashboardController(
+        IDashboardService dashboardService,
+        UserManager<TmsUser> userManager,
+        TmsDbContext context)
     {
         _dashboardService = dashboardService;
         _userManager = userManager;
+        _context = context;
     }
 
     [Authorize]
     [HttpGet("student")]
     public async Task<IActionResult> GetStudentDashboard([FromQuery] int? studentId, CancellationToken cancellationToken)
     {
-        int resolvedId = studentId ?? 0;
+        int resolvedId;
         if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
         {
-            var claim = User.FindFirst("studentId")?.Value;
-            if (int.TryParse(claim, out var parsed))
+            var currentStudentId = await User.ResolveStudentIdAsync(_context, _userManager);
+            if (!currentStudentId.HasValue)
             {
-                resolvedId = parsed;
+                return NotFound(new { message = "Student profile not found for authenticated user." });
             }
+            resolvedId = currentStudentId.Value;
         }
-
-        if (resolvedId == 0)
+        else
         {
-            var user = await _userManager.GetUserAsync(User);
-            resolvedId = user?.StudentId ?? 1;
+            // Admin or Instructor viewing specific student or self
+            resolvedId = studentId ?? (await User.ResolveStudentIdAsync(_context, _userManager)) ?? 1;
         }
 
         var result = await _dashboardService.GetStudentDashboardAsync(resolvedId, cancellationToken);
@@ -50,20 +57,19 @@ public class DashboardController : ControllerBase
     [HttpGet("instructor")]
     public async Task<IActionResult> GetInstructorDashboard([FromQuery] int? instructorId, CancellationToken cancellationToken)
     {
-        int resolvedId = instructorId ?? 0;
+        int resolvedId;
         if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
         {
-            var claim = User.FindFirst("instructorId")?.Value;
-            if (int.TryParse(claim, out var parsed))
+            var currentInstructorId = await User.ResolveInstructorIdAsync(_context, _userManager);
+            if (!currentInstructorId.HasValue)
             {
-                resolvedId = parsed;
+                return NotFound(new { message = "Instructor profile not found for authenticated user." });
             }
+            resolvedId = currentInstructorId.Value;
         }
-
-        if (resolvedId == 0)
+        else
         {
-            var user = await _userManager.GetUserAsync(User);
-            resolvedId = user?.InstructorId ?? 1;
+            resolvedId = instructorId ?? (await User.ResolveInstructorIdAsync(_context, _userManager)) ?? 1;
         }
 
         var result = await _dashboardService.GetInstructorDashboardAsync(resolvedId, cancellationToken);
@@ -76,5 +82,24 @@ public class DashboardController : ControllerBase
     {
         var result = await _dashboardService.GetAdminDashboardAsync(cancellationToken);
         return Ok(result);
+    }
+
+    public record ReplyQuestionRequest(string Answer);
+
+    [Authorize(Roles = "Admin,Instructor")]
+    [HttpPost("instructor/questions/{id:int}/reply")]
+    public async Task<IActionResult> ReplyToStudentQuestion(int id, [FromBody] ReplyQuestionRequest request, CancellationToken cancellationToken)
+    {
+        var question = await _context.StudentQuestions.FindAsync(new object[] { id }, cancellationToken);
+        if (question == null) return NotFound(new { message = "Question not found." });
+
+        var instructorId = await User.ResolveInstructorIdAsync(_context, _userManager);
+        question.Answer = request.Answer;
+        question.IsAnswered = true;
+        question.AnsweredAt = DateTime.UtcNow;
+        question.AnsweredByInstructorId = instructorId;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Answer saved successfully." });
     }
 }

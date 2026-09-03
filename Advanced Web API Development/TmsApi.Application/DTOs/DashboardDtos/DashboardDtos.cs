@@ -54,6 +54,8 @@ public class StudentCourseProgressDto
     public string CourseCode { get; set; } = string.Empty;
     public int CompletedAssignments { get; set; }
     public int TotalAssignments { get; set; }
+    public int CompletedModules { get; set; }
+    public int TotalModules { get; set; }
     public decimal CompletionPercentage { get; set; }
     public string Status { get; set; } = "Active";
     public decimal? CurrentGrade { get; set; }
@@ -78,6 +80,56 @@ public class StudentDashboardDto
     public IEnumerable<ScheduleDto> UpcomingSchedules { get; set; } = new List<ScheduleDto>();
 }
 
+public class InstructorTodayClassDto
+{
+    public int ScheduleId { get; set; }
+    public int CourseId { get; set; }
+    public string CourseName { get; set; } = string.Empty;
+    public string CourseCode { get; set; } = string.Empty;
+    public string StartTime { get; set; } = string.Empty;
+    public string EndTime { get; set; } = string.Empty;
+    public string Room { get; set; } = string.Empty;
+    public string Location { get; set; } = string.Empty;
+    public int StudentCount { get; set; }
+    public string AttendanceStatus { get; set; } = "Pending"; // "Taken", "Pending"
+}
+
+public class InstructorPendingGradingDto
+{
+    public int AssignmentId { get; set; }
+    public int CourseId { get; set; }
+    public string AssignmentTitle { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public int SubmissionsCount { get; set; }
+    public DateTime DueDate { get; set; }
+}
+
+public class InstructorUpcomingSessionDto
+{
+    public int ScheduleId { get; set; }
+    public int CourseId { get; set; }
+    public string CourseName { get; set; } = string.Empty;
+    public DateTime Date { get; set; }
+    public string StartTime { get; set; } = string.Empty;
+    public string EndTime { get; set; } = string.Empty;
+    public string Room { get; set; } = string.Empty;
+    public int EnrolledStudentsCount { get; set; }
+}
+
+public class InstructorStudentQuestionDto
+{
+    public int Id { get; set; }
+    public int StudentId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string? StudentAvatar { get; set; }
+    public int CourseId { get; set; }
+    public string CourseName { get; set; } = string.Empty;
+    public string Question { get; set; } = string.Empty;
+    public string? Answer { get; set; }
+    public DateTime Date { get; set; }
+    public bool IsAnswered { get; set; }
+}
+
 public class InstructorDashboardDto
 {
     public int AssignedCoursesCount { get; set; }
@@ -85,6 +137,11 @@ public class InstructorDashboardDto
     public int PendingEnrollmentsCount { get; set; }
     public int PendingGradesCount { get; set; }
     public int CertificatesAwardedCount { get; set; }
+    public decimal AttendanceRate { get; set; }
+    public List<InstructorTodayClassDto> TodaysClasses { get; set; } = new();
+    public List<InstructorPendingGradingDto> PendingGrading { get; set; } = new();
+    public List<InstructorUpcomingSessionDto> UpcomingSessions { get; set; } = new();
+    public List<InstructorStudentQuestionDto> RecentStudentQuestions { get; set; } = new();
     public IEnumerable<EnrollmentDto> RecentEnrollments { get; set; } = new List<EnrollmentDto>();
     public IEnumerable<CourseDto> AssignedCourses { get; set; } = new List<CourseDto>();
 }
@@ -167,33 +224,6 @@ public class CountryDemographicDto
     public string Flag { get; set; } = string.Empty;
     public int StudentsCount { get; set; }
     public int Percentage { get; set; }
-}
-
-public class PaymentStatusBreakdownDto
-{
-    public decimal TotalPaid { get; set; }
-    public int PaidStudentsCount { get; set; }
-    public decimal PaidPercentage { get; set; }
-
-    public decimal TotalPending { get; set; }
-    public int PendingStudentsCount { get; set; }
-    public decimal PendingPercentage { get; set; }
-
-    public decimal TotalUnpaid { get; set; }
-    public int UnpaidStudentsCount { get; set; }
-    public decimal UnpaidPercentage { get; set; }
-
-    public int EnrolledPaid { get; set; }
-    public int EnrolledPending { get; set; }
-    public int EnrolledUnpaid { get; set; }
-
-    public int AppliedPaid { get; set; }
-    public int AppliedPending { get; set; }
-    public int AppliedUnpaid { get; set; }
-
-    public int WaitlistedPaid { get; set; }
-    public int WaitlistedPending { get; set; }
-    public int WaitlistedUnpaid { get; set; }
 }
 
 public class SystemActivityDto

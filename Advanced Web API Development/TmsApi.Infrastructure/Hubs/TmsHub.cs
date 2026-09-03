@@ -10,6 +10,10 @@ public interface ITmsClient
     Task ReceiveTranscriptStatus(string requestId, string status, string? downloadUrl);
     Task ReceiveEnrollmentNotification(object data);
     Task ReceiveCapacityAlert(object data);
+    Task ReceiveScheduleUpdate(object? data = null);
+    Task ReceiveGradePublished(object data);
+    Task ReceiveAttendanceUpdate(object data);
+    Task ReceiveAssignmentUpdate(object data);
 }
 
 [Authorize]

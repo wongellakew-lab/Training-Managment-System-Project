@@ -14,6 +14,8 @@ public class Student
     public DateTime EnrollmentDate { get; set; } = DateTime.UtcNow;
     public decimal Gpa { get; set; } = 0.0m;
     public bool IsDeleted { get; set; } = false;
+    public string? UserId { get; set; }
+    public virtual TmsUser? User { get; set; }
 
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
     public ICollection<Assessment> Assessments { get; set; } = new List<Assessment>();

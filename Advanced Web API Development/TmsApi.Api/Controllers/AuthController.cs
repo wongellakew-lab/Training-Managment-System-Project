@@ -56,21 +56,35 @@ public class AuthController : ControllerBase
 
         var roleToAssign = request.Role is "Admin" or "Instructor" or "Student" ? request.Role : "Student";
 
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+        {
+            return BadRequest(result.Errors);
+        }
+
+        await _userManager.AddToRoleAsync(user, roleToAssign);
+
         if (string.Equals(roleToAssign, "Student", StringComparison.OrdinalIgnoreCase))
         {
-            var studentDto = await _studentService.CreateStudentAsync(new CreateStudentDto
+            var student = new Student
             {
+                UserId = user.Id,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
-                RegistrationNumber = request.RegNumber ?? $"REG-{Guid.NewGuid().ToString()[..8].ToUpper()}"
-            });
-            user.StudentId = studentDto.Id;
+                RegistrationNumber = request.RegNumber ?? $"REG-{Guid.NewGuid().ToString()[..8].ToUpper()}",
+                EnrollmentDate = DateTime.UtcNow
+            };
+            await _context.Students.AddAsync(student);
+            await _context.SaveChangesAsync();
+            user.StudentId = student.Id;
+            await _userManager.UpdateAsync(user);
         }
         else if (string.Equals(roleToAssign, "Instructor", StringComparison.OrdinalIgnoreCase))
         {
             var instructor = new Instructor
             {
+                UserId = user.Id,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Email = request.Email,
@@ -81,15 +95,8 @@ public class AuthController : ControllerBase
             await _context.Instructors.AddAsync(instructor);
             await _context.SaveChangesAsync();
             user.InstructorId = instructor.Id;
+            await _userManager.UpdateAsync(user);
         }
-
-        var result = await _userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            return BadRequest(result.Errors);
-        }
-
-        await _userManager.AddToRoleAsync(user, roleToAssign);
 
         var roles = await _userManager.GetRolesAsync(user);
         var (accessToken, refreshToken) = await _tokenService.GenerateTokensAsync(user, roles);

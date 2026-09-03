@@ -23,12 +23,18 @@ public class NotificationService : INotificationService
         _hubContext = hubContext;
     }
 
-    public async Task<PagedResponse<NotificationDto>> GetUserNotificationsAsync(string userId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResponse<NotificationDto>> GetUserNotificationsAsync(string userId, int page, int pageSize, bool? unreadOnly = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Notifications
             .AsNoTracking()
-            .Where(n => n.UserId == userId)
-            .OrderByDescending(n => n.CreatedAt);
+            .Where(n => n.UserId == userId);
+
+        if (unreadOnly == true)
+        {
+            query = query.Where(n => !n.IsRead);
+        }
+
+        query = query.OrderByDescending(n => n.CreatedAt);
 
         var total = await query.CountAsync(cancellationToken);
         var items = await query

@@ -20,6 +20,13 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
+    public DbSet<CourseSchedule> CourseSchedules => Set<CourseSchedule>();
+    public DbSet<CourseModule> CourseModules => Set<CourseModule>();
+    public DbSet<CourseLesson> CourseLessons => Set<CourseLesson>();
+    public DbSet<CourseResource> CourseResources => Set<CourseResource>();
+    public DbSet<Attendance> Attendances => Set<Attendance>();
+    public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<StudentQuestion> StudentQuestions => Set<StudentQuestion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

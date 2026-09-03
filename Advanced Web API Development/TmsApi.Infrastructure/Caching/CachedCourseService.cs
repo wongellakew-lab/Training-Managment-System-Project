@@ -69,4 +69,14 @@ public class CachedCourseService : ICachedCourseService
         }
         return result;
     }
+
+    public async Task<List<StudentEnrolledCourseDto>> GetStudentEnrolledCoursesAsync(int studentId, CancellationToken cancellationToken = default)
+    {
+        return await _innerService.GetStudentEnrolledCoursesAsync(studentId, cancellationToken);
+    }
+
+    public async Task<StudentCoursesStatisticsDto> GetStudentCoursesStatisticsAsync(int studentId, CancellationToken cancellationToken = default)
+    {
+        return await _innerService.GetStudentCoursesStatisticsAsync(studentId, cancellationToken);
+    }
 }

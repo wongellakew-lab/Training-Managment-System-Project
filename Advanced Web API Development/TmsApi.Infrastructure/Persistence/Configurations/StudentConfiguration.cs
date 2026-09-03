@@ -16,6 +16,12 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(s => s.LastName).IsRequired().HasMaxLength(100);
         builder.Property(s => s.Email).IsRequired().HasMaxLength(150);
 
+        builder.HasOne(s => s.User)
+            .WithOne(u => u.Student)
+            .HasForeignKey<Student>(s => s.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(s => s.UserId).IsUnique();
+
         builder.Property<DateTime>("LastUpdated").HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property<uint>("Version").IsRowVersion();
 

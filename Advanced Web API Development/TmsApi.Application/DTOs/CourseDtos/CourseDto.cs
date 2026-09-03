@@ -9,7 +9,6 @@ public class CourseDto
     public string Department { get; set; } = "Computer Science";
     public string Category { get; set; } = "Design";
     public string Level { get; set; } = "Beginner";
-    public decimal Price { get; set; } = 89m;
     public string Status { get; set; } = "Active";
     public int DurationHours { get; set; } = 40;
     public int LessonsCount { get; set; } = 20;
@@ -24,9 +23,14 @@ public class CourseDto
     public int MaxCapacity { get; set; } = 50;
     public string Prerequisites { get; set; } = "None";
     public DateTime? EnrollmentDeadline { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public int DurationWeeks { get; set; } = 6;
     public int? InstructorId { get; set; }
     public string? InstructorName { get; set; }
     public string? InstructorAvatar { get; set; }
+    public string? InstructorDepartment { get; set; }
+    public string? InstructorEmail { get; set; }
     public int EnrolledCount { get; set; }
     public int AvailableSeats => Math.Max(0, MaxCapacity - EnrolledCount);
     public bool IsFull => EnrolledCount >= MaxCapacity;
@@ -34,7 +38,58 @@ public class CourseDto
     public bool IsStudentEnrolled { get; set; } = false;
     public string? StudentEnrollmentStatus { get; set; }
     public decimal? StudentProgress { get; set; }
+    public List<CourseScheduleDto> Schedules { get; set; } = new();
+    public List<CourseModuleDto> Modules { get; set; } = new();
+    public List<CourseResourceDto> Resources { get; set; } = new();
     public IEnumerable<TmsApi.Application.DTOs.EnrollmentDtos.EnrollmentDto>? Enrollments { get; set; }
+}
+
+public class CourseModuleDto
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int OrderIndex { get; set; } = 1;
+    public List<CourseLessonDto> Lessons { get; set; } = new();
+}
+
+public class CourseLessonDto
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int OrderIndex { get; set; } = 1;
+}
+
+public class CourseResourceDto
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string FileType { get; set; } = "PDF";
+    public string FileSize { get; set; } = "1.0 MB";
+    public string? Url { get; set; }
+}
+
+public class CourseScheduleDto
+{
+    public int Id { get; set; }
+    public DayOfWeek DayOfWeek { get; set; }
+    public string DayName => DayOfWeek.ToString();
+    public string StartTime { get; set; } = string.Empty;
+    public string EndTime { get; set; } = string.Empty;
+    public string Location { get; set; } = "Main Training Center";
+    public string Room { get; set; } = string.Empty;
+    public string ScheduleType { get; set; } = "Lecture";
+}
+
+public class CreateCourseScheduleDto
+{
+    public DayOfWeek DayOfWeek { get; set; }
+    public string StartTime { get; set; } = "09:00 AM";
+    public string EndTime { get; set; } = "10:30 AM";
+    public string Location { get; set; } = "Main Training Center";
+    public string Room { get; set; } = string.Empty;
+    public string ScheduleType { get; set; } = "Lecture";
 }
 
 public class CreateCourseDto
@@ -45,7 +100,6 @@ public class CreateCourseDto
     public string Department { get; set; } = "Computer Science";
     public string Category { get; set; } = "Design";
     public string Level { get; set; } = "Beginner";
-    public decimal Price { get; set; } = 89m;
     public string Status { get; set; } = "Active";
     public int DurationHours { get; set; } = 40;
     public int LessonsCount { get; set; } = 20;
@@ -66,7 +120,6 @@ public class UpdateCourseDto
     public string Department { get; set; } = "Computer Science";
     public string Category { get; set; } = "Design";
     public string Level { get; set; } = "Beginner";
-    public decimal Price { get; set; } = 89m;
     public string Status { get; set; } = "Active";
     public int DurationHours { get; set; } = 40;
     public int LessonsCount { get; set; } = 20;

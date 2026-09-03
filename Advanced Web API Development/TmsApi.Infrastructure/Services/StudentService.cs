@@ -21,34 +21,49 @@ public class StudentService : IStudentService
 
     public async Task<PagedResponse<StudentDto>> GetStudentsAsync(PagedRequest request, CancellationToken cancellationToken = default)
     {
-        var query = _context.Students.AsNoTracking();
+        var query = _context.Students
+            .AsNoTracking()
+            .Include(s => s.Enrollments)
+            .Include(s => s.User);
 
+        IQueryable<Student> filteredQuery = query;
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             var search = request.SearchTerm.ToLower();
-            query = query.Where(s =>
+            filteredQuery = filteredQuery.Where(s =>
                 s.FirstName.ToLower().Contains(search) ||
                 s.LastName.ToLower().Contains(search) ||
                 s.RegistrationNumber.ToLower().Contains(search) ||
                 s.Email.ToLower().Contains(search));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        var totalCount = await filteredQuery.CountAsync(cancellationToken);
 
-        query = request.SortBy?.ToLower() switch
+        filteredQuery = request.SortBy?.ToLower() switch
         {
-            "firstname" => request.SortDescending ? query.OrderByDescending(s => s.FirstName) : query.OrderBy(s => s.FirstName),
-            "lastname" => request.SortDescending ? query.OrderByDescending(s => s.LastName) : query.OrderBy(s => s.LastName),
-            "gpa" => request.SortDescending ? query.OrderByDescending(s => s.Gpa) : query.OrderBy(s => s.Gpa),
-            _ => query.OrderBy(s => s.Id)
+            "firstname" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.FirstName) : filteredQuery.OrderBy(s => s.FirstName),
+            "lastname" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.LastName) : filteredQuery.OrderBy(s => s.LastName),
+            "gpa" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.Gpa) : filteredQuery.OrderBy(s => s.Gpa),
+            _ => filteredQuery.OrderBy(s => s.Id)
         };
 
-        var items = await query
+        var items = await filteredQuery
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<StudentDto>(_mapper.Map<IEnumerable<StudentDto>>(items), request.Page, request.PageSize, totalCount);
+        var dtos = items.Select(s =>
+        {
+            var dto = _mapper.Map<StudentDto>(s);
+            dto.CoursesEnrolled = s.Enrollments.Count;
+            dto.Status = s.Enrollments.Any(e => e.Status == EnrollmentStatus.Active) ? "Active" : (s.Enrollments.Any() ? "Enrolled" : "Inactive");
+            dto.Avatar = !string.IsNullOrEmpty(s.User?.ProfilePictureUrl)
+                ? s.User.ProfilePictureUrl
+                : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80";
+            return dto;
+        }).ToList();
+
+        return new PagedResponse<StudentDto>(dtos, request.Page, request.PageSize, totalCount);
     }
 
     public async Task<StudentDto?> GetStudentByIdAsync(int id, CancellationToken cancellationToken = default)

@@ -15,8 +15,6 @@ public class EnrollmentDto
     public string CourseTitle { get; set; } = string.Empty;
     public string CourseCategory { get; set; } = "Design";
     public string Batch { get; set; } = "Batch 1";
-    public decimal Fee { get; set; } = 49m;
-    public string PaymentStatus { get; set; } = "Paid"; // Paid, Pending, Unpaid
     public string Country { get; set; } = "USA";
     public decimal? Grade { get; set; }
     public DateTime EnrolledAt { get; set; }
@@ -29,15 +27,12 @@ public class CreateEnrollmentDto
     public int StudentId { get; set; }
     public int CourseId { get; set; }
     public string Batch { get; set; } = "Batch 1";
-    public decimal Fee { get; set; } = 49m;
-    public string PaymentStatus { get; set; } = "Paid";
     public string PhoneNumber { get; set; } = "+1 202-555-0142";
     public string Country { get; set; } = "USA";
-    public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Pending;
+    public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Active;
 }
 
 public class UpdateEnrollmentStatusDto
 {
     public EnrollmentStatus Status { get; set; }
-    public string? PaymentStatus { get; set; }
 }

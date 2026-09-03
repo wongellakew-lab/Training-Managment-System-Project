@@ -5,7 +5,7 @@ namespace TmsApi.Application.Interfaces;
 
 public interface INotificationService
 {
-    Task<PagedResponse<NotificationDto>> GetUserNotificationsAsync(string userId, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PagedResponse<NotificationDto>> GetUserNotificationsAsync(string userId, int page, int pageSize, bool? unreadOnly = null, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(string userId, CancellationToken cancellationToken = default);
     Task<bool> MarkAsReadAsync(int notificationId, string userId, CancellationToken cancellationToken = default);
     Task<bool> MarkAllAsReadAsync(string userId, CancellationToken cancellationToken = default);

@@ -12,6 +12,8 @@ public interface ICourseService
     Task<CourseDto> CreateCourseAsync(CreateCourseDto dto, CancellationToken cancellationToken = default);
     Task<bool> UpdateCourseAsync(int id, UpdateCourseDto dto, CancellationToken cancellationToken = default);
     Task<bool> DeleteCourseAsync(int id, CancellationToken cancellationToken = default);
+    Task<List<StudentEnrolledCourseDto>> GetStudentEnrolledCoursesAsync(int studentId, CancellationToken cancellationToken = default);
+    Task<StudentCoursesStatisticsDto> GetStudentCoursesStatisticsAsync(int studentId, CancellationToken cancellationToken = default);
 }
 
 public interface ICachedCourseService : ICourseService

@@ -17,8 +17,7 @@ public interface IEnrollmentService
         string? category = null,
         CancellationToken cancellationToken = default);
 
-    Task<PaymentStatusBreakdownDto> GetPaymentBreakdownAsync(CancellationToken cancellationToken = default);
     Task<EnrollmentDto?> GetEnrollmentByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<EnrollmentDto> CreateEnrollmentAsync(CreateEnrollmentDto dto, CancellationToken cancellationToken = default);
-    Task<bool> UpdateEnrollmentStatusAsync(int id, EnrollmentStatus status, string? paymentStatus = null, CancellationToken cancellationToken = default);
+    Task<bool> UpdateEnrollmentStatusAsync(int id, EnrollmentStatus status, CancellationToken cancellationToken = default);
 }

@@ -21,7 +21,7 @@ public class CoursesApiTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task GetCourses_V1_ReturnsSuccessAndPagedCourses()
     {
-        var response = await _client.GetAsync("/api/v1/courses?page=1&pageSize=10");
+        var response = await _client.GetAsync("/api/v1/courses?page=1&pageSize=50");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var pagedData = await response.Content.ReadFromJsonAsync<PagedResponse<CourseDto>>();
