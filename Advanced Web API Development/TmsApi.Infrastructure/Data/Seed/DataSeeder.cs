@@ -15,7 +15,14 @@ public static class DataSeeder
         var userManager = serviceProvider.GetRequiredService<UserManager<TmsUser>>();
         var db = serviceProvider.GetRequiredService<TmsDbContext>();
 
-        await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsRelational())
+        {
+            await db.Database.MigrateAsync();
+        }
+        else
+        {
+            await db.Database.EnsureCreatedAsync();
+        }
 
         if (db.Database.IsRelational())
         {
@@ -505,9 +512,100 @@ public static class DataSeeder
                     new() { StudentId = stList[7].Id, CourseId = crList[1].Id, Status = EnrollmentStatus.Waitlisted, Batch = "Batch 7", Fee = 51m, PaymentStatus = "Unpaid", PhoneNumber = "+1 202-555-0125", Country = "UK", EnrolledAt = new DateTime(2030, 5, 15, 0, 0, 0, DateTimeKind.Utc) }
                 };
 
+                // Assign grades for completed/active courses
+                enrollments[0].Grade = 3.9m; // Grasiella in crList[6]
+                enrollments[4].Grade = 3.8m; // Amber in crList[0]
+                enrollments[6].Grade = 3.7m; // Ingrid in crList[0]
+
                 await db.Enrollments.AddRangeAsync(enrollments);
                 await db.SaveChangesAsync();
             }
         }
-    }
-}
+
+        // Link schedules to courses
+        var sampleCourses = await db.Courses.ToListAsync();
+        if (sampleCourses.Count > 0)
+        {
+            var scheds = await db.Schedules.Where(s => s.CourseId == null).ToListAsync();
+            for (int i = 0; i < scheds.Count; i++)
+            {
+                scheds[i].CourseId = sampleCourses[i % sampleCourses.Count].Id;
+                scheds[i].ScheduleType = (i % 3 == 0) ? "Lecture" : (i % 3 == 1) ? "Lab" : "Workshop";
+            }
+            await db.SaveChangesAsync();
+        }
+
+        // Seed Assessments
+        if (!await db.Assessments.AnyAsync())
+        {
+            var stList = await db.Students.ToListAsync();
+            var crList = await db.Courses.ToListAsync();
+
+            if (stList.Count > 0 && crList.Count > 0)
+            {
+                var assessments = new List<Assessment>
+                {
+                    new()
+                    {
+                        StudentId = stList[0].Id,
+                        CourseId = crList[6].Id,
+                        Title = "Module 1: Design Systems & Component Tokens",
+                        MaxScore = 100m,
+                        ScoredPoints = 96m,
+                        DueDate = DateTime.UtcNow.AddDays(-10),
+                        SubmittedAt = DateTime.UtcNow.AddDays(-11),
+                        Status = "Graded",
+                        IsPublished = true,
+                        GradedAt = DateTime.UtcNow.AddDays(-9),
+                        Feedback = "Outstanding mastery of design token architecture and Figma auto-layout principles.",
+                        RubricScoresJson = "[{\"criterion\":\"Design System\",\"score\":48,\"maxScore\":50},{\"criterion\":\"Documentation\",\"score\":48,\"maxScore\":50}]"
+                    },
+                    new()
+                    {
+                        StudentId = stList[0].Id,
+                        CourseId = crList[6].Id,
+                        Title = "Midterm Capstone: Interactive Prototyping",
+                        MaxScore = 100m,
+                        ScoredPoints = 94m,
+                        DueDate = DateTime.UtcNow.AddDays(-3),
+                        SubmittedAt = DateTime.UtcNow.AddDays(-4),
+                        Status = "Graded",
+                        IsPublished = true,
+                        GradedAt = DateTime.UtcNow.AddDays(-2),
+                        Feedback = "Exceptional user journey animations and clean component state variations.",
+                        RubricScoresJson = "[{\"criterion\":\"Prototyping\",\"score\":47,\"maxScore\":50},{\"criterion\":\"Usability\",\"score\":47,\"maxScore\":50}]"
+                    },
+                    new()
+                    {
+                        StudentId = stList[0].Id,
+                        CourseId = crList[6].Id,
+                        Title = "Final Portfolio Case Study",
+                        MaxScore = 100m,
+                        ScoredPoints = null,
+                        DueDate = DateTime.UtcNow.AddDays(7),
+                        SubmittedAt = null,
+                        Status = "Pending",
+                        IsPublished = false,
+                        Feedback = null
+                    },
+                    new()
+                    {
+                        StudentId = stList[0].Id,
+                        CourseId = crList[0].Id,
+                        Title = "Color Theory & Contrast Accessibility",
+                        MaxScore = 100m,
+                        ScoredPoints = 92m,
+                        DueDate = DateTime.UtcNow.AddDays(-15),
+                        SubmittedAt = DateTime.UtcNow.AddDays(-16),
+                        Status = "Graded",
+                        IsPublished = true,
+                        GradedAt = DateTime.UtcNow.AddDays(-14),
+                        Feedback = "Great adherence to WCAG 2.1 AAA standards across all color palettes.",
+                        RubricScoresJson = "[{\"criterion\":\"Accessibility\",\"score\":46,\"maxScore\":50},{\"criterion\":\"Visual Aesthetics\",\"score\":46,\"maxScore\":50}]"
+                    }
+                };
+
+                await db.Assessments.AddRangeAsync(assessments);
+                await db.SaveChangesAsync();
+            }
+        }

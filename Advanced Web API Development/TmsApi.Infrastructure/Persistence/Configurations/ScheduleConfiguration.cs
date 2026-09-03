@@ -17,5 +17,11 @@ public class ScheduleConfiguration : IEntityTypeConfiguration<Schedule>
         builder.Property(s => s.PicAvatar).HasMaxLength(500);
         builder.Property(s => s.Location).HasMaxLength(200);
         builder.Property(s => s.Notes).HasMaxLength(1000);
+        builder.Property(s => s.ScheduleType).HasMaxLength(50).HasDefaultValue("Lecture");
+
+        builder.HasOne(s => s.Course)
+            .WithMany()
+            .HasForeignKey(s => s.CourseId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

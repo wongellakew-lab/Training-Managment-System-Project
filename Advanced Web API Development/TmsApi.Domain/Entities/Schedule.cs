@@ -13,6 +13,9 @@ public class Schedule
     public string Location { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public int AttendeesCount { get; set; } = 0;
+    public int? CourseId { get; set; }
+    public Course? Course { get; set; }
+    public string ScheduleType { get; set; } = "Lecture"; // Lecture, Lab, Workshop, Exam
     public bool IsDeleted { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

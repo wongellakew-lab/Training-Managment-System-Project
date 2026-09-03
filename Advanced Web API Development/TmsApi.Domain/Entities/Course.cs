@@ -22,6 +22,8 @@ public class Course
     public int EnrolledStudentsCount { get; set; } = 320;
     public int Credits { get; set; } = 3;
     public int MaxCapacity { get; set; } = 30;
+    public string Prerequisites { get; set; } = "None";
+    public DateTime? EnrollmentDeadline { get; set; }
     public bool IsDeleted { get; set; } = false;
 
     public int? InstructorId { get; set; }
