@@ -35,6 +35,30 @@
     </div>
   }
 
+  <!-- Filter & Search Toolbar -->
+  <mat-card class="filter-card glass-panel" style="padding: 1rem 1.5rem; margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+      <div class="status-tab-group" style="display: flex; gap: 6px;">
+        <button type="button" class="status-tab" [class.active]="selectedStatus() === 'All'" (click)="filterByStatus('All')">All</button>
+        <button type="button" class="status-tab" [class.active]="selectedStatus() === 'Under Review'" (click)="filterByStatus('Under Review')">Under Review</button>
+        <button type="button" class="status-tab" [class.active]="selectedStatus() === 'Active'" (click)="filterByStatus('Active')">Active</button>
+        <button type="button" class="status-tab" [class.active]="selectedStatus() === 'Rejected'" (click)="filterByStatus('Rejected')">Rejected</button>
+        <button type="button" class="status-tab" [class.active]="selectedStatus() === 'Draft'" (click)="filterByStatus('Draft')">Draft</button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 12px; width: 280px;">
+        <mat-icon style="color: #64748b; font-size: 20px; width: 20px; height: 20px;">search</mat-icon>
+        <input
+          type="text"
+          [value]="searchTerm()"
+          (input)="onSearch($any($event.target).value)"
+          placeholder="Search courses or code..."
+          style="border: none; outline: none; width: 100%; font-size: 0.875rem;"
+        />
+      </div>
+    </div>
+  </mat-card>
+
   <!-- Courses Table Card -->
   <mat-card class="table-card glass-panel">
     @if (isLoading()) {
@@ -48,7 +72,7 @@
           <!-- Code Column -->
           <ng-container matColumnDef="code">
             <th mat-header-cell *matHeaderCellDef>Code</th>
-            <td mat-cell *matCellDef="let c" class="code-cell font-mono">
+            <td mat-cell *matCellDef="let c" class="code-cell font-mono" (click)="viewCourse(c)" style="cursor: pointer;">
               {{ c.code }}
             </td>
           </ng-container>
@@ -56,9 +80,19 @@
           <!-- Title & Department Column -->
           <ng-container matColumnDef="title">
             <th mat-header-cell *matHeaderCellDef>Title & Department</th>
-            <td mat-cell *matCellDef="let c" class="title-cell">
+            <td mat-cell *matCellDef="let c" class="title-cell" (click)="viewCourse(c)" style="cursor: pointer;">
               <span class="course-name">{{ c.title }}</span>
               <span class="dept-tag">{{ c.department }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Status Column -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let c">
+              <span class="pill-badge" [ngClass]="getStatusClass(c.status)">
+                &bull; {{ c.status }}
+              </span>
             </td>
           </ng-container>
 
@@ -92,7 +126,8 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef class="text-right">Actions</th>
             <td mat-cell *matCellDef="let c" class="text-right actions-cell">
-              <button mat-button color="primary" (click)="openEditModal(c)" class="edit-btn">Edit</button>
+              <button mat-button color="primary" (click)="viewCourse(c)" class="edit-btn">Review</button>
+              <button mat-button (click)="openEditModal(c)" class="edit-btn">Edit</button>
               <button mat-button color="warn" (click)="deleteCourse(c.id)" class="del-btn">Delete</button>
             </td>
           </ng-container>

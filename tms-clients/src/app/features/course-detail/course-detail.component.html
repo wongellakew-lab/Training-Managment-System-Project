@@ -13,8 +13,75 @@
             <span class="code-badge font-mono">{{ course()?.code }}</span>
             <span class="category-badge">{{ course()?.category || 'General' }}</span>
             <span class="credits-badge">{{ course()?.credits }} Academic Credits</span>
+            <span
+              class="pill-badge font-mono font-bold"
+              [ngClass]="(course()?.status?.toLowerCase() || 'draft') === 'active' || (course()?.status?.toLowerCase() || 'draft') === 'published' ? 'status-active' : ((course()?.status?.toLowerCase() || '') === 'under review' ? 'status-under-review' : ((course()?.status?.toLowerCase() || '') === 'rejected' ? 'status-rejected' : 'status-draft'))"
+            >
+              &bull; {{ course()?.status || 'Draft' }}
+            </span>
           </div>
         </div>
+
+        <!-- Action Feedback Alert Banner -->
+        @if (actionMessage()) {
+          <div class="action-alert-banner" [class.success]="actionMessage()!.isSuccess" [class.error]="!actionMessage()!.isSuccess">
+            <mat-icon>{{ actionMessage()!.isSuccess ? 'check_circle' : 'error' }}</mat-icon>
+            <span>{{ actionMessage()!.text }}</span>
+            <button mat-icon-button (click)="actionMessage.set(null)" class="close-alert-btn">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        }
+
+        <!-- Status Context Banner: Under Review -->
+        @if (course()?.status === 'Under Review') {
+          <div class="status-context-banner banner-review">
+            <div class="banner-icon-col">
+              <mat-icon>hourglass_top</mat-icon>
+            </div>
+            <div class="banner-body">
+              <div class="banner-title">Course Under Review</div>
+              <p class="banner-desc">
+                This course is currently pending administrative evaluation and approval. It remains hidden from the Student Course Catalog until approved.
+              </p>
+            </div>
+            @if (isAdmin()) {
+              <div class="banner-admin-actions">
+                <button mat-flat-button color="primary" class="banner-approve-btn" (click)="approveCourse()" [disabled]="isApproving()">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>{{ isApproving() ? 'Approving...' : 'Approve Course' }}</span>
+                </button>
+                <button mat-stroked-button color="warn" class="banner-reject-btn" (click)="openRejectModal()" [disabled]="isRejecting()">
+                  <mat-icon>cancel</mat-icon>
+                  <span>Reject Course</span>
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Status Context Banner: Rejected -->
+        @if (course()?.status === 'Rejected') {
+          <div class="status-context-banner banner-rejected">
+            <div class="banner-icon-col">
+              <mat-icon>error_outline</mat-icon>
+            </div>
+            <div class="banner-body">
+              <div class="banner-title">Course Rejected (Revision Required)</div>
+              <p class="banner-desc">
+                <strong>Feedback for Instructor:</strong> {{ course()?.rejectionReason || 'Curriculum or schedule requires revision.' }}
+              </p>
+            </div>
+            @if (isAdmin()) {
+              <div class="banner-admin-actions">
+                <button mat-flat-button color="primary" class="banner-approve-btn" (click)="approveCourse()" [disabled]="isApproving()">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>Approve Anyway</span>
+                </button>
+              </div>
+            }
+          </div>
+        }
 
         <h1 class="course-title">{{ course()?.title }}</h1>
         <div class="dept-row">
@@ -25,7 +92,7 @@
         <!-- Description box -->
         <div class="desc-box">
           <div class="desc-label">Description & Syllabus Overview</div>
-          <p class="desc-text">{{ course()?.description }}</p>
+          <p class="desc-text">{{ course()?.description || course()?.about }}</p>
         </div>
 
         <!-- Statistics grid -->
@@ -92,6 +159,107 @@
           }
         </div>
 
+        <!-- Course Assessment Structure Section -->
+        <div class="schedule-section">
+          <div class="schedule-header-row">
+            <div class="schedule-title-wrap">
+              <mat-icon class="schedule-icon" style="color: #4f46e5;">checklist</mat-icon>
+              <h3 class="schedule-heading">Assessment Structure</h3>
+            </div>
+            <div class="schedule-badges">
+              <span class="duration-pill font-mono">
+                {{ (course()?.expectedAssignmentCount ?? 5) + (course()?.expectedMidtermCount ?? 1) + (course()?.expectedFinalCount ?? 1) }} Assessments Required
+              </span>
+            </div>
+          </div>
+
+          <div class="stats-grid" style="margin-bottom: 0;">
+            <div class="stat-card">
+              <div class="stat-label">Assignments Required</div>
+              <div class="stat-val font-mono">{{ course()?.expectedAssignmentCount ?? 5 }}</div>
+              <div class="stat-sub" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                {{ course()?.createdAssignmentsCount ?? 0 }} created so far
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-label">Midterm Examination</div>
+              <div class="stat-val font-mono">{{ course()?.expectedMidtermCount ?? 1 }}</div>
+              <div class="stat-sub" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                Required for completion
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-label">Final Examination</div>
+              <div class="stat-val font-mono">{{ course()?.expectedFinalCount ?? 1 }}</div>
+              <div class="stat-sub" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                Required for completion
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Curriculum & Modules Section (If Present) -->
+        @if (course()?.modules && course()!.modules!.length > 0) {
+          <div class="schedule-section" style="margin-top: 24px;">
+            <div class="schedule-header-row">
+              <div class="schedule-title-wrap">
+                <mat-icon class="schedule-icon">menu_book</mat-icon>
+                <h3 class="schedule-heading">Curriculum Modules ({{ course()!.modules!.length }})</h3>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+              @for (mod of course()!.modules!; track mod.id) {
+                <div style="padding: 14px 18px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: #fafafa;">
+                  <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9375rem;">{{ mod.title }}</div>
+                  @if (mod.description) {
+                    <p style="margin: 4px 0 8px; font-size: 0.8125rem; color: var(--text-secondary);">{{ mod.description }}</p>
+                  }
+                  @if (mod.lessons && mod.lessons.length > 0) {
+                    <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                      @for (les of mod.lessons; track les.id) {
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #ffffff; border: 1px solid #f1f5f9; border-radius: var(--radius-sm); font-size: 0.8125rem;">
+                          <div style="display: flex; align-items: center; gap: 8px;">
+                            <mat-icon style="font-size: 16px; width: 16px; height: 16px; color: var(--eduva-blue);">play_circle_outline</mat-icon>
+                            <span>{{ les.title }}</span>
+                          </div>
+                          <span style="color: var(--text-muted); font-size: 0.75rem;" class="font-mono">{{ les.durationMinutes }}m</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Course PDF Resources (If Present) -->
+        @if (course()?.resources && course()!.resources!.length > 0) {
+          <div class="schedule-section" style="margin-top: 24px;">
+            <div class="schedule-header-row">
+              <div class="schedule-title-wrap">
+                <mat-icon class="schedule-icon">picture_as_pdf</mat-icon>
+                <h3 class="schedule-heading">Course Resources & Materials ({{ course()!.resources!.length }})</h3>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px;">
+              @for (res of course()!.resources!; track res.id) {
+                <div style="padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: #ffffff; display: flex; align-items: center; gap: 10px;">
+                  <mat-icon style="color: #ef4444;">description</mat-icon>
+                  <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <div style="font-weight: 600; font-size: 0.8125rem;">{{ res.title }}</div>
+                    <span style="font-size: 0.6875rem; color: var(--text-muted);">{{ res.fileSize }} &bull; {{ res.fileType }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Feedback Alert Banner -->
         @if (enrollmentMessage()) {
           <div class="enrollment-banner" [class.success]="isEnrollSuccess()" [class.error]="!isEnrollSuccess()">
@@ -107,7 +275,31 @@
             <span>Back</span>
           </button>
 
-          @if (isStudent()) {
+          @if (isAdmin()) {
+            <div class="admin-footer-btn-group">
+              @if (course()?.status === 'Under Review' || course()?.status === 'Draft' || course()?.status === 'Rejected') {
+                <button mat-flat-button color="primary" class="btn-approve" (click)="approveCourse()" [disabled]="isApproving()">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>{{ isApproving() ? 'Approving...' : 'Approve Course' }}</span>
+                </button>
+              }
+              @if (course()?.status !== 'Rejected') {
+                <button mat-stroked-button color="warn" class="btn-reject" (click)="openRejectModal()" [disabled]="isRejecting()">
+                  <mat-icon>cancel</mat-icon>
+                  <span>Reject Course</span>
+                </button>
+              }
+              <button mat-stroked-button (click)="openBuilder()" class="btn-builder">
+                <mat-icon>edit_note</mat-icon>
+                <span>Edit in Builder</span>
+              </button>
+            </div>
+          } @else if (isInstructor()) {
+            <button mat-flat-button color="primary" (click)="openBuilder()" class="btn-builder">
+              <mat-icon>edit_note</mat-icon>
+              <span>Edit in Course Builder</span>
+            </button>
+          } @else if (isStudent()) {
             @if (userEnrollment()) {
               <div class="enrolled-status-badge">
                 <mat-icon>{{ userEnrollment()?.status === 'Active' || userEnrollment()?.status === 'Approved' ? 'check_circle' : 'schedule' }}</mat-icon>
@@ -129,5 +321,52 @@
         </div>
       </mat-card>
     }
+
+    <!-- Rejection Reason Modal for Admin -->
+    <div *ngIf="showRejectModal()" class="reject-modal-backdrop" (click)="closeRejectModal()">
+      <div class="reject-modal-card" (click)="$event.stopPropagation()">
+        <div class="reject-modal-header">
+          <mat-icon class="reject-modal-icon">cancel</mat-icon>
+          <div>
+            <h3 class="reject-modal-title">Reject Course Submission</h3>
+            <p class="reject-modal-subtitle">Provide specific feedback for the instructor so they can correct their curriculum or weekly schedule.</p>
+          </div>
+          <button mat-icon-button (click)="closeRejectModal()" class="close-btn">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        @if (rejectError()) {
+          <div class="modal-error-banner">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ rejectError() }}</span>
+          </div>
+        }
+
+        <div class="reject-modal-form">
+          <label class="form-label" for="rejection-reason">
+            Reason for Rejection <span class="required-star">*</span>
+          </label>
+          <textarea
+            id="rejection-reason"
+            class="form-control rejection-textarea"
+            rows="4"
+            [ngModel]="rejectionReasonInput()"
+            (ngModelChange)="onRejectionReasonInput($event)"
+            placeholder="e.g. Please update the lecture schedule to start after 09:30 AM to prevent room overlap, and add practical exercises to Module 1..."
+          ></textarea>
+        </div>
+
+        <div class="reject-modal-actions">
+          <button mat-stroked-button (click)="closeRejectModal()" [disabled]="isRejecting()">
+            Cancel
+          </button>
+          <button mat-flat-button color="warn" (click)="confirmReject()" [disabled]="isRejecting()" class="confirm-reject-btn">
+            <mat-icon>block</mat-icon>
+            <span>{{ isRejecting() ? 'Rejecting...' : 'Reject Course' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </app-layout>

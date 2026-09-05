@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -38,6 +38,7 @@ import { Course, CreateCourseDto, UpdateCourseDto } from '../../models/course.mo
 })
 export class AdminCourseListComponent implements OnInit {
   private courseService = inject(CourseService);
+  private router = inject(Router);
 
   courses = signal<Course[]>([]);
   isLoading = signal(false);
@@ -45,10 +46,13 @@ export class AdminCourseListComponent implements OnInit {
   alertMessage = signal<string | null>(null);
   isSuccess = signal(true);
 
+  selectedStatus = signal<string>('All');
+  searchTerm = signal<string>('');
+
   showModal = signal(false);
   editingCourseId = signal<number | null>(null);
 
-  displayedColumns = ['code', 'title', 'credits', 'capacity', 'instructor', 'actions'];
+  displayedColumns = ['code', 'title', 'status', 'credits', 'capacity', 'instructor', 'actions'];
 
   formData = {
     code: '',
@@ -65,13 +69,44 @@ export class AdminCourseListComponent implements OnInit {
 
   loadCourses(): void {
     this.isLoading.set(true);
-    this.courseService.getCourses({ pageSize: 100 }).subscribe({
+    const filter: any = { pageSize: 100 };
+    if (this.selectedStatus() !== 'All') {
+      filter.status = this.selectedStatus();
+    }
+    if (this.searchTerm().trim()) {
+      filter.searchTerm = this.searchTerm().trim();
+    }
+
+    this.courseService.getCourses(filter).subscribe({
       next: (res) => {
         this.courses.set(res.items);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
     });
+  }
+
+  filterByStatus(status: string): void {
+    this.selectedStatus.set(status);
+    this.loadCourses();
+  }
+
+  onSearch(term: string): void {
+    this.searchTerm.set(term);
+    this.loadCourses();
+  }
+
+  viewCourse(course: Course): void {
+    this.router.navigate(['/admin/courses', course.id]);
+  }
+
+  getStatusClass(status?: string): string {
+    const s = (status || 'draft').toLowerCase();
+    if (s === 'active' || s === 'published') return 'active';
+    if (s === 'under review') return 'under-review';
+    if (s === 'rejected') return 'rejected';
+    if (s === 'draft') return 'draft';
+    return 'draft';
   }
 
   openCreateModal(): void {

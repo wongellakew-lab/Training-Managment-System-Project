@@ -276,3 +276,308 @@
   gap: 0.75rem;
   color: var(--text-muted);
 }
+
+/* ─── Status Badges ─── */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  &.status-active {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+  }
+
+  &.status-under-review {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+  }
+
+  &.status-rejected {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  &.status-draft {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+  }
+}
+
+/* ─── Action Feedback Banner ─── */
+.action-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  &.success {
+    background: #ecfdf5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+
+    mat-icon {
+      color: #059669;
+    }
+  }
+
+  &.error {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+
+    mat-icon {
+      color: #dc2626;
+    }
+  }
+
+  .close-alert-btn {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+/* ─── Status Context Banners ─── */
+.status-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+
+  .banner-icon-col mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .banner-body {
+    flex: 1;
+
+    .banner-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .banner-desc {
+      font-size: 0.875rem;
+      margin: 0;
+      line-height: 1.4;
+    }
+  }
+
+  .banner-admin-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+
+    .banner-approve-btn {
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    .banner-reject-btn {
+      border-radius: 8px;
+      font-weight: 600;
+    }
+  }
+
+  &.banner-review {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+
+    .banner-icon-col mat-icon {
+      color: #d97706;
+    }
+
+    .banner-title {
+      color: #78350f;
+    }
+  }
+
+  &.banner-rejected {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+
+    .banner-icon-col mat-icon {
+      color: #dc2626;
+    }
+
+    .banner-title {
+      color: #7f1d1d;
+    }
+  }
+}
+
+/* ─── Admin Action Buttons in Footer ─── */
+.admin-footer-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  .btn-approve {
+    border-radius: 8px;
+    font-weight: 600;
+    background: #059669;
+    color: #ffffff;
+
+    &:hover {
+      background: #047857;
+    }
+  }
+
+  .btn-reject {
+    border-radius: 8px;
+    font-weight: 600;
+  }
+}
+
+/* ─── Rejection Modal ─── */
+.reject-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.reject-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 520px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .reject-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+
+    .reject-modal-icon {
+      color: #dc2626;
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .reject-modal-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .reject-modal-subtitle {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.8125rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .close-btn {
+      margin-left: auto;
+      color: #64748b;
+    }
+  }
+
+  .modal-error-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    color: #b91c1c;
+    font-size: 0.8125rem;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+  }
+
+  .reject-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    .form-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #334155;
+
+      .required-star {
+        color: #ef4444;
+      }
+    }
+
+    .rejection-textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      color: #0f172a;
+      outline: none;
+      box-sizing: border-box;
+      resize: vertical;
+      line-height: 1.5;
+
+      &:focus {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+      }
+    }
+  }
+
+  .reject-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f1f5f9;
+
+    button {
+      border-radius: 8px;
+      font-weight: 600;
+    }
+  }
+}
+
