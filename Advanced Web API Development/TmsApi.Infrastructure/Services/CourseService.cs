@@ -319,27 +319,27 @@ public class CourseService : ICourseService
             if (totalLessons == 0) totalLessons = course.LessonsCount;
 
             int totalModules = course.Modules.Count;
-            int totalExpectedAssessments = courseAssignments.Count > 0
-                ? courseAssignments.Count
-                : (course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount > 0
-                    ? course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount
-                    : 1);
+            int totalExpectedAssessments = course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount;
+            if (totalExpectedAssessments <= 0)
+            {
+                totalExpectedAssessments = courseAssignments.Count > 0 ? courseAssignments.Count : 1;
+            }
 
-            int evaluatedAssessments = courseAssessments.Count(a => (a.Status == "Graded" && a.ScoredPoints.HasValue) || a.Status == "Submitted");
+            // ONLY evaluated assessments (Graded and ScoredPoints.HasValue) count toward progress
+            int evaluatedAssessments = courseAssessments.Count(a => a.Status == "Graded" && a.ScoredPoints.HasValue);
 
-            decimal progressPct = en.Status == EnrollmentStatus.Completed
-                ? 100m
-                : totalExpectedAssessments > 0
-                    ? Math.Min(100m, Math.Round((evaluatedAssessments / (decimal)totalExpectedAssessments) * 100m, 1))
-                    : 0m;
+            // 100% is strictly allowed ONLY when completed assessments == total assessments
+            decimal progressPct = totalExpectedAssessments > 0
+                ? Math.Min(100m, Math.Round(((decimal)evaluatedAssessments / totalExpectedAssessments) * 100m, 1))
+                : 0m;
 
-            int completedLessons = en.Status == EnrollmentStatus.Completed
-                ? totalLessons
-                : totalLessons > 0 ? Math.Min(totalLessons, (int)Math.Round((progressPct / 100m) * totalLessons)) : 0;
+            if (evaluatedAssessments < totalExpectedAssessments && progressPct >= 100m)
+            {
+                progressPct = Math.Min(99m, progressPct);
+            }
 
-            int completedModules = en.Status == EnrollmentStatus.Completed
-                ? totalModules
-                : totalModules > 0 ? Math.Min(totalModules, (int)Math.Round((progressPct / 100m) * totalModules)) : 0;
+            int completedLessons = totalLessons > 0 ? Math.Min(totalLessons, (int)Math.Round((progressPct / 100m) * totalLessons)) : 0;
+            int completedModules = totalModules > 0 ? Math.Min(totalModules, (int)Math.Round((progressPct / 100m) * totalModules)) : 0;
 
             string academicStatus;
             if (en.Status == EnrollmentStatus.Completed || (course.EndDate.Date < now.Date && en.Grade.HasValue))

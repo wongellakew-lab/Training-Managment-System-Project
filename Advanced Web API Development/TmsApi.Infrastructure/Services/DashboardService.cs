@@ -268,16 +268,18 @@ public class DashboardService : IDashboardService
             // ONLY evaluated assessments (Graded and ScoredPoints.HasValue) count toward progress
             int evaluatedAssessments = courseAssessments.Count(a => a.Status == "Graded" && a.ScoredPoints.HasValue);
 
-            decimal completionPct = en.Status == EnrollmentStatus.Completed
-                ? 100m
-                : totalExpectedAssessments > 0
-                    ? Math.Min(100m, Math.Round((evaluatedAssessments / (decimal)totalExpectedAssessments) * 100m, 1))
-                    : 0m;
+            // 100% is strictly allowed ONLY when completed assessments == total assessments
+            decimal completionPct = totalExpectedAssessments > 0
+                ? Math.Min(100m, Math.Round((evaluatedAssessments / (decimal)totalExpectedAssessments) * 100m, 1))
+                : 0m;
+
+            if (evaluatedAssessments < totalExpectedAssessments && completionPct >= 100m)
+            {
+                completionPct = Math.Min(99m, completionPct);
+            }
 
             int totalModules = course.Modules.Count;
-            int completedModules = en.Status == EnrollmentStatus.Completed
-                ? totalModules
-                : Math.Min(totalModules, (int)Math.Round((completionPct / 100m) * totalModules));
+            int completedModules = totalModules > 0 ? Math.Min(totalModules, (int)Math.Round((completionPct / 100m) * totalModules)) : 0;
 
             courseProgressList.Add(new StudentCourseProgressDto
             {

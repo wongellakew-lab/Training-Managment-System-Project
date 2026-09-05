@@ -162,16 +162,20 @@ public class StudentProgressController : ControllerBase
         }
 
         decimal progressPercentage = totalExpectedAssessments > 0
-            ? Math.Round(((decimal)completedAssessments / totalExpectedAssessments) * 100m, 1)
+            ? Math.Min(100m, Math.Round(((decimal)completedAssessments / totalExpectedAssessments) * 100m, 1))
             : 0m;
-        if (progressPercentage > 100m) progressPercentage = 100m;
+
+        if (completedAssessments < totalExpectedAssessments && progressPercentage >= 100m)
+        {
+            progressPercentage = Math.Min(99m, progressPercentage);
+        }
 
         var progressSummary = new CourseProgressSummaryDto
         {
             CompletedAssessments = completedAssessments,
             TotalAssessments = totalExpectedAssessments,
             ProgressPercentage = progressPercentage,
-            Status = progressPercentage >= 100m ? "Completed" : "In Progress"
+            Status = (completedAssessments == totalExpectedAssessments && progressPercentage >= 100m) ? "Completed" : "In Progress"
         };
 
         // 5. Final Grade

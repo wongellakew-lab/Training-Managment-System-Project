@@ -128,11 +128,16 @@ public class StudentsController : ControllerBase
                 var course = e.Course!;
                 var totalAssignments = assignmentsCountByCourse.GetValueOrDefault(course.Id, 0);
                 var completedAssignments = student.Assessments?
-                    .Count(a => a.CourseId == course.Id && a.AssignmentId != null && (a.Status == "Graded" || a.Status == "Submitted")) ?? 0;
+                    .Count(a => a.CourseId == course.Id && a.AssignmentId != null && a.Status == "Graded" && a.ScoredPoints.HasValue) ?? 0;
 
                 decimal progress = totalAssignments > 0
                     ? Math.Min(100m, Math.Round(((decimal)completedAssignments / totalAssignments) * 100m, 0))
-                    : (e.Status == EnrollmentStatus.Completed ? 100m : (e.Status == EnrollmentStatus.Active ? 50m : 0m));
+                    : 0m;
+
+                if (totalAssignments > 0 && completedAssignments < totalAssignments && progress >= 100m)
+                {
+                    progress = 99m;
+                }
 
                 var gradedScores = student.Assessments?
                     .Where(a => a.CourseId == course.Id && a.Status == "Graded" && a.ScoredPoints.HasValue)
