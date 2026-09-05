@@ -174,6 +174,12 @@ public class UpdateCourseDtoValidator : AbstractValidator<UpdateCourseDto>
                 .WithMessage("Course overview or description is required to submit.")
                 .WithName("About");
 
+            RuleFor(x => x)
+                .Must(x => x.Modules != null && x.Modules.Count > 0 && x.Modules.Any(m => m.Lessons != null && m.Lessons.Count > 0))
+                .WithMessage("Course content is required. Add at least one content item before publishing.")
+                .WithName("CourseContent")
+                .When(x => x.Modules != null && x.Modules.Count > 0);
+
             RuleFor(x => x.Schedules)
                 .Must(s => s != null && s.Count > 0)
                 .WithMessage("At least one weekly schedule is required before submitting the course.")

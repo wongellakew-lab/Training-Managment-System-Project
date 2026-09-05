@@ -658,6 +658,24 @@ export class CourseBuilderComponent implements OnInit {
     const currentCount = this.course().modules.length;
     const newTitle = `Module ${currentCount + 1}: Core Concepts & Principles`;
 
+    if (this.courseId() === 0) {
+      // Local addition for draft/new courses
+      const tempId = -Math.floor(Date.now() % 10000000);
+      const newMod: BuilderModule = {
+        id: tempId,
+        title: newTitle,
+        description: '',
+        orderIndex: currentCount + 1,
+        lessons: []
+      };
+      this.course.update(c => ({
+        ...c,
+        modules: [...c.modules, newMod]
+      }));
+      this.snackBar.open('New module added!', 'OK', { duration: 2500 });
+      return;
+    }
+
     this.instructorService.addModule(this.courseId(), { title: newTitle }).subscribe({
       next: (mod) => {
         mod.lessons = [];
@@ -666,19 +684,35 @@ export class CourseBuilderComponent implements OnInit {
           modules: [...c.modules, mod]
         }));
         this.snackBar.open('New module added!', 'OK', { duration: 2500 });
+      },
+      error: (err) => {
+        console.error('Failed to add module:', err);
+        this.snackBar.open('Failed to add module.', 'Close', { duration: 3000 });
       }
     });
   }
 
   updateModuleTitle(mod: BuilderModule): void {
-    this.instructorService.updateModule(this.courseId(), mod.id, {
-      title: mod.title,
-      description: mod.description
-    }).subscribe();
+    if (this.courseId() > 0 && mod.id > 0) {
+      this.instructorService.updateModule(this.courseId(), mod.id, {
+        title: mod.title,
+        description: mod.description
+      }).subscribe();
+    }
   }
 
   deleteModule(modId: number): void {
     if (!confirm('Are you sure you want to remove this module and its lessons?')) return;
+
+    if (this.courseId() === 0 || modId <= 0) {
+      this.course.update(c => ({
+        ...c,
+        modules: c.modules.filter(m => m.id !== modId)
+      }));
+      this.updateTotalLessonsCount();
+      this.snackBar.open('Module removed.', 'OK', { duration: 2500 });
+      return;
+    }
 
     this.instructorService.deleteModule(this.courseId(), modId).subscribe({
       next: () => {
@@ -686,7 +720,12 @@ export class CourseBuilderComponent implements OnInit {
           ...c,
           modules: c.modules.filter(m => m.id !== modId)
         }));
+        this.updateTotalLessonsCount();
         this.snackBar.open('Module removed.', 'OK', { duration: 2500 });
+      },
+      error: (err) => {
+        console.error('Failed to delete module:', err);
+        this.snackBar.open('Failed to remove module.', 'Close', { duration: 3000 });
       }
     });
   }
@@ -703,44 +742,81 @@ export class CourseBuilderComponent implements OnInit {
     mods.forEach((m, idx) => m.orderIndex = idx + 1);
     this.course.update(c => ({ ...c, modules: mods }));
 
-    this.instructorService.reorderModules(this.courseId(), mods.map(m => ({ id: m.id, orderIndex: m.orderIndex }))).subscribe();
+    if (this.courseId() > 0 && mods.every(m => m.id > 0)) {
+      this.instructorService.reorderModules(this.courseId(), mods.map(m => ({ id: m.id, orderIndex: m.orderIndex }))).subscribe();
+    }
   }
 
   // ─── Lesson Management ───────────────────────────────────────────────────
   addLesson(mod: BuilderModule): void {
-    const lessonNum = mod.lessons.length + 1;
+    const lessonNum = (mod.lessons?.length ?? 0) + 1;
     const lessonData = {
       title: `Lesson ${lessonNum}: Practical Implementation`,
       description: 'Step-by-step practical walk-through and evaluation.',
       durationMinutes: 45
     };
 
+    if (this.courseId() === 0 || mod.id <= 0) {
+      // In-memory addition for new course or unsaved module
+      const tempLessonId = -Math.floor(Date.now() % 10000000);
+      const newLesson: BuilderLesson = {
+        id: tempLessonId,
+        title: lessonData.title,
+        description: lessonData.description,
+        durationMinutes: lessonData.durationMinutes,
+        orderIndex: lessonNum
+      };
+      if (!mod.lessons) mod.lessons = [];
+      mod.lessons.push(newLesson);
+      this.updateTotalLessonsCount();
+      this.snackBar.open('Lesson added to module!', 'OK', { duration: 2500 });
+      return;
+    }
+
     this.instructorService.addLesson(this.courseId(), mod.id, lessonData).subscribe({
       next: (lesson) => {
+        if (!mod.lessons) mod.lessons = [];
         mod.lessons.push(lesson);
         this.updateTotalLessonsCount();
         this.snackBar.open('Lesson added to module!', 'OK', { duration: 2500 });
+      },
+      error: (err) => {
+        console.error('Failed to add lesson:', err);
+        this.snackBar.open('Failed to add lesson.', 'Close', { duration: 3000 });
       }
     });
   }
 
   updateLesson(modId: number, lesson: BuilderLesson): void {
-    this.instructorService.updateLesson(this.courseId(), modId, lesson.id, {
-      title: lesson.title,
-      description: lesson.description,
-      durationMinutes: lesson.durationMinutes,
-      contentText: lesson.contentText,
-      pdfUrl: lesson.pdfUrl,
-      pdfFileName: lesson.pdfFileName
-    }).subscribe();
+    if (this.courseId() > 0 && modId > 0 && lesson.id > 0) {
+      this.instructorService.updateLesson(this.courseId(), modId, lesson.id, {
+        title: lesson.title,
+        description: lesson.description,
+        durationMinutes: lesson.durationMinutes,
+        contentText: lesson.contentText,
+        pdfUrl: lesson.pdfUrl,
+        pdfFileName: lesson.pdfFileName
+      }).subscribe();
+    }
   }
 
   deleteLesson(mod: BuilderModule, lessonId: number): void {
+    if (this.courseId() === 0 || mod.id <= 0 || lessonId <= 0) {
+      mod.lessons = mod.lessons.filter(l => l.id !== lessonId);
+      this.updateTotalLessonsCount();
+      this.snackBar.open('Lesson removed.', 'OK', { duration: 2000 });
+      return;
+    }
+
     this.instructorService.deleteLesson(this.courseId(), mod.id, lessonId).subscribe({
       next: () => {
         mod.lessons = mod.lessons.filter(l => l.id !== lessonId);
         this.updateTotalLessonsCount();
         this.snackBar.open('Lesson removed.', 'OK', { duration: 2000 });
+      },
+      error: (err) => {
+        console.error('Failed to remove lesson:', err);
+        this.snackBar.open('Failed to remove lesson.', 'Close', { duration: 3000 });
       }
     });
   }
@@ -755,7 +831,9 @@ export class CourseBuilderComponent implements OnInit {
 
     mod.lessons.forEach((l, idx) => l.orderIndex = idx + 1);
 
-    this.instructorService.reorderLessons(this.courseId(), mod.id, mod.lessons.map(l => ({ id: l.id, orderIndex: l.orderIndex }))).subscribe();
+    if (this.courseId() > 0 && mod.id > 0 && mod.lessons.every(l => l.id > 0)) {
+      this.instructorService.reorderLessons(this.courseId(), mod.id, mod.lessons.map(l => ({ id: l.id, orderIndex: l.orderIndex }))).subscribe();
+    }
   }
 
   private updateTotalLessonsCount(): void {

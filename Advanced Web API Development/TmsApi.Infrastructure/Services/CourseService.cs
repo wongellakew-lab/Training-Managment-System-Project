@@ -146,6 +146,27 @@ public class CourseService : ICourseService
                 ScheduleType = !string.IsNullOrWhiteSpace(s.ScheduleType) ? s.ScheduleType : "Lecture"
             }).ToList();
         }
+
+        if (dto.Modules != null && dto.Modules.Count > 0)
+        {
+            course.Modules = dto.Modules.Select((m, mIdx) => new CourseModule
+            {
+                Title = m.Title,
+                Description = m.Description,
+                OrderIndex = m.OrderIndex > 0 ? m.OrderIndex : mIdx + 1,
+                Lessons = (m.Lessons ?? new List<CourseLessonDto>()).Select((l, lIdx) => new CourseLesson
+                {
+                    Title = l.Title,
+                    Description = l.Description,
+                    DurationMinutes = l.DurationMinutes > 0 ? l.DurationMinutes : 45,
+                    ContentText = l.ContentText,
+                    PdfUrl = l.PdfUrl,
+                    PdfFileName = l.PdfFileName,
+                    OrderIndex = l.OrderIndex > 0 ? l.OrderIndex : lIdx + 1
+                }).ToList()
+            }).ToList();
+        }
+
         await _context.Courses.AddAsync(course, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -201,6 +222,14 @@ public class CourseService : ICourseService
         // Sync modules and lessons if provided in dto
         if (dto.Modules != null && dto.Modules.Count > 0)
         {
+            var dtoModIds = dto.Modules.Where(m => m.Id > 0).Select(m => m.Id).ToHashSet();
+            var modulesToRemove = course.Modules.Where(m => m.Id > 0 && !dtoModIds.Contains(m.Id)).ToList();
+            foreach (var modToRemove in modulesToRemove)
+            {
+                course.Modules.Remove(modToRemove);
+                _context.CourseModules.Remove(modToRemove);
+            }
+
             foreach (var modDto in dto.Modules)
             {
                 var existingMod = course.Modules.FirstOrDefault(m => m.Id != 0 && m.Id == modDto.Id);
@@ -212,6 +241,14 @@ public class CourseService : ICourseService
 
                     if (modDto.Lessons != null)
                     {
+                        var dtoLessonIds = modDto.Lessons.Where(l => l.Id > 0).Select(l => l.Id).ToHashSet();
+                        var lessonsToRemove = existingMod.Lessons.Where(l => l.Id > 0 && !dtoLessonIds.Contains(l.Id)).ToList();
+                        foreach (var lessonToRemove in lessonsToRemove)
+                        {
+                            existingMod.Lessons.Remove(lessonToRemove);
+                            _context.CourseLessons.Remove(lessonToRemove);
+                        }
+
                         foreach (var lessDto in modDto.Lessons)
                         {
                             var existingLesson = existingMod.Lessons.FirstOrDefault(l => l.Id != 0 && l.Id == lessDto.Id);

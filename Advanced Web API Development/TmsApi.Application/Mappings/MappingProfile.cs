@@ -33,7 +33,9 @@ public class MappingProfile : Profile
         CreateMap<CourseModule, CourseModuleDto>().ReverseMap();
         CreateMap<CourseLesson, CourseLessonDto>().ReverseMap();
         CreateMap<CourseResource, CourseResourceDto>();
-        CreateMap<CreateCourseDto, Course>();
+        CreateMap<CreateCourseDto, Course>()
+            .ForMember(dest => dest.Modules, opt => opt.Ignore())
+            .ForMember(dest => dest.Schedules, opt => opt.Ignore());
         CreateMap<UpdateCourseDto, Course>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.InstructorId, opt => opt.Condition((src, dest) => src.InstructorId.HasValue && src.InstructorId.Value > 0))

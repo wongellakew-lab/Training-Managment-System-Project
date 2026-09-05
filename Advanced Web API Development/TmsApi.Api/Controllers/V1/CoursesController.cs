@@ -182,13 +182,29 @@ public class CoursesController : ControllerBase
             }
         }
 
-        // Auto-generate code if not provided
+        // Auto-generate unique course code if not provided
         if (string.IsNullOrWhiteSpace(dto.Code))
         {
-            var prefix = !string.IsNullOrWhiteSpace(dto.Category) && dto.Category.Length >= 3
-                ? dto.Category.Substring(0, 3).ToUpperInvariant()
+            var rawPrefix = !string.IsNullOrWhiteSpace(dto.Category)
+                ? new string(dto.Category.Where(char.IsLetterOrDigit).ToArray())
                 : "CRS";
-            dto.Code = $"{prefix}-{Random.Shared.Next(100, 999)}";
+            var prefix = rawPrefix.Length >= 3 ? rawPrefix.Substring(0, 3).ToUpperInvariant() : "CRS";
+
+            string candidateCode;
+            bool exists;
+            int attempts = 0;
+            do
+            {
+                var suffix = attempts < 50
+                    ? Random.Shared.Next(101, 999).ToString()
+                    : $"{Random.Shared.Next(100, 999)}-{attempts}";
+                candidateCode = $"{prefix}-{suffix}";
+                exists = await _context.Courses
+                    .AnyAsync(c => c.Code.ToLower() == candidateCode.ToLower() && !c.IsDeleted, cancellationToken);
+                attempts++;
+            } while (exists && attempts < 100);
+
+            dto.Code = candidateCode;
         }
         else
         {
