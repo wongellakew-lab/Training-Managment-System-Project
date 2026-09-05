@@ -13,6 +13,10 @@ export interface CourseLesson {
   title: string;
   description?: string;
   orderIndex: number;
+  durationMinutes?: number;
+  contentText?: string;
+  pdfUrl?: string;
+  pdfFileName?: string;
 }
 
 export interface CourseModule {
@@ -63,17 +67,33 @@ export interface Course {
   schedules?: CourseSchedule[];
   modules?: CourseModule[];
   resources?: CourseResource[];
+  rejectionReason?: string;
+  expectedAssignmentCount?: number;
+  expectedMidtermCount?: number;
+  expectedFinalCount?: number;
+  totalAssessments?: number;
+  createdAssignmentsCount?: number;
 }
 
 export interface CourseSchedule {
-  id: number;
+  id?: number;
+  courseId?: number;
   dayOfWeek: number;
-  dayName: string;
+  dayName?: string;
   startTime: string;
   endTime: string;
   location?: string;
-  room: string;
-  scheduleType: string;
+  room?: string;
+  scheduleType?: string;
+}
+
+export interface CreateCourseScheduleDto {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  room?: string;
+  scheduleType?: string;
 }
 
 export interface CreateCourseDto {
@@ -91,6 +111,12 @@ export interface CreateCourseDto {
   credits: number;
   maxCapacity: number;
   instructorId?: number;
+  startDate?: string;
+  endDate?: string;
+  expectedAssignmentCount?: number;
+  expectedMidtermCount?: number;
+  expectedFinalCount?: number;
+  schedules?: CreateCourseScheduleDto[];
 }
 
 export interface UpdateCourseDto {
@@ -109,6 +135,13 @@ export interface UpdateCourseDto {
   credits: number;
   maxCapacity: number;
   instructorId?: number;
+  startDate?: string;
+  endDate?: string;
+  rejectionReason?: string;
+  expectedAssignmentCount?: number;
+  expectedMidtermCount?: number;
+  expectedFinalCount?: number;
+  schedules?: CreateCourseScheduleDto[];
 }
 
 export interface PagedResult<T> {

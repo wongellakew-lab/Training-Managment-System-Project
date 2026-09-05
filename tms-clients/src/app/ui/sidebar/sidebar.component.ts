@@ -50,8 +50,7 @@ export class SidebarComponent {
         { label: 'Instructors', path: '/admin/instructors', icon: 'co_present' },
         { label: 'Courses', path: '/admin/courses', icon: 'menu_book' },
         { label: 'Enrollments', path: '/admin/enrollments', icon: 'people' },
-        { label: 'Calendar', path: '/admin/calendar', icon: 'calendar_today' },
-        { label: 'Financials', path: '/admin/financials', icon: 'attach_money' }
+        { label: 'Calendar', path: '/admin/calendar', icon: 'calendar_today' }
       ];
     }
 
@@ -73,6 +72,7 @@ export class SidebarComponent {
       { label: 'Dashboard', path: '/student/dashboard', icon: 'grid_view', exact: true },
       { label: 'Calendar', path: '/student/schedule', icon: 'calendar_today' },
       { label: 'My Courses', path: '/student/my-courses', icon: 'school' },
+      { label: 'Assignments', path: '/student/assignments', icon: 'assignment' },
       { label: 'Course Catalog', path: '/student/catalog', icon: 'menu_book' },
       { label: 'Gradebook', path: '/student/gradebook', icon: 'auto_stories' },
       { label: 'Progress Tracking', path: '/student/progress', icon: 'trending_up' },

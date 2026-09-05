@@ -23,11 +23,13 @@ public class AttendanceConfiguration : IEntityTypeConfiguration<Attendance>
         builder.HasOne(a => a.Student)
             .WithMany()
             .HasForeignKey(a => a.StudentId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(a => a.Course)
             .WithMany()
             .HasForeignKey(a => a.CourseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(a => a.Schedule)

@@ -125,12 +125,27 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .SingleOrDefaultAsync(c => c.Id == id, cancellationToken);
 
-        return course == null ? null : _mapper.Map<CourseDto>(course);
+        if (course == null) return null;
+        var dto = _mapper.Map<CourseDto>(course);
+        dto.CreatedAssignmentsCount = await _context.Assignments.CountAsync(a => a.CourseId == id && !a.IsDeleted, cancellationToken);
+        return dto;
     }
 
     public async Task<CourseDto> CreateCourseAsync(CreateCourseDto dto, CancellationToken cancellationToken = default)
     {
         var course = _mapper.Map<Course>(dto);
+        if (dto.Schedules != null && dto.Schedules.Count > 0)
+        {
+            course.Schedules = dto.Schedules.Select(s => new CourseSchedule
+            {
+                DayOfWeek = s.DayOfWeek,
+                StartTime = s.StartTime,
+                EndTime = s.EndTime,
+                Location = !string.IsNullOrWhiteSpace(s.Location) ? s.Location : "Main Training Center",
+                Room = s.Room ?? string.Empty,
+                ScheduleType = !string.IsNullOrWhiteSpace(s.ScheduleType) ? s.ScheduleType : "Lecture"
+            }).ToList();
+        }
         await _context.Courses.AddAsync(course, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -139,10 +154,117 @@ public class CourseService : ICourseService
 
     public async Task<bool> UpdateCourseAsync(int id, UpdateCourseDto dto, CancellationToken cancellationToken = default)
     {
-        var course = await _context.Courses.FindAsync(new object[] { id }, cancellationToken);
+        var course = await _context.Courses
+            .Include(c => c.Modules)
+                .ThenInclude(m => m.Lessons)
+            .Include(c => c.Schedules)
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+
         if (course == null || course.IsDeleted) return false;
 
+        var originalInstructorId = course.InstructorId;
+        var originalCode = course.Code;
+
         _mapper.Map(dto, course);
+
+        if (string.IsNullOrWhiteSpace(course.Code))
+        {
+            course.Code = originalCode;
+        }
+
+        // Ensure instructor ownership is preserved
+        if (dto.InstructorId.HasValue && dto.InstructorId.Value > 0)
+        {
+            course.InstructorId = dto.InstructorId.Value;
+        }
+        else if (originalInstructorId.HasValue)
+        {
+            course.InstructorId = originalInstructorId.Value;
+        }
+
+        // Sync schedules if provided in dto
+        if (dto.Schedules != null && dto.Schedules.Count > 0)
+        {
+            _context.CourseSchedules.RemoveRange(course.Schedules);
+            course.Schedules = dto.Schedules.Select(s => new CourseSchedule
+            {
+                CourseId = course.Id,
+                DayOfWeek = s.DayOfWeek,
+                StartTime = s.StartTime,
+                EndTime = s.EndTime,
+                Location = !string.IsNullOrWhiteSpace(s.Location) ? s.Location : "Main Training Center",
+                Room = s.Room ?? string.Empty,
+                ScheduleType = !string.IsNullOrWhiteSpace(s.ScheduleType) ? s.ScheduleType : "Lecture"
+            }).ToList();
+        }
+
+        // Sync modules and lessons if provided in dto
+        if (dto.Modules != null && dto.Modules.Count > 0)
+        {
+            foreach (var modDto in dto.Modules)
+            {
+                var existingMod = course.Modules.FirstOrDefault(m => m.Id != 0 && m.Id == modDto.Id);
+                if (existingMod != null)
+                {
+                    existingMod.Title = modDto.Title;
+                    existingMod.Description = modDto.Description;
+                    existingMod.OrderIndex = modDto.OrderIndex;
+
+                    if (modDto.Lessons != null)
+                    {
+                        foreach (var lessDto in modDto.Lessons)
+                        {
+                            var existingLesson = existingMod.Lessons.FirstOrDefault(l => l.Id != 0 && l.Id == lessDto.Id);
+                            if (existingLesson != null)
+                            {
+                                existingLesson.Title = lessDto.Title;
+                                existingLesson.Description = lessDto.Description;
+                                existingLesson.DurationMinutes = lessDto.DurationMinutes;
+                                existingLesson.ContentText = lessDto.ContentText;
+                                existingLesson.PdfUrl = lessDto.PdfUrl;
+                                existingLesson.PdfFileName = lessDto.PdfFileName;
+                                existingLesson.OrderIndex = lessDto.OrderIndex;
+                            }
+                            else
+                            {
+                                existingMod.Lessons.Add(new CourseLesson
+                                {
+                                    Title = lessDto.Title,
+                                    Description = lessDto.Description,
+                                    DurationMinutes = lessDto.DurationMinutes,
+                                    ContentText = lessDto.ContentText,
+                                    PdfUrl = lessDto.PdfUrl,
+                                    PdfFileName = lessDto.PdfFileName,
+                                    OrderIndex = lessDto.OrderIndex
+                                });
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var newMod = new CourseModule
+                    {
+                        CourseId = course.Id,
+                        Title = modDto.Title,
+                        Description = modDto.Description,
+                        OrderIndex = modDto.OrderIndex,
+                        Lessons = (modDto.Lessons ?? new List<CourseLessonDto>()).Select(l => new CourseLesson
+                        {
+                            Title = l.Title,
+                            Description = l.Description,
+                            DurationMinutes = l.DurationMinutes,
+                            ContentText = l.ContentText,
+                            PdfUrl = l.PdfUrl,
+                            PdfFileName = l.PdfFileName,
+                            OrderIndex = l.OrderIndex
+                        }).ToList()
+                    };
+                    course.Modules.Add(newMod);
+                }
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -173,8 +295,14 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
+        var courseIds = enrollments.Select(e => e.CourseId).Distinct().ToList();
+        var allCourseAssignments = await _context.Assignments
+            .Where(a => courseIds.Contains(a.CourseId) && !a.IsDeleted && a.IsPublished)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
         var studentAssessments = await _context.Assessments
-            .Where(a => a.StudentId == studentId)
+            .Where(a => a.StudentId == studentId && courseIds.Contains(a.CourseId))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
@@ -184,19 +312,25 @@ public class CourseService : ICourseService
         foreach (var en in enrollments)
         {
             var course = en.Course!;
+            var courseAssignments = allCourseAssignments.Where(a => a.CourseId == en.CourseId).ToList();
             var courseAssessments = studentAssessments.Where(a => a.CourseId == en.CourseId).ToList();
 
             int totalLessons = course.Modules.SelectMany(m => m.Lessons).Count();
             if (totalLessons == 0) totalLessons = course.LessonsCount;
 
             int totalModules = course.Modules.Count;
-            int totalAssessments = courseAssessments.Count;
-            int completedAssessments = courseAssessments.Count(a => a.Status == "Graded" || a.Status == "Submitted");
+            int totalExpectedAssessments = courseAssignments.Count > 0
+                ? courseAssignments.Count
+                : (course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount > 0
+                    ? course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount
+                    : 1);
+
+            int evaluatedAssessments = courseAssessments.Count(a => (a.Status == "Graded" && a.ScoredPoints.HasValue) || a.Status == "Submitted");
 
             decimal progressPct = en.Status == EnrollmentStatus.Completed
                 ? 100m
-                : totalAssessments > 0
-                    ? Math.Min(100m, Math.Round((completedAssessments / (decimal)totalAssessments) * 100m, 1))
+                : totalExpectedAssessments > 0
+                    ? Math.Min(100m, Math.Round((evaluatedAssessments / (decimal)totalExpectedAssessments) * 100m, 1))
                     : 0m;
 
             int completedLessons = en.Status == EnrollmentStatus.Completed
@@ -282,6 +416,8 @@ public class CourseService : ICourseService
                 EnrollmentStatus = en.Status.ToString(),
                 AcademicStatus = academicStatus,
                 ProgressPercentage = progressPct,
+                CompletedAssessments = evaluatedAssessments,
+                TotalAssessments = totalExpectedAssessments,
                 TotalLessons = totalLessons,
                 CompletedLessons = completedLessons,
                 TotalModules = totalModules,

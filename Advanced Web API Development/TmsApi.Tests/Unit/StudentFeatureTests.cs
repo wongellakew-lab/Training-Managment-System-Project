@@ -862,4 +862,93 @@ public class StudentFeatureTests
         dto.CourseId.Should().Be(4);
         dto.Status.Should().Be(EnrollmentStatus.Active);
     }
+
+    [Theory]
+    [InlineData(1, 0, 0.0)]
+    [InlineData(1, 1, 100.0)]
+    [InlineData(2, 0, 0.0)]
+    [InlineData(2, 1, 50.0)]
+    [InlineData(2, 2, 100.0)]
+    [InlineData(5, 0, 0.0)]
+    [InlineData(5, 1, 20.0)]
+    [InlineData(5, 2, 40.0)]
+    [InlineData(5, 3, 60.0)]
+    [InlineData(5, 4, 80.0)]
+    [InlineData(5, 5, 100.0)]
+    [InlineData(10, 1, 10.0)]
+    [InlineData(10, 5, 50.0)]
+    [InlineData(10, 10, 100.0)]
+    public async Task CourseProgress_BasedOnConfiguredAssignments_CalculatesAccuratePercentages(int totalAssignments, int completedCount, decimal expectedPercentage)
+    {
+        using var context = CreateInMemoryDbContext();
+        var config = new AutoMapper.MapperConfiguration(cfg => cfg.AddProfile<Application.Mappings.MappingProfile>());
+        var mapper = config.CreateMapper();
+
+        var courseId = 1500 + totalAssignments * 10 + completedCount;
+        var studentId = 700 + completedCount;
+
+        var course = new Course
+        {
+            Id = courseId,
+            Code = $"PRG-{totalAssignments}",
+            Title = $"Progress Course {totalAssignments}",
+            Status = "Active",
+            StartDate = DateTime.UtcNow.AddDays(-10),
+            EndDate = DateTime.UtcNow.AddDays(20)
+        };
+        context.Courses.Add(course);
+
+        // Add configured assignments
+        var assignments = new List<Assignment>();
+        for (int i = 1; i <= totalAssignments; i++)
+        {
+            assignments.Add(new Assignment
+            {
+                Id = courseId * 100 + i,
+                CourseId = courseId,
+                Title = $"Assignment {i}",
+                MaxPoints = 100m,
+                DueDate = DateTime.UtcNow.AddDays(i),
+                IsPublished = true
+            });
+        }
+        context.Assignments.AddRange(assignments);
+
+        // Add enrollment
+        var enrollment = new Enrollment
+        {
+            Id = courseId * 10,
+            CourseId = courseId,
+            StudentId = studentId,
+            Status = EnrollmentStatus.Active,
+            EnrolledAt = DateTime.UtcNow.AddDays(-5)
+        };
+        context.Enrollments.Add(enrollment);
+
+        // Add student completed assessments
+        for (int i = 0; i < completedCount; i++)
+        {
+            context.Assessments.Add(new Assessment
+            {
+                Id = courseId * 1000 + i + 1,
+                CourseId = courseId,
+                StudentId = studentId,
+                AssignmentId = assignments[i].Id,
+                Title = assignments[i].Title,
+                MaxScore = 100m,
+                DueDate = assignments[i].DueDate,
+                Status = "Submitted",
+                SubmittedAt = DateTime.UtcNow.AddHours(-i)
+            });
+        }
+
+        await context.SaveChangesAsync();
+
+        var service = new CourseService(context, mapper, new Application.Shaping.DataShaper<Application.DTOs.CourseDtos.CourseDto>());
+        var studentCourses = await service.GetStudentEnrolledCoursesAsync(studentId);
+
+        studentCourses.Should().HaveCount(1);
+        var enrolledCourse = studentCourses.First();
+        enrolledCourse.ProgressPercentage.Should().Be(expectedPercentage);
+    }
 }

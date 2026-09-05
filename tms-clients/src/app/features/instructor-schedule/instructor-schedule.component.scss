@@ -72,124 +72,466 @@
   color: var(--text-secondary, #64748b);
 }
 
-.calendar-grid-card {
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+/* ─────────────────────────────────────────────────────────────
+   Dual-Pane Layout: Left = Interactive Calendar | Right = Sessions Details
+───────────────────────────────────────────────────────────── */
+.master-schedule-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 1.5rem;
+  align-items: start;
 
-  .weekdays-row {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    background: var(--bg-hover, #f8fafc);
-    border-bottom: 1px solid var(--border-color, #e2e8f0);
-
-    .weekday-cell {
-      padding: 0.85rem;
-      text-align: center;
-      font-weight: 700;
-      font-size: 0.8rem;
-      color: var(--text-secondary, #64748b);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
   }
+}
 
-  .days-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-auto-rows: minmax(110px, auto);
+/* LEFT COLUMN: Master Schedule session information for selected day */
+.schedule-sessions-col {
+  .sessions-pane-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 16px;
+    padding: 1.75rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-height: 520px;
 
-    .calendar-cell {
-      border-right: 1px solid var(--border-color, #f1f5f9);
-      border-bottom: 1px solid var(--border-color, #f1f5f9);
-      padding: 0.5rem;
+    .sessions-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color, #e2e8f0);
+      flex-wrap: wrap;
+      gap: 0.75rem;
+
+      .date-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+
+        .eyebrow {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: var(--text-secondary, #64748b);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .selected-date-heading {
+          margin: 0;
+          font-size: 1.35rem;
+          font-weight: 800;
+          color: var(--text-primary, #0f172a);
+        }
+      }
+
+      .classes-count-badge {
+        background: #e0f2fe;
+        color: #0369a1;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        letter-spacing: 0.25px;
+      }
+    }
+
+    .sessions-list {
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
-      background: var(--bg-card, #ffffff);
-      transition: background 0.15s ease;
+      gap: 1.25rem;
 
-      &:nth-child(7n) {
-        border-right: none;
-      }
-
-      &.outside-month {
-        background: var(--bg-hover, #fafbfc);
-        opacity: 0.45;
-      }
-
-      &.is-today {
-        background: rgba(37, 99, 235, 0.03);
-      }
-
-      .cell-top {
+      .session-detail-card {
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        background: var(--bg-card, #ffffff);
+        border-left: 5px solid #2563eb;
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 0.85rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
 
-        .day-number {
-          font-weight: 600;
-          font-size: 0.85rem;
-          color: var(--text-primary, #334155);
-          width: 26px;
-          height: 26px;
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        &.type-workshop { border-left-color: #0284c7; }
+        &.type-lab { border-left-color: #0d9488; }
+        &.type-exam { border-left-color: #dc2626; }
+
+        .session-card-top {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+
+          .course-code-tag {
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+          }
+
+          .schedule-type-badge {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+          }
+
+          .time-range-badge {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #1d4ed8;
+            font-size: 0.8rem;
+            font-weight: 700;
+
+            mat-icon {
+              font-size: 16px;
+              width: 16px;
+              height: 16px;
+            }
+          }
+        }
+
+        .session-course-title {
+          margin: 0;
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: var(--text-primary, #0f172a);
+          line-height: 1.35;
+        }
+
+        .session-attributes-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.85rem;
+          padding: 0.85rem 0;
+          border-top: 1px dashed var(--border-color, #e2e8f0);
+          border-bottom: 1px dashed var(--border-color, #e2e8f0);
+
+          @media (max-width: 600px) {
+            grid-template-columns: 1fr;
+          }
+
+          .attr-item {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+
+            mat-icon {
+              color: #2563eb;
+              font-size: 20px;
+              width: 20px;
+              height: 20px;
+              flex-shrink: 0;
+            }
+
+            div {
+              display: flex;
+              flex-direction: column;
+              line-height: 1.25;
+
+              .attr-lbl {
+                font-size: 0.6875rem;
+                font-weight: 600;
+                color: var(--text-secondary, #64748b);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+
+              .attr-val {
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: var(--text-primary, #0f172a);
+              }
+            }
+          }
+        }
+
+        .session-notes-box {
+          background: var(--bg-hover, #f8fafc);
+          border: 1px solid var(--border-color, #e2e8f0);
+          border-radius: 8px;
+          padding: 0.65rem 0.85rem;
+          font-size: 0.8rem;
+
+          .notes-lbl {
+            font-weight: 700;
+            color: var(--text-secondary, #475569);
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            display: block;
+            margin-bottom: 2px;
+          }
+
+          .notes-txt {
+            margin: 0;
+            color: var(--text-primary, #334155);
+            line-height: 1.4;
+          }
+        }
+
+        .session-card-actions {
+          display: flex;
+          justify-content: flex-end;
+          padding-top: 0.25rem;
+
+          .roll-call-btn {
+            font-weight: 700;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            height: 38px;
+            padding: 0 16px;
+
+            mat-icon {
+              font-size: 18px;
+              width: 18px;
+              height: 18px;
+            }
+          }
+        }
+      }
+    }
+
+    .no-classes-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4.5rem 1rem;
+      text-align: center;
+      gap: 0.75rem;
+      color: var(--text-secondary, #64748b);
+
+      .empty-icon-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--bg-hover, #f1f5f9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary, #94a3b8);
+        margin-bottom: 0.5rem;
+
+        mat-icon {
+          font-size: 32px;
+          width: 32px;
+          height: 32px;
+        }
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary, #0f172a);
+      }
+
+      p {
+        margin: 0;
+        font-size: 0.875rem;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+    }
+  }
+}
+
+/* RIGHT COLUMN: Interactive Calendar */
+.calendar-pane-col {
+  .interactive-calendar-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+
+    .cal-card-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.25rem 0.5rem;
+
+      .cal-month-title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-primary, #0f172a);
+      }
+
+      .cal-nav-buttons {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+
+        button {
+          width: 32px;
+          height: 32px;
+          line-height: 32px;
+          color: #475569;
+        }
+      }
+    }
+
+    .cal-weekdays-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      border-bottom: 1px solid var(--border-color, #f1f5f9);
+      padding-bottom: 0.5rem;
+
+      .cal-weekday-cell {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    .cal-days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+
+      .cal-day-cell {
+        aspect-ratio: 1;
+        min-height: 52px;
+        border-radius: 8px;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        background: transparent;
+
+        &:hover {
+          background: rgba(37, 99, 235, 0.06);
+        }
+
+        &.outside-month {
+          opacity: 0.35;
+        }
+
+        &.has-classes {
+          background: rgba(37, 99, 235, 0.04);
+        }
+
+        &.is-today {
+          border-color: #2563eb;
+        }
+
+        &.is-selected {
+          background: rgba(37, 99, 235, 0.15) !important;
+          border-color: #2563eb !important;
+          outline: 2px solid #2563eb;
+          outline-offset: -2px;
+
+          .cell-day-number {
+            color: #1d4ed8;
+            font-weight: 800;
+          }
+        }
+
+        .cell-day-number-row {
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 50%;
+          position: relative;
+          width: 100%;
 
-          &.today-badge {
+          .cell-day-number {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary, #334155);
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+
+            &.today-badge {
+              background: #2563eb;
+              color: #ffffff;
+              font-weight: 700;
+            }
+          }
+
+          .cal-cell-dot {
+            width: 5px;
+            height: 5px;
             background: #2563eb;
-            color: #ffffff;
-            font-weight: 700;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
           }
         }
 
-        .session-count-indicator {
-          font-size: 0.7rem;
-          color: var(--text-secondary, #94a3b8);
-          font-weight: 500;
-        }
-      }
-
-      .sessions-stack {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        overflow-y: auto;
-        max-height: 120px;
-
-        .session-chip {
-          background: rgba(37, 99, 235, 0.1);
-          border-left: 3px solid #2563eb;
-          padding: 0.25rem 0.45rem;
-          border-radius: 4px;
-          cursor: pointer;
+        .mini-classes-stack {
           display: flex;
           flex-direction: column;
           gap: 1px;
-          transition: transform 0.15s ease, background 0.15s ease;
+          width: 100%;
+          margin-top: 3px;
 
-          &:hover {
-            transform: translateX(2px);
-            background: rgba(37, 99, 235, 0.18);
-          }
-
-          .chip-time {
-            font-size: 0.65rem;
-            font-weight: 700;
-            color: #1d4ed8;
-          }
-
-          .chip-title {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-primary, #0f172a);
+          .mini-class-chip {
+            font-size: 0.5625rem;
+            padding: 1px 3px;
+            border-radius: 3px;
+            color: #ffffff;
+            line-height: 1.1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            display: flex;
+            justify-content: space-between;
+
+            .mini-time {
+              font-weight: 700;
+              opacity: 0.9;
+              font-size: 0.5rem;
+            }
+
+            .mini-code {
+              font-weight: 600;
+              margin-left: 2px;
+            }
+
+            &.type-lecture { background: #172b4d; }
+            &.type-workshop { background: #0284c7; }
+            &.type-lab { background: #0d9488; }
+            &.type-exam { background: #dc2626; }
+          }
+
+          .mini-overflow {
+            font-size: 0.5rem;
+            font-weight: 700;
+            color: #2563eb;
+            text-align: center;
+            line-height: 1;
           }
         }
       }
@@ -322,7 +664,5 @@
     align-items: flex-start;
     gap: 1rem;
   }
-  .days-grid {
-    grid-auto-rows: minmax(70px, auto);
-  }
 }
+

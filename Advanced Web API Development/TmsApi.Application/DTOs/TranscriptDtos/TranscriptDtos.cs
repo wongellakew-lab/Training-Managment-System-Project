@@ -27,8 +27,8 @@ public class TranscriptSummaryDto
     public int TotalCoursesCompleted { get; set; }
     public int TotalCoursesAttempted { get; set; }
     public int TotalCreditsEarned { get; set; }
-    public decimal CumulativeGpa { get; set; }
-    public string AcademicStanding { get; set; } = "Good Standing";
+    public decimal? CumulativeGpa { get; set; }
+    public string AcademicStanding { get; set; } = "Not Yet Evaluated";
 }
 
 public class TranscriptCourseRecordDto

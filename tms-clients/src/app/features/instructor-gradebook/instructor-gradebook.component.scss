@@ -32,9 +32,66 @@
     }
   }
 
-  .course-select-field {
-    min-width: 280px;
-    margin-bottom: -1.25em;
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    .course-select-field {
+      min-width: 260px;
+      margin-bottom: -1.25em;
+    }
+
+    .submit-action-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .submit-grades-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        height: 48px;
+        padding: 0 1.35rem;
+        border-radius: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+
+        .btn-spinner {
+          display: inline-block;
+          margin-right: 0.25rem;
+        }
+
+        .pending-badge {
+          background: rgba(255, 255, 255, 0.25);
+          color: #ffffff;
+          padding: 0.1rem 0.45rem;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          margin-left: 0.25rem;
+        }
+      }
+
+      .submit-feedback {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+
+        &.success {
+          color: #059669;
+          mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; color: #10b981; }
+        }
+
+        &.error {
+          color: #dc2626;
+          mat-icon { font-size: 1.1rem; width: 1.1rem; height: 1.1rem; color: #ef4444; }
+        }
+      }
+    }
   }
 }
 
@@ -261,12 +318,42 @@
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
             background: #ffffff;
           }
+
+          &.dirty-cell {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.06);
+            color: #1d4ed8;
+          }
+
+          &.saving-cell {
+            opacity: 0.6;
+            cursor: wait;
+            background: rgba(148, 163, 184, 0.1);
+          }
+
+          &.invalid-cell {
+            border-color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.08) !important;
+            color: #b91c1c !important;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+          }
         }
 
         .max-pts-hint {
           font-size: 0.75rem;
           color: var(--text-secondary, #94a3b8);
         }
+      }
+
+      .cell-error-banner {
+        color: #dc2626;
+        font-size: 0.68rem;
+        font-weight: 600;
+        margin-top: 0.2rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 85px;
       }
 
       .total-score-val {

@@ -17,6 +17,9 @@ public class CourseConfiguration : IEntityTypeConfiguration<Course>
         builder.Property(c => c.Department).IsRequired().HasMaxLength(100);
         builder.Property(c => c.Credits).IsRequired();
         builder.Property(c => c.MaxCapacity).IsRequired();
+        builder.Property(c => c.ExpectedAssignmentCount).HasDefaultValue(5);
+        builder.Property(c => c.ExpectedMidtermCount).HasDefaultValue(1);
+        builder.Property(c => c.ExpectedFinalCount).HasDefaultValue(1);
 
         builder.Property<DateTime>("LastUpdated").HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property<uint>("Version").IsRowVersion();

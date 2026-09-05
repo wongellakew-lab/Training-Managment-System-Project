@@ -89,4 +89,12 @@ export class CourseService {
   deleteCourse(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrlV1}/${id}`);
   }
+
+  approveCourse(id: number): Observable<Course> {
+    return this.http.post<Course>(`${this.baseUrlV1}/${id}/approve`, {});
+  }
+
+  rejectCourse(id: number, reason: string): Observable<Course> {
+    return this.http.post<Course>(`${this.baseUrlV1}/${id}/reject`, { reason });
+  }
 }

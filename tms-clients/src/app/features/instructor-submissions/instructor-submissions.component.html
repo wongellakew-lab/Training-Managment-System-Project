@@ -152,11 +152,14 @@
                 <label class="section-label">Award Score</label>
                 <div class="score-input-box">
                   <input
+                    id="grade-score-input"
                     type="number"
                     class="score-input"
                     [(ngModel)]="gradeScore"
                     min="0"
                     [max]="selectedSubmission()?.maxPoints || 100"
+                    [disabled]="isSubmittingGrade()"
+                    (keydown.enter)="onScoreEnter($event)"
                   />
                   <span class="score-denom">/ {{ selectedSubmission()?.maxPoints }} pts</span>
                 </div>

@@ -134,30 +134,40 @@ public class TranscriptService : ITranscriptService
 
         transcript.CourseRecords = records;
 
-        decimal calculatedGpa = scoresForGpa.Any()
-            ? _gradingService.CalculateGPA(scoresForGpa)
-            : (student.Gpa > 0 ? student.Gpa : 0.0m);
+        decimal? calculatedGpa = null;
+        string standing = "Not Yet Evaluated";
 
-        string standing = "Good Standing";
-        if (completedCount == 0 && attemptedCount == 0)
+        if (scoresForGpa.Any())
+        {
+            calculatedGpa = _gradingService.CalculateGPA(scoresForGpa);
+            if (calculatedGpa >= 3.70m)
+            {
+                standing = "Dean's List / First Class Honours";
+            }
+            else if (calculatedGpa >= 3.00m)
+            {
+                standing = "Good Standing (Honours)";
+            }
+            else if (calculatedGpa >= 2.00m)
+            {
+                standing = "Good Standing";
+            }
+            else
+            {
+                standing = "Academic Probation";
+            }
+        }
+        else if (student.Gpa > 0)
+        {
+            calculatedGpa = student.Gpa;
+            if (calculatedGpa >= 3.70m) standing = "Dean's List / First Class Honours";
+            else if (calculatedGpa >= 3.00m) standing = "Good Standing (Honours)";
+            else if (calculatedGpa >= 2.00m) standing = "Good Standing";
+            else standing = "Academic Probation";
+        }
+        else if (completedCount == 0 && attemptedCount == 0)
         {
             standing = "Newly Enrolled";
-        }
-        else if (calculatedGpa >= 3.70m)
-        {
-            standing = "Dean's List / First Class Honours";
-        }
-        else if (calculatedGpa >= 3.00m)
-        {
-            standing = "Good Standing (Honours)";
-        }
-        else if (calculatedGpa >= 2.00m)
-        {
-            standing = "Good Standing";
-        }
-        else if (completedCount > 0)
-        {
-            standing = "Academic Probation";
         }
 
         transcript.Summary = new TranscriptSummaryDto
@@ -532,7 +542,7 @@ public class TranscriptService : ITranscriptService
     </div>
     <div class=""sum-box"">
       <div class=""sum-label"">Cumulative GPA</div>
-      <div class=""sum-val gpa-val"">{transcript.Summary.CumulativeGpa:F2} <small style=""font-size: 12px; color: #64748b;"">/ 4.00</small></div>
+      <div class=""sum-val gpa-val"">{(transcript.Summary.CumulativeGpa.HasValue ? $"{transcript.Summary.CumulativeGpa.Value:F2} <small style=\"font-size: 12px; color: #64748b;\">/ 4.00</small>" : "<span style=\"font-size: 16px; color: #64748b;\">N/A</span>")}</div>
     </div>
     <div class=""sum-box"">
       <div class=""sum-label"">Academic Standing</div>

@@ -67,6 +67,13 @@ public static class DataSeeder
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Category"" character varying(100);
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Batch"" character varying(50);
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Country"" character varying(100);
+
+                    ALTER TABLE ""Assessments"" ADD COLUMN IF NOT EXISTS ""SubmissionFileName"" character varying(255);
+                    ALTER TABLE ""Assessments"" ADD COLUMN IF NOT EXISTS ""SubmissionFileType"" character varying(100);
+                    ALTER TABLE ""Assessments"" ADD COLUMN IF NOT EXISTS ""SubmissionFileSize"" bigint;
+
+                    UPDATE ""Students"" SET ""Status"" = 'Active' WHERE ""Status"" IS NULL OR ""Status"" = '';
+                    UPDATE ""Instructors"" SET ""Status"" = 'Active' WHERE ""Status"" IS NULL OR ""Status"" = '';
                 ");
             }
             catch (Exception ex)

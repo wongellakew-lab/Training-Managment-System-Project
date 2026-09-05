@@ -1,0 +1,416 @@
+<app-layout>
+  <div class="student-assignments-container">
+    <!-- Page Header -->
+    <header class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">Assignments & Submissions</h1>
+        <p class="page-subtitle">View deliverables, download resources, and submit coursework for enrolled courses</p>
+      </div>
+      <div class="header-right">
+        <button mat-stroked-button (click)="loadAssignments()" class="refresh-btn" [disabled]="isLoading()">
+          <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
+          <span>Sync</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <section class="stats-grid">
+      <div class="stat-card eduva-card">
+        <div class="stat-icon-circle blue">
+          <mat-icon>assignment</mat-icon>
+        </div>
+        <div class="stat-details">
+          <span class="stat-label">Total Assigned</span>
+          <div class="stat-value font-mono">{{ stats().total }}</div>
+          <span class="stat-sub">Across active courses</span>
+        </div>
+      </div>
+
+      <div class="stat-card eduva-card">
+        <div class="stat-icon-circle amber">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="stat-details">
+          <span class="stat-label">Pending</span>
+          <div class="stat-value font-mono">{{ stats().pending }}</div>
+          <span class="stat-sub">Awaiting your submission</span>
+        </div>
+      </div>
+
+      <div class="stat-card eduva-card">
+        <div class="stat-icon-circle purple">
+          <mat-icon>cloud_upload</mat-icon>
+        </div>
+        <div class="stat-details">
+          <span class="stat-label">Submitted</span>
+          <div class="stat-value font-mono">{{ stats().submitted }}</div>
+          <span class="stat-sub">Awaiting instructor evaluation</span>
+        </div>
+      </div>
+
+      <div class="stat-card eduva-card">
+        <div class="stat-icon-circle green">
+          <mat-icon>verified</mat-icon>
+        </div>
+        <div class="stat-details">
+          <span class="stat-label">Graded</span>
+          <div class="stat-value font-mono">{{ stats().graded }}</div>
+          <span class="stat-sub">Evaluated with feedback</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filters & Search Toolbar -->
+    <section class="toolbar-card eduva-card">
+      <div class="filter-pills">
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activeFilter() === 'All'"
+          (click)="setFilter('All')">
+          All Assignments ({{ stats().total }})
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activeFilter() === 'Pending'"
+          (click)="setFilter('Pending')">
+          Pending ({{ stats().pending }})
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activeFilter() === 'Submitted'"
+          (click)="setFilter('Submitted')">
+          Submitted ({{ stats().submitted }})
+        </button>
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="activeFilter() === 'Graded'"
+          (click)="setFilter('Graded')">
+          Graded ({{ stats().graded }})
+        </button>
+      </div>
+
+      <div class="toolbar-controls">
+        <div class="search-box">
+          <mat-icon>search</mat-icon>
+          <input
+            type="text"
+            placeholder="Search assignments or courses..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)" />
+          @if (searchQuery()) {
+            <button mat-icon-button (click)="searchQuery.set('')" class="clear-btn">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </div>
+
+        @if (courseOptions().length > 1) {
+          <div class="course-select-box">
+            <mat-form-field appearance="outline" class="dense-field">
+              <mat-label>Filter by Course</mat-label>
+              <mat-select [ngModel]="selectedCourseId()" (ngModelChange)="selectedCourseId.set($event)">
+                <mat-option value="all">All Enrolled Courses</mat-option>
+                @for (c of courseOptions(); track c.id) {
+                  <mat-option [value]="c.id">{{ c.title }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Content Area -->
+    @if (isLoading()) {
+      <div class="state-loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Retrieving course assignments from database...</span>
+      </div>
+    } @else if (errorMessage()) {
+      <div class="state-error eduva-card">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ errorMessage() }}</p>
+        <button mat-stroked-button color="primary" (click)="loadAssignments()">Retry</button>
+      </div>
+    } @else if (filteredAssignments().length === 0) {
+      <div class="state-empty eduva-card">
+        <mat-icon class="empty-icon">task_alt</mat-icon>
+        <h3>No assignments found</h3>
+        <p>No assignments currently match your selected filter criteria.</p>
+        @if (activeFilter() !== 'All' || searchQuery() || selectedCourseId() !== 'all') {
+          <button mat-stroked-button color="primary" (click)="setFilter('All'); searchQuery.set(''); selectedCourseId.set('all')">
+            Clear Filters
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="assignments-list">
+        @for (asg of filteredAssignments(); track asg.id) {
+          <div class="assignment-card eduva-card" [class.graded-card]="asg.status === 'Graded'" [class.overdue-card]="asg.isPastDue && asg.status === 'Pending'">
+            <!-- Card Header -->
+            <div class="asg-card-top">
+              <div class="asg-course-badge">
+                <span class="font-mono font-bold">{{ asg.courseCode }}</span>
+                <span class="meta-dot">&bull;</span>
+                <span class="course-name">{{ asg.courseTitle }}</span>
+                @if (asg.moduleTitle) {
+                  <span class="meta-dot">&bull;</span>
+                  <span class="module-name">{{ asg.moduleTitle }}</span>
+                }
+              </div>
+
+              <!-- Status Badge -->
+              <div class="status-badge-container">
+                @if (asg.status === 'Graded') {
+                  <span class="status-chip status-graded">
+                    <mat-icon>verified</mat-icon>
+                    Graded: {{ asg.scoredPoints }} / {{ asg.maxPoints }} pts
+                  </span>
+                } @else if (asg.status === 'Submitted') {
+                  <span class="status-chip status-submitted">
+                    <mat-icon>cloud_done</mat-icon>
+                    Submitted
+                  </span>
+                } @else if (asg.isPastDue) {
+                  <span class="status-chip status-overdue">
+                    <mat-icon>schedule</mat-icon>
+                    Past Due
+                  </span>
+                } @else {
+                  <span class="status-chip status-pending">
+                    <mat-icon>schedule</mat-icon>
+                    Pending
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Title & Main Info -->
+            <div class="asg-card-body">
+              <h2 class="asg-title">{{ asg.title }}</h2>
+
+              <div class="asg-meta-row">
+                <span class="meta-item font-mono">
+                  <mat-icon>event</mat-icon>
+                  Due: {{ asg.dueDate | date:'mediumDate' }} ({{ asg.dueDate | date:'shortTime' }})
+                </span>
+                <span class="meta-item font-mono">
+                  <mat-icon>grade</mat-icon>
+                  Max Points: {{ asg.maxPoints }} pts
+                </span>
+                @if (asg.submittedAt) {
+                  <span class="meta-item font-mono text-muted">
+                    <mat-icon>access_time</mat-icon>
+                    Submitted on: {{ asg.submittedAt | date:'medium' }}
+                  </span>
+                }
+              </div>
+
+              <!-- Instructions -->
+              @if (asg.instructions) {
+                <div class="instructions-box">
+                  <div class="inst-label"><mat-icon>info</mat-icon> Instructions:</div>
+                  <p class="inst-text">{{ asg.instructions }}</p>
+                </div>
+              }
+
+              <!-- Instructor Attachment -->
+              @if (asg.attachmentUrl) {
+                <div class="attachment-box">
+                  <mat-icon>attach_file</mat-icon>
+                  <span class="attach-name font-mono">{{ asg.attachmentFileName || 'Assignment Materials' }}</span>
+                  <a [href]="getDownloadUrl(asg.attachmentUrl)" target="_blank" class="download-link" mat-button color="primary">
+                    <mat-icon>download</mat-icon>
+                    Download Resource
+                  </a>
+                </div>
+              }
+
+              <!-- If Graded: Show Feedback & Score -->
+              @if (asg.status === 'Graded' && asg.feedback) {
+                <div class="feedback-card">
+                  <div class="feedback-header">
+                    <mat-icon>rate_review</mat-icon>
+                    <span>Instructor Evaluation & Feedback</span>
+                    @if (asg.gradedAt) {
+                      <span class="feedback-date font-mono">Graded {{ asg.gradedAt | date:'mediumDate' }}</span>
+                    }
+                  </div>
+                  <p class="feedback-body">"{{ asg.feedback }}"</p>
+                </div>
+              }
+
+              <!-- If Submitted: Show student's submitted file / response -->
+              @if (asg.status === 'Submitted' || asg.status === 'Graded') {
+                @if (asg.submissionFileName || asg.submissionFileUrl || asg.submissionText) {
+                  <div class="student-submission-summary">
+                    <div class="sub-label">Your Submitted Work:</div>
+                    @if (asg.submissionFileUrl) {
+                      <div class="sub-file-row">
+                        <mat-icon>description</mat-icon>
+                        <span class="font-mono">{{ asg.submissionFileName || 'Submitted Document' }}</span>
+                        @if (asg.submissionFileSize) {
+                          <span class="file-size-pill">({{ (asg.submissionFileSize / 1024).toFixed(1) }} KB)</span>
+                        }
+                        <a [href]="getDownloadUrl(asg.submissionFileUrl)" target="_blank" class="file-view-link">
+                          <mat-icon>open_in_new</mat-icon>
+                          View File
+                        </a>
+                      </div>
+                    }
+                    @if (asg.submissionText) {
+                      <div class="sub-text-block">
+                        <p class="sub-text">"{{ asg.submissionText }}"</p>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+
+            <!-- Card Actions -->
+            <div class="asg-card-footer">
+              <div class="footer-left">
+                @if (asg.isPastDue && asg.status === 'Pending') {
+                  <span class="deadline-passed-msg">
+                    <mat-icon>error_outline</mat-icon>
+                    Deadline passed. Submissions are closed.
+                  </span>
+                }
+              </div>
+              <div class="footer-right">
+                @if (asg.canSubmit) {
+                  <button mat-flat-button color="primary" (click)="openSubmitModal(asg)" class="submit-action-btn">
+                    <mat-icon>{{ asg.status === 'Submitted' ? 'edit' : 'upload' }}</mat-icon>
+                    <span>{{ asg.status === 'Submitted' ? 'Resubmit Assignment' : 'Submit Assignment' }}</span>
+                  </button>
+                } @else if (asg.status === 'Graded') {
+                  <span class="graded-complete-pill">
+                    <mat-icon>check_circle</mat-icon>
+                    Evaluation Finalized
+                  </span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Interactive Submission Modal -->
+    @if (isModalOpen() && activeAssignment()) {
+      <div class="modal-backdrop" (click)="closeModal()">
+        <div class="modal-dialog eduva-card" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div class="modal-title-group">
+              <span class="course-code-tag font-mono">{{ activeAssignment()!.courseCode }}</span>
+              <h2 class="modal-title">Submit Assignment</h2>
+              <h3 class="modal-asg-name">{{ activeAssignment()!.title }}</h3>
+            </div>
+            <button mat-icon-button (click)="closeModal()" [disabled]="isSubmitting()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Assignment Briefing -->
+            <div class="modal-briefing">
+              <div class="brief-item">
+                <span class="brief-label">Due Date:</span>
+                <span class="brief-val font-mono">{{ activeAssignment()!.dueDate | date:'mediumDate' }} {{ activeAssignment()!.dueDate | date:'shortTime' }}</span>
+              </div>
+              <div class="brief-item">
+                <span class="brief-label">Max Score:</span>
+                <span class="brief-val font-mono">{{ activeAssignment()!.maxPoints }} points</span>
+              </div>
+            </div>
+
+            @if (activeAssignment()!.instructions) {
+              <div class="modal-instructions">
+                <span class="inst-heading">Prompt / Instructions:</span>
+                <p>{{ activeAssignment()!.instructions }}</p>
+              </div>
+            }
+
+            <!-- File Upload Dropzone -->
+            <div class="form-group">
+              <label class="form-label">Attach Deliverable (Optional if response written)</label>
+              <div class="dropzone-box" (click)="fileInput.click()">
+                <input
+                  #fileInput
+                  type="file"
+                  (change)="onFileSelected($event)"
+                  style="display: none"
+                  accept=".pdf,.doc,.docx,.zip,.txt,.png,.jpg,.jpeg,.csv,.xlsx" />
+
+                @if (selectedFile()) {
+                  <div class="file-chosen-view">
+                    <mat-icon class="file-icon">description</mat-icon>
+                    <div class="chosen-meta">
+                      <span class="chosen-name font-mono">{{ selectedFile()!.name }}</span>
+                      <span class="chosen-size">({{ (selectedFile()!.size / 1024).toFixed(1) }} KB)</span>
+                    </div>
+                    <button mat-icon-button color="warn" (click)="$event.stopPropagation(); removeSelectedFile()" title="Remove File">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="dropzone-empty">
+                    <mat-icon class="upload-icon">cloud_upload</mat-icon>
+                    <p class="drop-text">Click or drag file here to upload</p>
+                    <span class="drop-sub">Supported: PDF, Word, ZIP, Images, Text (Max: 25MB)</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Written Response Input -->
+            <div class="form-group">
+              <label class="form-label">Written Response / Submission Notes</label>
+              <textarea
+                class="tms-textarea"
+                rows="4"
+                placeholder="Type your written response, solution comments, or submission explanation here..."
+                [ngModel]="submissionText()"
+                (ngModelChange)="submissionText.set($event)"></textarea>
+            </div>
+
+            @if (!selectedFile() && !submissionText().trim()) {
+              <div class="submission-required-hint">
+                <mat-icon class="hint-icon">info_outline</mat-icon>
+                <span>Add a response or attachment before submitting.</span>
+              </div>
+            }
+          </div>
+
+          <div class="modal-footer">
+            <button mat-stroked-button (click)="closeModal()" [disabled]="isSubmitting()">
+              Cancel
+            </button>
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="submitWork()"
+              [disabled]="isSubmitting() || (!selectedFile() && !submissionText().trim())"
+              class="modal-submit-btn">
+              <span class="btn-content-flex">
+                @if (isSubmitting()) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                  <span>Submitting to Database...</span>
+                } @else {
+                  <mat-icon>send</mat-icon>
+                  <span>Confirm & Submit</span>
+                }
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</app-layout>

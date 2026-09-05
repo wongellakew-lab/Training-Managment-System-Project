@@ -56,7 +56,7 @@ export interface TranscriptSummaryDto {
   totalCoursesCompleted: number;
   totalCoursesAttempted: number;
   totalCreditsEarned: number;
-  cumulativeGpa: number;
+  cumulativeGpa: number | null;
   academicStanding: string;
 }
 

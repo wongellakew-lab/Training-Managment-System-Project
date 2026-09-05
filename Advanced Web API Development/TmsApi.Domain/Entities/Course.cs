@@ -27,6 +27,11 @@ public class Course
     public DateTime EndDate { get; set; } = DateTime.UtcNow.Date.AddDays(42);
     public int DurationWeeks { get; set; } = 6;
     public bool IsDeleted { get; set; } = false;
+    public string? RejectionReason { get; set; }
+
+    public int ExpectedAssignmentCount { get; set; } = 5;
+    public int ExpectedMidtermCount { get; set; } = 1;
+    public int ExpectedFinalCount { get; set; } = 1;
 
     public int? InstructorId { get; set; }
     public Instructor? Instructor { get; set; }

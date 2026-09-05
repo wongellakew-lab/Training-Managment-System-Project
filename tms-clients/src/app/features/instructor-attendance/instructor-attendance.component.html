@@ -4,32 +4,54 @@
     <div class="filter-header-card">
       <div class="header-left">
         <h1>Digital Roll Call</h1>
-        <p>Record and update session attendance for your enrolled students. Changes persist immediately to PostgreSQL.</p>
+        <p>Record, review, and update session attendance for enrolled students across historical dates. Changes persist directly to PostgreSQL.</p>
       </div>
 
       <div class="header-controls">
-        <div class="controls-row">
-          <mat-form-field appearance="outline" class="course-select-field">
-            <mat-label>Select Course</mat-label>
-            <mat-select [(ngModel)]="selectedCourseId" (selectionChange)="onCourseChange()">
-              <mat-option *ngFor="let c of courses()" [value]="c.id">
-                {{ c.code }} - {{ c.title }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+        <div class="controls-primary-grid">
+          <!-- Session Date Group -->
+          <div class="control-col date-control-col">
+            <div class="date-nav-group">
+              <button mat-icon-button type="button" class="nav-arrow-btn" (click)="goToPreviousDay()" title="Previous Day">
+                <mat-icon>chevron_left</mat-icon>
+              </button>
 
-          <mat-form-field appearance="outline" class="date-picker-field">
-            <mat-label>Session Date</mat-label>
-            <input
-              matInput
-              type="date"
-              [(ngModel)]="selectedDate"
-              (change)="onDateChange()"
-            />
-          </mat-form-field>
+              <mat-form-field appearance="outline" class="date-picker-field">
+                <mat-label>Session Date</mat-label>
+                <input
+                  matInput
+                  type="date"
+                  [(ngModel)]="selectedDate"
+                  [max]="maxDate()"
+                  (change)="onDateChange()"
+                />
+              </mat-form-field>
+
+              <button mat-icon-button type="button" class="nav-arrow-btn" (click)="goToNextDay()" [disabled]="!canGoNext()" title="Next Day">
+                <mat-icon>chevron_right</mat-icon>
+              </button>
+
+              <button mat-stroked-button type="button" class="today-btn" (click)="goToToday()" [disabled]="isToday()">
+                <mat-icon>today</mat-icon>
+                <span>Today</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Course Select Field -->
+          <div class="control-col course-control-col">
+            <mat-form-field appearance="outline" class="course-select-field">
+              <mat-label>Select Course</mat-label>
+              <mat-select [(ngModel)]="selectedCourseId" (selectionChange)="onCourseChange()">
+                <mat-option *ngFor="let c of courses()" [value]="c.id">
+                  {{ c.code }} - {{ c.title }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
         </div>
 
-        <div class="actions-row">
+        <div class="actions-row" *ngIf="hasScheduledSession()">
           <button mat-stroked-button (click)="markAllPresent()" [disabled]="isLoading() || students().length === 0">
             <mat-icon>done_all</mat-icon>
             <span>Mark All Present</span>
@@ -48,8 +70,8 @@
       </div>
     </div>
 
-    <!-- Attendance Stats Strip -->
-    <div class="stats-strip">
+    <!-- Attendance Stats Strip (Only when session scheduled) -->
+    <div class="stats-strip" *ngIf="hasScheduledSession()">
       <div class="stat-pill">
         <span class="stat-label">Total Enrolled</span>
         <span class="stat-num">{{ students().length }}</span>
@@ -75,83 +97,121 @@
     <!-- Loading State -->
     <div *ngIf="isLoading()" class="loading-state">
       <mat-spinner diameter="44"></mat-spinner>
-      <p>Loading course enrollment roster...</p>
+      <p>Loading course enrollment and session records...</p>
     </div>
 
-    <!-- Empty State -->
-    <div *ngIf="!isLoading() && students().length === 0" class="empty-roster-card">
-      <mat-icon>group_off</mat-icon>
-      <h3>No Students Enrolled</h3>
-      <p>There are currently no active students enrolled in this course section.</p>
+    <!-- State 1: No Session Scheduled on this Date -->
+    <div *ngIf="!isLoading() && !hasScheduledSession()" class="empty-roster-card no-session-card">
+      <mat-icon class="no-session-icon">event_busy</mat-icon>
+      <h3>No training session scheduled for this date.</h3>
+      <p>There is no training class scheduled for this course on <strong>{{ selectedDate() }}</strong>. Use the navigation buttons above to select a scheduled class date.</p>
+      <button mat-stroked-button color="primary" (click)="goToToday()" class="return-today-btn">
+        <mat-icon>today</mat-icon>
+        <span>Return to Today</span>
+      </button>
     </div>
 
-    <!-- Student Attendance List -->
-    <div *ngIf="!isLoading() && students().length > 0" class="roster-card">
-      <div class="roster-header">
-        <div class="col-student">Student</div>
-        <div class="col-reg">Registration #</div>
-        <div class="col-status">Roll Call Status</div>
-        <div class="col-remarks">Remarks / Notes</div>
+    <!-- State 2 & 3: Scheduled Session Content -->
+    <div *ngIf="!isLoading() && hasScheduledSession()">
+      <!-- Unrecorded Session Notice -->
+      <div *ngIf="!isRecorded()" class="session-status-banner unrecorded">
+        <mat-icon>info</mat-icon>
+        <div class="banner-text">
+          <strong>Attendance has not been recorded for this session.</strong>
+          <span>Mark student attendance status below and click "Save Attendance" to store records in PostgreSQL.</span>
+        </div>
+        <span class="schedule-pill" *ngIf="scheduleInfo()">
+          {{ scheduleInfo().startTime }} - {{ scheduleInfo().endTime }} ({{ scheduleInfo().room || scheduleInfo().location || 'Standard Session' }})
+        </span>
       </div>
 
-      <div class="roster-body">
-        <div *ngFor="let s of students()" class="student-row">
-          <!-- Student Info -->
-          <div class="col-student student-info-cell">
-            <div class="student-avatar">
-              <img *ngIf="s.avatarUrl" [src]="s.avatarUrl" [alt]="s.firstName" />
-              <span *ngIf="!s.avatarUrl">{{ s.firstName.charAt(0) }}{{ s.lastName.charAt(0) }}</span>
+      <!-- Recorded Session Notice -->
+      <div *ngIf="isRecorded()" class="session-status-banner recorded">
+        <mat-icon>verified</mat-icon>
+        <div class="banner-text">
+          <strong>Attendance recorded for this session.</strong>
+          <span>Displaying authentic database records. Any updates will modify the existing record without creating duplicates.</span>
+        </div>
+        <span class="schedule-pill" *ngIf="scheduleInfo()">
+          {{ scheduleInfo().startTime }} - {{ scheduleInfo().endTime }} ({{ scheduleInfo().room || scheduleInfo().location || 'Standard Session' }})
+        </span>
+      </div>
+
+      <!-- Empty Students in Course -->
+      <div *ngIf="students().length === 0" class="empty-roster-card">
+        <mat-icon>group_off</mat-icon>
+        <h3>No Students Enrolled</h3>
+        <p>There are currently no active students enrolled in this course section.</p>
+      </div>
+
+      <!-- Student Attendance List -->
+      <div *ngIf="students().length > 0" class="roster-card">
+        <div class="roster-header">
+          <div class="col-student">Student</div>
+          <div class="col-reg">Registration #</div>
+          <div class="col-status">Roll Call Status</div>
+          <div class="col-remarks">Remarks / Notes</div>
+        </div>
+
+        <div class="roster-body">
+          <div *ngFor="let s of students()" class="student-row">
+            <!-- Student Info -->
+            <div class="col-student student-info-cell">
+              <div class="student-avatar">
+                <img *ngIf="s.avatarUrl" [src]="s.avatarUrl" [alt]="s.firstName" />
+                <span *ngIf="!s.avatarUrl">{{ s.firstName.charAt(0) }}{{ s.lastName.charAt(0) }}</span>
+              </div>
+              <div>
+                <span class="student-name">{{ s.firstName }} {{ s.lastName }}</span>
+                <span class="student-email">{{ s.email }}</span>
+              </div>
             </div>
-            <div>
-              <span class="student-name">{{ s.firstName }} {{ s.lastName }}</span>
-              <span class="student-email">{{ s.email }}</span>
+
+            <!-- Registration Number -->
+            <div class="col-reg reg-cell">
+              <span class="reg-pill">{{ s.registrationNumber || 'REG-PENDING' }}</span>
             </div>
-          </div>
 
-          <!-- Registration Number -->
-          <div class="col-reg reg-cell">
-            <span class="reg-pill">{{ s.registrationNumber || 'REG-PENDING' }}</span>
-          </div>
+            <!-- 1-Click Status Pills -->
+            <div class="col-status status-buttons-cell">
+              <button
+                type="button"
+                class="status-btn present"
+                [class.active]="s.statusCode === 1"
+                (click)="setStatus(s, 1)"
+              >
+                <mat-icon>check_circle</mat-icon>
+                <span>Present</span>
+              </button>
+              <button
+                type="button"
+                class="status-btn late"
+                [class.active]="s.statusCode === 2"
+                (click)="setStatus(s, 2)"
+              >
+                <mat-icon>schedule</mat-icon>
+                <span>Late</span>
+              </button>
+              <button
+                type="button"
+                class="status-btn absent"
+                [class.active]="s.statusCode === 3"
+                (click)="setStatus(s, 3)"
+              >
+                <mat-icon>cancel</mat-icon>
+                <span>Absent</span>
+              </button>
+            </div>
 
-          <!-- 1-Click Status Pills -->
-          <div class="col-status status-buttons-cell">
-            <button
-              type="button"
-              class="status-btn present"
-              [class.active]="s.statusCode === 1"
-              (click)="setStatus(s, 1)"
-            >
-              <mat-icon>check_circle</mat-icon>
-              <span>Present</span>
-            </button>
-            <button
-              type="button"
-              class="status-btn late"
-              [class.active]="s.statusCode === 2"
-              (click)="setStatus(s, 2)"
-            >
-              <mat-icon>schedule</mat-icon>
-              <span>Late</span>
-            </button>
-            <button
-              type="button"
-              class="status-btn absent"
-              [class.active]="s.statusCode === 3"
-              (click)="setStatus(s, 3)"
-            >
-              <mat-icon>cancel</mat-icon>
-              <span>Absent</span>
-            </button>
-          </div>
-
-          <!-- Remarks Input -->
-          <div class="col-remarks remarks-cell">
-            <input
-              type="text"
-              class="remarks-input"
-              [(ngModel)]="s.remarks"
-              placeholder="e.g. Excused, arrived 15 min late..."
-            />
+            <!-- Remarks Input -->
+            <div class="col-remarks remarks-cell">
+              <input
+                type="text"
+                class="remarks-input"
+                [(ngModel)]="s.remarks"
+                placeholder="e.g. Excused, arrived 15 min late..."
+              />
+            </div>
           </div>
         </div>
       </div>

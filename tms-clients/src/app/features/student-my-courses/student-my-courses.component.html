@@ -238,6 +238,11 @@
                 <span class="progress-label">Progress</span>
                 <span class="progress-pct font-mono font-bold">{{ course.progressPercentage }}%</span>
               </div>
+              @if (course.totalAssessments && course.totalAssessments > 0) {
+                <div class="progress-assessments-sub font-mono" style="font-size: 0.75rem; color: var(--text-secondary, #64748b); margin-bottom: 6px;">
+                  {{ course.completedAssessments || 0 }} of {{ course.totalAssessments }} assessments evaluated
+                </div>
+              }
               <div class="progress-bar-container">
                 <mat-progress-bar mode="determinate" [value]="course.progressPercentage"></mat-progress-bar>
               </div>

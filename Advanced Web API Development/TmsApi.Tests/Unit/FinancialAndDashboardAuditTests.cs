@@ -1,10 +1,7 @@
 using AutoMapper;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using TmsApi.Api.Controllers.V1;
-using TmsApi.Application.DTOs.FinancialDtos;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Services;
@@ -23,94 +20,39 @@ public class FinancialAndDashboardAuditTests
     }
 
     [Fact]
-    public async Task FinancialsController_EmptyDatabase_ShouldReturnZeros()
-    {
-        using var context = CreateInMemoryDbContext();
-        var controller = new FinancialsController(context);
-
-        var result = await controller.GetOverview(CancellationToken.None);
-
-        result.Should().BeOfType<OkObjectResult>();
-        var okResult = result as OkObjectResult;
-        var overview = okResult!.Value as FinancialOverviewDto;
-        overview.Should().NotBeNull();
-        overview!.TotalRevenue.Should().Be(0);
-        overview.TotalPaidOut.Should().Be(0);
-        overview.PendingReceivables.Should().Be(0);
-        overview.TotalTransactionsCount.Should().Be(0);
-        overview.RecentTransactions.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task FinancialsController_PopulatedDatabase_ShouldAggregateFromEnrollments()
+    public async Task DashboardService_AdminDashboard_RecentActivities_ShouldIdentifyRealActorAndNotSayYour()
     {
         using var context = CreateInMemoryDbContext();
 
         var student = new Student
         {
             Id = 1,
-            FirstName = "Alice",
-            LastName = "Smith",
-            Email = "alice@eduva.com",
-            RegistrationNumber = "REG-001"
+            FirstName = "Abebe",
+            LastName = "Kebede",
+            Email = "abebe@example.com",
+            RegistrationNumber = "TMS-STU-001"
         };
         var course = new Course
         {
             Id = 1,
-            Title = "Cloud Architecture",
-            Code = "CLOUD-101",
-            Credits = 3,
-            Department = "Engineering"
+            Title = "French for Beginners",
+            Code = "LAN-101",
+            Status = "Active"
         };
-        context.Students.Add(student);
-        context.Courses.Add(course);
-
-        // Active enrollment
-        context.Enrollments.Add(new Enrollment
-        {
-            Id = 10,
-            StudentId = 1,
-            CourseId = 1,
-            Status = EnrollmentStatus.Active,
-            EnrolledAt = DateTime.UtcNow
-        });
-
-        // Pending enrollment
-        context.Enrollments.Add(new Enrollment
-        {
-            Id = 11,
-            StudentId = 1,
-            CourseId = 1,
-            Status = EnrollmentStatus.Pending,
-            EnrolledAt = DateTime.UtcNow
-        });
-
-        await context.SaveChangesAsync();
-
-        var controller = new FinancialsController(context);
-        var result = await controller.GetOverview(CancellationToken.None);
-
-        result.Should().BeOfType<OkObjectResult>();
-        var okResult = result as OkObjectResult;
-        var overview = okResult!.Value as FinancialOverviewDto;
-        overview.Should().NotBeNull();
-        overview!.TotalTransactionsCount.Should().Be(2);
-    }
-
-    [Fact]
-    public async Task DashboardService_AdminDashboard_LearningActivityHeatmap_ShouldReturn42CellsAndReflectRealDbCounts()
-    {
-        using var context = CreateInMemoryDbContext();
-
-        // Add an enrollment on a specific day
-        context.Enrollments.Add(new Enrollment
+        var enrollment = new Enrollment
         {
             Id = 1,
             StudentId = 1,
+            Student = student,
             CourseId = 1,
+            Course = course,
             Status = EnrollmentStatus.Active,
-            EnrolledAt = new DateTime(2026, 9, 7, 10, 0, 0, DateTimeKind.Utc) // Monday 10am -> 9am-11am bucket
-        });
+            EnrolledAt = DateTime.UtcNow
+        };
+
+        context.Students.Add(student);
+        context.Courses.Add(course);
+        context.Enrollments.Add(enrollment);
         await context.SaveChangesAsync();
 
         var mapperMock = new Mock<IMapper>();
@@ -118,7 +60,55 @@ public class FinancialAndDashboardAuditTests
         var adminDashboard = await service.GetAdminDashboardAsync(CancellationToken.None);
 
         adminDashboard.Should().NotBeNull();
-        adminDashboard.LearningActivityHeatmap.Should().HaveCount(42); // 6 slots x 7 days
-        adminDashboard.LearningActivityHeatmap.All(c => c.Level >= 0 && c.Level <= 4).Should().BeTrue();
+        adminDashboard.RecentActivities.Should().NotBeEmpty();
+        var act = adminDashboard.RecentActivities.First();
+        act.ActorName.Should().Be("Abebe Kebede");
+        act.ActorRole.Should().Be("Student");
+        act.Description.Should().Contain("Abebe Kebede");
+        act.Description.Should().Contain("French for Beginners");
+        act.Description.Should().NotContain("Your registration");
+    }
+
+    [Fact]
+
+    public async Task ScheduleService_GetSchedulesAsync_ShouldProjectRecurringSchedulesWithinDateRange()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var course = new Course
+        {
+            Id = 1,
+            Title = "Full Stack Web Development",
+            Code = "FSWD-101",
+            Category = "Web Dev",
+            StartDate = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+            EndDate = new DateTime(2026, 9, 21, 0, 0, 0, DateTimeKind.Utc)
+        };
+        context.Courses.Add(course);
+
+        // Schedule on Mondays (DayOfWeek = Monday)
+        context.Set<CourseSchedule>().Add(new CourseSchedule
+        {
+            Id = 10,
+            CourseId = 1,
+            DayOfWeek = DayOfWeek.Monday,
+            StartTime = "09:00 AM",
+            EndTime = "11:00 AM",
+            Room = "Lab 1",
+            Location = "Tech Campus"
+        });
+
+        await context.SaveChangesAsync();
+
+        var mapperMock = new Mock<IMapper>();
+        var service = new ScheduleService(context, mapperMock.Object);
+
+        // Get schedules for September 2026
+        var schedules = (await service.GetSchedulesAsync(null, 9, 2026, CancellationToken.None)).ToList();
+
+        schedules.Should().NotBeEmpty();
+        // In Sep 2026: Sep 7 is Monday, Sep 14 is Monday, Sep 21 is Monday. Sep 28 is beyond EndDate.
+        schedules.Select(s => s.Date.Day).Should().Contain(new[] { 7, 14, 21 });
+        schedules.Select(s => s.Date.Day).Should().NotContain(28);
     }
 }

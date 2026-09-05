@@ -12,6 +12,7 @@ public class Assignment
     public int? CourseLessonId { get; set; }
     public CourseLesson? CourseLesson { get; set; }
 
+    public int AssignmentNumber { get; set; } = 1;
     public string Title { get; set; } = string.Empty;
     public string Instructions { get; set; } = string.Empty;
     public decimal MaxPoints { get; set; } = 100m;

@@ -38,19 +38,69 @@
     align-items: flex-end;
     gap: 0.75rem;
 
-    .controls-row {
-      display: flex;
-      gap: 1rem;
+    .controls-primary-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1.25rem;
       align-items: center;
+      width: 100%;
 
-      .course-select-field {
-        min-width: 260px;
-        margin-bottom: -1.25em;
+      .control-col {
+        display: flex;
+        align-items: center;
       }
 
-      .date-picker-field {
-        min-width: 170px;
-        margin-bottom: -1.25em;
+      .course-control-col {
+        min-width: 260px;
+        flex: 1;
+
+        .course-select-field {
+          width: 100%;
+          margin-bottom: -1.25em;
+        }
+      }
+
+      .date-control-col {
+        .date-nav-group {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          flex-shrink: 0;
+
+          .nav-arrow-btn {
+            width: 36px;
+            height: 36px;
+            line-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color, #e2e8f0);
+            border-radius: 8px;
+            color: var(--text-primary, #0f172a);
+            background: var(--bg-card, #ffffff);
+
+            &:disabled {
+              opacity: 0.35;
+              cursor: not-allowed;
+            }
+          }
+
+          .date-picker-field {
+            min-width: 155px;
+            margin-bottom: -1.25em;
+          }
+
+          .today-btn {
+            height: 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0 0.85rem;
+          }
+        }
       }
     }
 
@@ -144,6 +194,83 @@
   p {
     margin: 0;
     font-size: 0.9rem;
+  }
+
+  &.no-session-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px dashed var(--border-color, #cbd5e1);
+    padding: 3.5rem 2rem;
+
+    .no-session-icon {
+      color: #f59e0b !important;
+      opacity: 0.85 !important;
+    }
+
+    .return-today-btn {
+      margin-top: 1.25rem;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+  }
+}
+
+.session-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  border: 1px solid transparent;
+
+  mat-icon {
+    font-size: 1.35rem;
+    width: 1.35rem;
+    height: 1.35rem;
+    flex-shrink: 0;
+  }
+
+  .banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+
+    strong {
+      font-size: 0.9rem;
+    }
+
+    span {
+      font-size: 0.82rem;
+    }
+  }
+
+  .schedule-pill {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  &.unrecorded {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.25);
+    color: #92400e;
+
+    mat-icon { color: #f59e0b; }
+    .schedule-pill { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+  }
+
+  &.recorded {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: #065f46;
+
+    mat-icon { color: #10b981; }
+    .schedule-pill { background: rgba(16, 185, 129, 0.15); color: #047857; }
   }
 }
 
@@ -316,9 +443,10 @@
       align-items: flex-start;
       width: 100%;
 
-      .controls-row {
+      .controls-primary-grid {
         width: 100%;
-        flex-direction: column;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
       }
     }
   }

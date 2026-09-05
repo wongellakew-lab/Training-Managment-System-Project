@@ -50,6 +50,8 @@ export interface StudentCourseProgress {
   courseCode: string;
   completedAssignments: number;
   totalAssignments: number;
+  completedAssessments?: number;
+  totalAssessments?: number;
   completedModules?: number;
   totalModules?: number;
   completionPercentage: number;

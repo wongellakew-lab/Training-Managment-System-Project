@@ -4,7 +4,7 @@
     <div class="header-card">
       <div class="header-left">
         <h1>Course Gradebook & Matrix</h1>
-        <p>Spreadsheet matrix of student grades across assignments. Edits in cells save directly to the PostgreSQL database.</p>
+        <p>Review student assignments and submit final or in-progress grades. Enter grades and click <strong>Submit</strong> to persist changes to the database.</p>
       </div>
 
       <div class="header-controls">
@@ -16,6 +16,30 @@
             </mat-option>
           </mat-select>
         </mat-form-field>
+
+        <div class="submit-action-box">
+          <button
+            mat-flat-button
+            color="primary"
+            class="submit-grades-btn"
+            (click)="submitGrades()"
+            [disabled]="isLoading() || submitStatus() === 'submitting'"
+          >
+            <mat-icon *ngIf="submitStatus() !== 'submitting'">send</mat-icon>
+            <mat-spinner *ngIf="submitStatus() === 'submitting'" diameter="18" class="btn-spinner"></mat-spinner>
+            <span>{{ submitStatus() === 'submitting' ? 'Submitting...' : 'Submit' }}</span>
+            <span *ngIf="hasPendingChanges() && submitStatus() !== 'submitting'" class="pending-badge">
+              {{ pendingChanges().size }}
+            </span>
+          </button>
+
+          <span *ngIf="submitStatus() === 'success'" class="submit-feedback success">
+            <mat-icon>check_circle</mat-icon> Grades submitted successfully
+          </span>
+          <span *ngIf="submitStatus() === 'error'" class="submit-feedback error">
+            <mat-icon>error_outline</mat-icon> Unable to submit grades. Please try again.
+          </span>
+        </div>
       </div>
     </div>
 
@@ -92,36 +116,45 @@
 
               <!-- Dynamic Grade Cells -->
               <td *ngFor="let asgn of assignments()" class="col-asgn">
-                <div class="grade-cell-wrapper">
+                <div class="grade-cell-wrapper" [class.has-error]="isCellInvalid(row.studentId, asgn.id)">
                   <input
+                    [id]="'grade-cell-' + row.studentId + '-' + asgn.id"
                     type="number"
                     class="grade-cell-input"
-                    [value]="row.grades[asgn.id]?.score ?? ''"
+                    [class.invalid-cell]="isCellInvalid(row.studentId, asgn.id)"
+                    [class.dirty-cell]="hasCellChanged(row.studentId, asgn.id)"
+                    [class.saving-cell]="isCellSaving(row.studentId, asgn.id)"
+                    [disabled]="isCellSaving(row.studentId, asgn.id)"
+                    [value]="getScore(row, asgn.id)"
                     [placeholder]="'-'"
-                    min="0"
-                    [max]="asgn.maxPoints"
-                    (change)="onScoreChange(row, asgn, $any($event.target).value)"
+                    (input)="onCellInput(row, asgn, $event)"
+                    (keydown.enter)="onCellEnter(row, asgn, $event)"
                   />
                   <span class="max-pts-hint">/{{ asgn.maxPoints }}</span>
+                </div>
+                <div *ngIf="getCellError(row.studentId, asgn.id) as err" class="cell-error-banner" [title]="err">
+                  {{ err }}
                 </div>
               </td>
 
               <!-- Total Score -->
               <td class="col-total">
-                <span class="total-score-val">{{ row.totalScore }} / {{ row.totalMaxScore }}</span>
+                <span class="total-score-val">
+                  {{ row.totalScore !== null ? (row.totalScore + ' / ' + row.totalMaxScore) : '—' }}
+                </span>
               </td>
 
               <!-- Average % -->
               <td class="col-avg">
-                <span class="avg-percentage-val" [class.passing]="row.averagePercentage >= 60">
-                  {{ row.averagePercentage }}%
+                <span class="avg-percentage-val" [class.passing]="row.averagePercentage !== null && row.averagePercentage >= 60">
+                  {{ row.averagePercentage !== null ? (row.averagePercentage + '%') : '—' }}
                 </span>
               </td>
 
               <!-- Letter Grade -->
               <td class="col-grade">
                 <span class="letter-grade-badge" [attr.data-grade]="row.letterGrade">
-                  {{ row.letterGrade }}
+                  {{ row.letterGrade || 'Pending' }}
                 </span>
               </td>
             </tr>

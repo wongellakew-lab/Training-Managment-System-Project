@@ -5,9 +5,20 @@
     <div class="brand-content">
       <div class="brand-logo">
         <div class="logo-icon">
-          <mat-icon>school</mat-icon>
+          <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="TMS Logo">
+            <rect width="64" height="64" rx="14" fill="rgba(255,255,255,0.15)"/>
+            <rect x="18" y="14" width="28" height="7" rx="2" fill="#ffffff"/>
+            <rect x="28" y="14" width="8" height="32" rx="2" fill="#ffffff"/>
+            <rect x="19" y="50" width="26" height="4" rx="2" fill="url(#loginGrad)"/>
+            <defs>
+              <linearGradient id="loginGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#06b6d4"/>
+                <stop offset="100%" stop-color="#38bdf8"/>
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
-        <span class="logo-text">TMS<span class="logo-accent">Pro</span></span>
+        <span class="logo-text">Training Management System</span>
       </div>
       <h1 class="brand-headline">Elevate Your<br />Learning Experience</h1>
       <p class="brand-sub">A professional training management platform designed for modern enterprises and educational institutions.</p>
@@ -45,8 +56,21 @@
     <div class="auth-container">
       <!-- Mobile Logo -->
       <div class="mobile-logo">
-        <div class="logo-icon-sm"><mat-icon>school</mat-icon></div>
-        <span class="logo-text-sm">TMS<span class="logo-accent">Pro</span></span>
+        <div class="logo-icon-sm">
+          <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="TMS Logo">
+            <rect width="64" height="64" rx="14" fill="#172b4d"/>
+            <rect x="18" y="14" width="28" height="7" rx="2" fill="#ffffff"/>
+            <rect x="28" y="14" width="8" height="32" rx="2" fill="#ffffff"/>
+            <rect x="19" y="50" width="26" height="4" rx="2" fill="url(#loginGrad2)"/>
+            <defs>
+              <linearGradient id="loginGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#06b6d4"/>
+                <stop offset="100%" stop-color="#0284c7"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="logo-text-sm">TMS</span>
       </div>
 
       <div class="auth-header">
@@ -207,7 +231,7 @@
       </form>
 
       <p class="auth-footer">
-        {{ isRegisterMode() ? 'Already have an account?' : 'New to TMS Pro?' }}
+        {{ isRegisterMode() ? 'Already have an account?' : 'New to TMS?' }}
         <button type="button" class="switch-link" (click)="setMode(!isRegisterMode())">
           {{ isRegisterMode() ? 'Sign in' : 'Create one' }}
         </button>

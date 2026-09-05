@@ -37,142 +37,34 @@
         </div>
       </div>
 
-      <!-- Course Ratings Card -->
+      <!-- Top Enrolled Courses Card -->
       <div class="eduva-card ratings-breakdown-card">
         <div class="card-header-flex">
-          <h3 class="card-title">Course Ratings</h3>
-          <div class="filter-actions-duo">
-            <button class="filter-dropdown-btn" [matMenuTriggerFor]="ratingTimeMenu">
-              <span>Last 6 Months</span>
-              <mat-icon>keyboard_arrow_down</mat-icon>
-            </button>
-            <mat-menu #ratingTimeMenu="matMenu">
-              <button mat-menu-item>Last 6 Months</button>
-              <button mat-menu-item>This Year</button>
-            </mat-menu>
-
-            <button class="filter-dropdown-btn" [matMenuTriggerFor]="ratingCatMenu">
-              <span>Design</span>
-              <mat-icon>keyboard_arrow_down</mat-icon>
-            </button>
-            <mat-menu #ratingCatMenu="matMenu">
-              <button mat-menu-item>Design</button>
-              <button mat-menu-item>Web Dev</button>
-              <button mat-menu-item>Marketing</button>
-            </mat-menu>
-          </div>
+          <h3 class="card-title">Top Enrolled Courses</h3>
+          <span class="pill-badge status-active font-mono">{{ totalEnrolled() }} / {{ totalCapacity() }} Total Seats</span>
         </div>
 
-        <div class="ratings-content-grid">
-          <!-- Rating Bars Chart -->
-          <div class="rating-bar-chart">
-            <div class="rating-y-axis">
-              <span>5.0</span>
-              <span>4.9</span>
-              <span>4.8</span>
-              <span>4.7</span>
-              <span>4.6</span>
-              <span>4.5</span>
+        <div class="top-rated-courses-subpanel" style="width: 100%;">
+          @if (topCourses().length === 0) {
+            <div style="padding: 24px; text-align: center; color: var(--text-muted);">
+              <mat-icon>school</mat-icon>
+              <p>No active courses available.</p>
             </div>
-            <div class="rating-columns">
-              <!-- Design -->
-              <div class="rating-col">
-                <div class="rating-pill-stack">
-                  <div class="rating-block active-navy"></div>
-                  <div class="rating-block active-navy"></div>
-                  <div class="rating-block active-navy"></div>
-                  <div class="rating-block active-navy"></div>
-                  <div class="rating-block active-navy"></div>
-                </div>
-                <span class="col-label">Design</span>
-              </div>
-              <!-- Business -->
-              <div class="rating-col">
-                <div class="rating-pill-stack">
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block active-blue"></div>
-                  <div class="rating-block active-blue"></div>
-                  <div class="rating-block active-blue"></div>
-                  <div class="rating-block active-blue"></div>
-                </div>
-                <span class="col-label">Business</span>
-              </div>
-              <!-- Web Dev -->
-              <div class="rating-col">
-                <div class="rating-pill-stack">
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                </div>
-                <span class="col-label">Web Dev</span>
-              </div>
-              <!-- Marketing -->
-              <div class="rating-col">
-                <div class="rating-pill-stack">
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                  <div class="rating-block inactive-gray"></div>
-                </div>
-                <span class="col-label">Marketing</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Top-Rated Design Courses Mini List -->
-          <div class="top-rated-courses-subpanel">
-            <div class="subpanel-header">
-              <span class="subpanel-title">Top-Rated Design Courses</span>
-              <span class="rating-score-badge"><mat-icon>star</mat-icon> 4.9</span>
-            </div>
-
+          } @else {
             <div class="top-rated-list">
-              <div class="top-rated-item">
-                <div class="item-text">
-                  <h5 class="item-title">UX/UI Design Fundamentals</h5>
-                  <span class="item-reviews">298 Reviews</span>
+              @for (tc of topCourses(); track tc.id) {
+                <div class="top-rated-item" style="cursor: pointer;" (click)="openCourseDetails(tc)">
+                  <div class="item-text">
+                    <h5 class="item-title">{{ tc.title }}</h5>
+                    <span class="item-reviews font-mono">{{ tc.enrolledCount }} / {{ tc.maxCapacity }} Enrolled &bull; {{ tc.level }}</span>
+                  </div>
+                  <div class="circle-score-gauge">
+                    <span class="pill-badge" [ngClass]="getCategoryClass(tc.category)">{{ tc.category }}</span>
+                  </div>
                 </div>
-                <div class="circle-score-gauge">
-                  <svg viewBox="0 0 36 36" class="circular-chart">
-                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="circle-fill" stroke-dasharray="98, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <text x="18" y="20.35" class="gauge-text">4.9</text>
-                  </svg>
-                </div>
-              </div>
-
-              <div class="top-rated-item">
-                <div class="item-text">
-                  <h5 class="item-title">Graphic Design Fundamentals</h5>
-                  <span class="item-reviews">275 Reviews</span>
-                </div>
-                <div class="circle-score-gauge">
-                  <svg viewBox="0 0 36 36" class="circular-chart">
-                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="circle-fill" stroke-dasharray="94, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <text x="18" y="20.35" class="gauge-text">4.8</text>
-                  </svg>
-                </div>
-              </div>
-
-              <div class="top-rated-item">
-                <div class="item-text">
-                  <h5 class="item-title">Visual Identity Design Masterclass</h5>
-                  <span class="item-reviews">236 Reviews</span>
-                </div>
-                <div class="circle-score-gauge">
-                  <svg viewBox="0 0 36 36" class="circular-chart">
-                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path class="circle-fill" stroke-dasharray="92, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <text x="18" y="20.35" class="gauge-text">4.8</text>
-                  </svg>
-                </div>
-              </div>
+              }
             </div>
-          </div>
+          }
         </div>
       </div>
     </div>
@@ -183,9 +75,28 @@
     <div class="catalog-main-content">
       <!-- Filter Bar & View Mode Switcher -->
       <div class="catalog-toolbar">
-        <h3 class="catalog-heading">{{ isStudent() ? 'Course Catalog' : 'All Courses' }}</h3>
+        <div class="toolbar-title-search">
+          <h3 class="catalog-heading">{{ isStudent() ? 'Course Catalog' : 'All Courses' }}</h3>
+          <!-- Real-time Debounced Course Search Field -->
+          <div class="courses-search-box">
+            <mat-icon class="search-icon">search</mat-icon>
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search courses..."
+              [value]="searchQuery()"
+              (input)="onSearchInput($event)"
+            />
+            @if (searchQuery()) {
+              <button class="clear-search-btn" (click)="clearSearch()" aria-label="Clear course search">
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+          </div>
+        </div>
 
         <div class="catalog-filters">
+
           @if (isStudent()) {
             <!-- Student Filters: By Skill Level -->
             <div class="status-tab-group">
@@ -221,9 +132,10 @@
             <!-- Admin / Instructor: Status Filter Tabs -->
             <div class="status-tab-group">
               <button class="status-tab" [class.active]="selectedStatus() === 'All'" (click)="filterStatus('All')">All</button>
+              <button class="status-tab" [class.active]="selectedStatus() === 'Under Review'" (click)="filterStatus('Under Review')">Under Review</button>
               <button class="status-tab" [class.active]="selectedStatus() === 'Active'" (click)="filterStatus('Active')">Active</button>
+              <button class="status-tab" [class.active]="selectedStatus() === 'Rejected'" (click)="filterStatus('Rejected')">Rejected</button>
               <button class="status-tab" [class.active]="selectedStatus() === 'Draft'" (click)="filterStatus('Draft')">Draft</button>
-              <button class="status-tab" [class.active]="selectedStatus() === 'Archived'" (click)="filterStatus('Archived')">Archived</button>
             </div>
 
             <!-- Category Dropdown -->
@@ -402,7 +314,7 @@
       <div class="catalog-pagination">
         <div class="page-size-selector">
           <span>Show</span>
-          <select [(ngModel)]="pageSize" (change)="loadCourses()" class="size-dropdown">
+          <select [(ngModel)]="pageSize" (change)="setPage(1)" class="size-dropdown">
             <option [value]="8">8</option>
             <option [value]="16">16</option>
             <option [value]="24">24</option>
@@ -411,149 +323,13 @@
         </div>
 
         <div class="pagination-controls">
-          <button class="pg-arrow" (click)="setPage(currentPage - 1)" [disabled]="currentPage === 1">&lt;</button>
-          <button class="pg-num" [class.active]="currentPage === 1" (click)="setPage(1)">1</button>
-          <button class="pg-num" [class.active]="currentPage === 2" (click)="setPage(2)">2</button>
-          <button class="pg-num" [class.active]="currentPage === 3" (click)="setPage(3)">3</button>
-          <span class="pg-ellipsis">...</span>
-          <button class="pg-num" (click)="setPage(40)">40</button>
-          <button class="pg-arrow" (click)="setPage(currentPage + 1)">&gt;</button>
+          <button class="pg-arrow" (click)="setPage(currentPage - 1)" [disabled]="currentPage <= 1">&lt;</button>
+          @for (p of pageNumbers(); track p) {
+            <button class="pg-num" [class.active]="currentPage === p" (click)="setPage(p)">{{ p }}</button>
+          }
         </div>
       </div>
     </div>
-
-    <!-- ================= SLIDE-OVER COURSE DETAILS DRAWER (Picture 4) ================= -->
-    @if (showDetailsDrawer() && selectedCourse()) {
-      <aside class="course-details-drawer">
-        <div class="drawer-header">
-          <h3 class="drawer-title">Course Details</h3>
-          <div class="drawer-actions">
-            <a href="javascript:void(0)" class="view-course-link">View Course</a>
-            <button class="drawer-close-btn" (click)="closeCourseDetails()">✕</button>
-          </div>
-        </div>
-
-        <div class="drawer-scrollable-content">
-          <!-- Hero Video/Banner with Beginner Badge -->
-          <div class="drawer-hero-banner">
-            <img [src]="selectedCourse()!.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80'" alt="Course Hero" class="hero-image" />
-            <span class="hero-level-badge">{{ selectedCourse()!.level }}</span>
-          </div>
-
-          <!-- Title -->
-          <div class="drawer-title-price-row">
-            <h2 class="drawer-course-name">{{ selectedCourse()!.title }}</h2>
-          </div>
-
-          <!-- Capacity & Enrollment CTA -->
-          @if (isStudent()) {
-            <div class="drawer-enrollment-action-bar">
-              <div class="seat-info">
-                <span class="seats-val font-mono">
-                  {{ selectedCourse()!.availableSeats !== undefined ? selectedCourse()!.availableSeats : (selectedCourse()!.maxCapacity - selectedCourse()!.enrolledCount) }}
-                </span>
-                <span class="seats-lbl">Seats Available (of {{ selectedCourse()!.maxCapacity }})</span>
-              </div>
-
-              @if (selectedCourse()!.isStudentEnrolled) {
-                <div class="enrolled-indicator">
-                  <mat-icon>check_circle</mat-icon>
-                  <span>Enrolled ({{ selectedCourse()!.studentEnrollmentStatus || 'Active' }})</span>
-                </div>
-              } @else if ((selectedCourse()!.availableSeats !== undefined && selectedCourse()!.availableSeats! <= 0) || (selectedCourse()!.maxCapacity - selectedCourse()!.enrolledCount <= 0)) {
-                <button mat-flat-button disabled class="enroll-btn full">
-                  Course Full
-                </button>
-              } @else {
-                <button
-                  mat-flat-button
-                  color="primary"
-                  class="enroll-btn"
-                  [disabled]="isEnrolling()"
-                  (click)="enrollInCourse(selectedCourse()!)"
-                >
-                  @if (isEnrolling()) {
-                    <span>Enrolling...</span>
-                  } @else {
-                    <span>Self Enroll Now</span>
-                  }
-                </button>
-              }
-            </div>
-
-            @if (selectedCourse()!.prerequisites && selectedCourse()!.prerequisites !== 'None') {
-              <div class="prereq-alert">
-                <mat-icon>info</mat-icon>
-                <span><strong>Prerequisites:</strong> {{ selectedCourse()!.prerequisites }}</span>
-              </div>
-            }
-          }
-
-          <!-- Instructor Info -->
-          <div class="drawer-instructor-row">
-            <img
-              [src]="selectedCourse()!.instructorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
-              alt="Instructor"
-              class="drawer-inst-av"
-            />
-            <span class="drawer-inst-name">{{ selectedCourse()!.instructorName || 'Faculty Instructor' }}</span>
-          </div>
-
-          <!-- Badges & Student Count Row -->
-          <div class="drawer-badges-row">
-            <span class="pill-badge status-active">&bull; {{ selectedCourse()!.status }}</span>
-            <span class="pill-badge category-webdev">{{ selectedCourse()!.category }}</span>
-            <div class="drawer-students-stack">
-              <span class="student-num font-mono">{{ selectedCourse()!.enrolledCount }} Enrolled</span>
-            </div>
-          </div>
-
-          <!-- Stats 3-Column Box (Duration, Lessons, Credits) -->
-          <div class="drawer-stats-grid">
-            <div class="drawer-stat-item">
-              <span class="stat-lbl">Capacity</span>
-              <span class="stat-val font-mono">{{ selectedCourse()!.maxCapacity }}</span>
-            </div>
-            <div class="drawer-stat-item">
-              <span class="stat-lbl">Credits</span>
-              <span class="stat-val font-mono">{{ selectedCourse()!.credits }} Credits</span>
-            </div>
-            <div class="drawer-stat-item">
-              <span class="stat-lbl">Available Seats</span>
-              <span class="stat-val font-mono">{{ selectedCourse()!.availableSeats }}</span>
-            </div>
-          </div>
-
-          <!-- About the Course -->
-          <div class="drawer-section">
-            <h4 class="section-title">About the Course</h4>
-            <p class="section-text">
-              {{ selectedCourse()!.description || 'Comprehensive syllabus and curriculum managed through the institutional academic catalog.' }}
-            </p>
-          </div>
-
-          <!-- Course Details & Academic Requirements -->
-          <div class="drawer-section">
-            <h4 class="section-title">Academic Specifications</h4>
-            <div class="detail-grid">
-              <div class="detail-row">
-                <span class="label">Course Code:</span>
-                <span class="val font-mono">{{ selectedCourse()!.code }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Department:</span>
-                <span class="val">{{ selectedCourse()!.department }}</span>
-              </div>
-              @if (selectedCourse()!.prerequisites) {
-                <div class="detail-row">
-                  <span class="label">Prerequisites:</span>
-                  <span class="val">{{ selectedCourse()!.prerequisites }}</span>
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-      </aside>
-    }
   </div>
 </app-layout>
+

@@ -30,8 +30,8 @@ public class AttendanceController : ControllerBase
 
     private async Task<bool> CanManageCourseAttendanceAsync(int courseId)
     {
-        if (User.IsInRole("Admin")) return true;
-        var instructorId = await User.ResolveInstructorIdAsync(_context);
+        if (User?.IsInRole("Admin") == true) return true;
+        var instructorId = User != null ? await User.ResolveInstructorIdAsync(_context) : null;
         if (!instructorId.HasValue) return false;
 
         var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
@@ -69,6 +69,22 @@ public class AttendanceController : ControllerBase
             .Where(a => a.CourseId == courseId && a.SessionDate.Date == targetDate)
             .ToDictionaryAsync(a => a.StudentId, cancellationToken);
 
+        // Check if a session was scheduled on this date
+        var schedules = await _context.CourseSchedules
+            .AsNoTracking()
+            .Where(s => s.CourseId == courseId && !s.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var matchingSchedule = schedules.FirstOrDefault(s => s.DayOfWeek == targetDate.DayOfWeek);
+        var hasAttendanceRecords = existingAttendances.Any();
+
+        bool isWithinDateRange = true;
+        if (course.StartDate != default && targetDate < course.StartDate.Date) isWithinDateRange = false;
+        if (course.EndDate != default && course.EndDate != DateTime.MinValue && targetDate > course.EndDate.Date) isWithinDateRange = false;
+
+        bool hasScheduledSession = hasAttendanceRecords || (matchingSchedule != null && isWithinDateRange);
+        bool isRecorded = hasAttendanceRecords;
+
         var studentItems = enrollments.Select(e =>
         {
             var student = e.Student;
@@ -99,11 +115,21 @@ public class AttendanceController : ControllerBase
             courseTitle = course.Title,
             courseCode = course.Code,
             sessionDate = targetDate,
+            hasScheduledSession,
+            isRecorded,
+            scheduleInfo = matchingSchedule != null ? new
+            {
+                startTime = matchingSchedule.StartTime,
+                endTime = matchingSchedule.EndTime,
+                location = matchingSchedule.Location,
+                room = matchingSchedule.Room,
+                scheduleType = matchingSchedule.ScheduleType
+            } : null,
             totalEnrolled = studentItems.Count,
             presentCount,
             lateCount,
             absentCount,
-            students = studentItems
+            students = hasScheduledSession ? (IEnumerable<object>)studentItems : Array.Empty<object>()
         });
     }
 
@@ -118,6 +144,13 @@ public class AttendanceController : ControllerBase
 
         var instructorId = await User.ResolveInstructorIdAsync(_context);
         var targetDate = request.SessionDate.Date;
+
+        var isEnrolled = await _context.Enrollments
+            .AnyAsync(e => e.CourseId == request.CourseId && e.StudentId == request.StudentId && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && !e.IsDeleted, cancellationToken);
+        if (!isEnrolled)
+        {
+            return BadRequest(new { message = "Student is not enrolled in this course." });
+        }
 
         var attendance = await _context.Attendances
             .FirstOrDefaultAsync(a => a.CourseId == request.CourseId &&
@@ -177,6 +210,11 @@ public class AttendanceController : ControllerBase
         var instructorId = await User.ResolveInstructorIdAsync(_context);
         var targetDate = request.SessionDate.Date;
 
+        var enrolledStudentIds = await _context.Enrollments
+            .Where(e => e.CourseId == request.CourseId && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && !e.IsDeleted)
+            .Select(e => e.StudentId)
+            .ToListAsync(cancellationToken);
+
         var existingList = await _context.Attendances
             .Where(a => a.CourseId == request.CourseId && a.SessionDate.Date == targetDate)
             .ToListAsync(cancellationToken);
@@ -185,6 +223,7 @@ public class AttendanceController : ControllerBase
 
         foreach (var item in request.Items)
         {
+            if (!enrolledStudentIds.Contains(item.StudentId)) continue;
             var status = Enum.IsDefined(typeof(AttendanceStatus), item.Status)
                 ? (AttendanceStatus)item.Status
                 : AttendanceStatus.Present;

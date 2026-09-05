@@ -16,11 +16,13 @@ public class StudentQuestionConfiguration : IEntityTypeConfiguration<StudentQues
         builder.HasOne(q => q.Student)
             .WithMany()
             .HasForeignKey(q => q.StudentId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(q => q.Course)
             .WithMany()
             .HasForeignKey(q => q.CourseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(q => q.AnsweredByInstructor)

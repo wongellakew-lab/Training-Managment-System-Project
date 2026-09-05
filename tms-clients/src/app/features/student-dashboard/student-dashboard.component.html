@@ -153,14 +153,14 @@
       </mat-card>
 
       <!-- Pending Assignments & Action Items -->
-      <mat-card class="assignments-card eduva-card">
+      <mat-card class="assignments-card eduva-card" [class.is-empty]="!dashboardData()?.pendingAssignments || dashboardData()!.pendingAssignments.length === 0">
         <div class="card-header-row">
           <div>
             <h2 class="section-title">Pending Assignments</h2>
             <p class="section-subtitle">Upcoming deliverables requiring your attention</p>
           </div>
-          <a mat-button color="primary" routerLink="/student/gradebook" class="view-all-link">
-            <span>Gradebook</span>
+          <a mat-button color="primary" routerLink="/student/assignments" class="view-all-link">
+            <span>All Assignments</span>
             <mat-icon>arrow_forward</mat-icon>
           </a>
         </div>
@@ -178,7 +178,7 @@
         } @else {
           <div class="assignment-list">
             @for (asg of dashboardData()!.pendingAssignments; track asg.id) {
-              <div class="assignment-item">
+              <a class="assignment-item clickable" [routerLink]="['/student/assignments']" [queryParams]="{ id: asg.id }" title="Click to view instructions and submit">
                 <div class="asg-info">
                   <span class="asg-course-tag font-mono">{{ asg.courseCode }}</span>
                   <h4 class="asg-title">{{ asg.title }}</h4>
@@ -186,9 +186,9 @@
                 </div>
                 <div class="asg-meta">
                   <span class="asg-points">{{ asg.maxScore }} pts</span>
-                  <span class="status-chip pending">{{ asg.status }}</span>
+                  <span class="status-chip pending">Submit &rarr;</span>
                 </div>
-              </div>
+              </a>
             }
           </div>
         }
@@ -228,7 +228,7 @@
                 <div class="prog-header">
                   <div>
                     <h4 class="prog-title">{{ prog.courseTitle }}</h4>
-                    <span class="prog-sub">{{ prog.completedAssignments }} of {{ prog.totalAssignments }} assessments completed</span>
+                    <span class="prog-sub">{{ prog.completedAssessments ?? prog.completedAssignments }} of {{ prog.totalAssessments ?? prog.totalAssignments }} assessments evaluated</span>
                   </div>
                   <span class="prog-percentage">{{ prog.completionPercentage }}%</span>
                 </div>

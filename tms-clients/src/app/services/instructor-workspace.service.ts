@@ -14,7 +14,8 @@ import {
   InstructorProfile,
   BuilderModule,
   BuilderLesson,
-  CourseResourceItem
+  CourseResourceItem,
+  CourseAssessmentConfig
 } from '../models/instructor-workspace.model';
 import { Schedule } from '../models/schedule.model';
 
@@ -27,7 +28,11 @@ export class InstructorWorkspaceService {
 
   // ─── Dashboard ────────────────────────────────────────────────────────────
   getDashboard(): Observable<InstructorDashboard> {
-    return this.http.get<InstructorDashboard>(`${this.baseUrl}/dashboard/instructor`);
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const localIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const params = new HttpParams().set('clientTime', localIso);
+    return this.http.get<InstructorDashboard>(`${this.baseUrl}/dashboard/instructor`, { params });
   }
 
   replyQuestion(questionId: number, answer: string): Observable<{ message: string }> {
@@ -84,8 +89,12 @@ export class InstructorWorkspaceService {
     return this.http.get<CourseBuilderDetail>(`${this.baseUrl}/courses/${courseId}/builder`);
   }
 
-  updateCourse(courseId: number, data: Partial<CourseBuilderDetail>): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/courses/${courseId}`, data);
+  createCourse(data: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/courses`, data);
+  }
+
+  updateCourse(courseId: number, data: Partial<CourseBuilderDetail>): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/courses/${courseId}`, data);
   }
 
   uploadCourseThumbnail(courseId: number, file: File): Observable<{ imageUrl: string }> {
@@ -156,12 +165,17 @@ export class InstructorWorkspaceService {
     return this.http.get<AssignmentItem[]>(`${this.baseUrl}/assignments/course/${courseId}`);
   }
 
+  getCourseAssessmentConfig(courseId: number): Observable<CourseAssessmentConfig> {
+    return this.http.get<CourseAssessmentConfig>(`${this.baseUrl}/assignments/course/${courseId}/config`);
+  }
+
   getAssignment(id: number): Observable<AssignmentItem> {
     return this.http.get<AssignmentItem>(`${this.baseUrl}/assignments/${id}`);
   }
 
   createAssignment(data: {
     courseId: number;
+    assignmentNumber?: number;
     courseModuleId?: number;
     courseLessonId?: number;
     title: string;
@@ -222,6 +236,18 @@ export class InstructorWorkspaceService {
     feedback?: string;
   }): Observable<{ message: string; assessmentId: number; score: number | null; status: string }> {
     return this.http.post<{ message: string; assessmentId: number; score: number | null; status: string }>(`${this.baseUrl}/grades/gradebook/cell`, data);
+  }
+
+  submitBulkGradebook(courseId: number, grades: {
+    studentId: number;
+    assignmentId: number;
+    score: number | null;
+    feedback?: string;
+  }[]): Observable<{ message: string; updatedCount: number }> {
+    return this.http.post<{ message: string; updatedCount: number }>(`${this.baseUrl}/grades/gradebook/bulk`, {
+      courseId,
+      grades
+    });
   }
 
   // ─── Instructor Profile ───────────────────────────────────────────────────

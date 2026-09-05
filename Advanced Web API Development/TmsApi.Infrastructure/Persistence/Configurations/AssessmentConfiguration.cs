@@ -15,15 +15,19 @@ public class AssessmentConfiguration : IEntityTypeConfiguration<Assessment>
         builder.Property(a => a.Status).HasMaxLength(50).HasDefaultValue("Pending");
         builder.Property(a => a.Feedback).HasMaxLength(2000);
         builder.Property(a => a.RubricScoresJson).HasMaxLength(4000);
+        builder.Property(a => a.SubmissionFileName).HasMaxLength(255);
+        builder.Property(a => a.SubmissionFileType).HasMaxLength(100);
 
         builder.HasOne(a => a.Student)
             .WithMany(s => s.Assessments)
             .HasForeignKey(a => a.StudentId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(a => a.Course)
             .WithMany()
             .HasForeignKey(a => a.CourseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

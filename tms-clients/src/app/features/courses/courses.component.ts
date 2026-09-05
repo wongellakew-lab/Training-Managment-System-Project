@@ -12,7 +12,8 @@ import { AuthService } from '../../services/auth.service';
 import { EnrollmentService } from '../../services/enrollment.service';
 import { LiveSyncService } from '../../services/live-sync.service';
 import { Course } from '../../models/course.model';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-courses-page',
@@ -29,7 +30,7 @@ import { Subscription } from 'rxjs';
   templateUrl: './courses.component.html',
   styleUrls: ['./courses.component.scss']
 })
-export class CoursesComponent implements OnInit {
+export class CoursesComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private courseService = inject(CourseService);
   private authService = inject(AuthService);
@@ -45,11 +46,16 @@ export class CoursesComponent implements OnInit {
   readonly selectedSubject = signal<string>('All');
   readonly selectedAvailability = signal<string>('All');
 
+  readonly searchQuery = signal<string>('');
+  private searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
+
   readonly viewMode = signal<'list' | 'grid'>('grid');
   readonly selectedCourse = signal<Course | null>(null);
   readonly showDetailsDrawer = signal<boolean>(false);
   readonly isLoading = signal<boolean>(false);
   readonly isEnrolling = signal<boolean>(false);
+
 
   // Pagination
   currentPage = 1;
@@ -64,6 +70,27 @@ export class CoursesComponent implements OnInit {
     }
     return Array.from(set).sort();
   });
+
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalCount / this.pageSize)));
+  readonly pageNumbers = computed(() => {
+    const total = this.totalPages();
+    const current = this.currentPage;
+    const pages: number[] = [];
+    const start = Math.max(1, current - 2);
+    const end = Math.min(total, current + 2);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  });
+
+  readonly topCourses = computed(() => {
+    const list = [...this.courses()];
+    return list.sort((a, b) => (b.enrolledCount ?? 0) - (a.enrolledCount ?? 0)).slice(0, 3);
+  });
+
+  readonly totalCapacity = computed(() => this.courses().reduce((sum, c) => sum + (c.maxCapacity ?? 0), 0));
+  readonly totalEnrolled = computed(() => this.courses().reduce((sum, c) => sum + (c.enrolledCount ?? 0), 0));
 
   readonly categoryCounts = computed(() => {
     const list = this.courses();
@@ -84,6 +111,15 @@ export class CoursesComponent implements OnInit {
   private sub?: Subscription;
 
   ngOnInit(): void {
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged()
+    ).subscribe((query) => {
+      this.searchQuery.set(query);
+      this.currentPage = 1;
+      this.loadCourses();
+    });
+
     this.loadCourses();
 
     // Subscribe to live course capacity changes
@@ -111,6 +147,18 @@ export class CoursesComponent implements OnInit {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.searchSub?.unsubscribe();
+  }
+
+  onSearchInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.searchSubject.next(val);
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
+    this.currentPage = 1;
+    this.loadCourses();
   }
 
   loadCourses(): void {
@@ -120,6 +168,10 @@ export class CoursesComponent implements OnInit {
       page: this.currentPage,
       pageSize: this.pageSize
     };
+
+    if (this.searchQuery()) {
+      filter.searchTerm = this.searchQuery();
+    }
 
     if (this.isStudent()) {
       if (this.selectedSkillLevel() !== 'All' && this.selectedSkillLevel() !== 'All Levels') {
@@ -157,6 +209,7 @@ export class CoursesComponent implements OnInit {
       error: () => this.isLoading.set(false)
     });
   }
+
 
   enrollInCourse(course: Course): void {
     const studentId = this.authService.currentUser()?.studentId || 0;
@@ -237,18 +290,21 @@ export class CoursesComponent implements OnInit {
   }
 
   openCourseDetails(course: Course): void {
-    if (this.isStudent()) {
+    const role = this.authService.userRole();
+    if (role === 'Admin') {
+      this.router.navigate(['/admin/courses', course.id]);
+    } else if (role === 'Instructor') {
+      this.router.navigate(['/instructor/courses', course.id]);
+    } else {
       this.router.navigate(['/student/courses', course.id]);
-      return;
     }
-    this.selectedCourse.set(course);
-    this.showDetailsDrawer.set(true);
   }
 
   viewCourse(course: Course, event?: Event): void {
     if (event) event.stopPropagation();
-    this.router.navigate(['/student/courses', course.id]);
+    this.openCourseDetails(course);
   }
+
 
   closeCourseDetails(): void {
     this.showDetailsDrawer.set(false);
@@ -273,7 +329,9 @@ export class CoursesComponent implements OnInit {
 
   getStatusClass(status?: string): string {
     const s = (status || 'active').toLowerCase();
-    if (s === 'active') return 'active';
+    if (s === 'active' || s === 'published') return 'active';
+    if (s === 'under review') return 'under-review';
+    if (s === 'rejected') return 'rejected';
     if (s === 'draft') return 'draft';
     if (s === 'archived') return 'archived';
     return 'active';

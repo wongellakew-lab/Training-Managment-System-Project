@@ -8,9 +8,9 @@
       </div>
 
       <div class="header-right">
-        <button mat-flat-button color="primary" *ngIf="courses().length > 0" (click)="openBuilder(courses()[0].id)" class="add-course-btn">
+        <button mat-flat-button color="primary" (click)="createNewCourse()" class="add-course-btn">
           <mat-icon>add</mat-icon>
-          <span>Open Content Builder</span>
+          <span>Create New Course</span>
         </button>
       </div>
     </div>
@@ -32,7 +32,7 @@
     <div *ngIf="!isLoading() && courses().length > 0" class="courses-grid">
       <div *ngFor="let c of courses()" class="course-card">
         <!-- Thumbnail -->
-        <div class="course-image-box">
+        <div class="course-image-box" (click)="openCourseDetails(c.id)" style="cursor: pointer;">
           <img [src]="c.imageUrl || '/assets/default-course.jpg'" [alt]="c.title" />
           <div class="course-badges">
             <span class="category-badge">{{ c.category }}</span>
@@ -44,11 +44,32 @@
         <div class="course-content-body">
           <div class="code-status-row">
             <span class="course-code">{{ c.code }}</span>
-            <span class="course-status" [class.active]="c.status === 'Active'">{{ c.status }}</span>
+            <span
+              class="course-status"
+              [class.active]="c.status === 'Active' || c.status === 'Published'"
+              [class.under-review]="c.status === 'Under Review'"
+              [class.rejected]="c.status === 'Rejected'"
+              [class.draft]="c.status === 'Draft'"
+            >
+              {{ c.status }}
+            </span>
           </div>
 
-          <h3 class="course-title">{{ c.title }}</h3>
+          <h3 class="course-title" (click)="openCourseDetails(c.id)" style="cursor: pointer;">{{ c.title }}</h3>
           <p class="course-desc">{{ c.description || c.about }}</p>
+
+          @if (c.status === 'Rejected') {
+            <div class="card-rejection-callout">
+              <div class="rejection-callout-header">
+                <mat-icon>feedback</mat-icon>
+                <span>Revision Requested</span>
+              </div>
+              <p class="rejection-callout-text">{{ c.rejectionReason || 'Please review course details and schedule.' }}</p>
+              <button type="button" class="fix-in-builder-link" (click)="openBuilder(c.id); $event.stopPropagation()">
+                Edit & Resubmit in Builder &rarr;
+              </button>
+            </div>
+          }
 
           <!-- Metrics Row -->
           <div class="course-metrics-row">
@@ -73,6 +94,10 @@
 
         <!-- Action Bar -->
         <div class="course-actions-bar">
+          <button mat-stroked-button (click)="openCourseDetails(c.id)" title="View Course Details">
+            <mat-icon>visibility</mat-icon>
+            <span>Overview</span>
+          </button>
           <button mat-flat-button color="primary" (click)="openBuilder(c.id)" class="builder-btn">
             <mat-icon>edit_note</mat-icon>
             <span>Content Builder</span>

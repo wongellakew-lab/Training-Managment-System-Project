@@ -12,7 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { LayoutComponent } from '../../ui/layout/layout.component';
 import { InstructorWorkspaceService } from '../../services/instructor-workspace.service';
-import { AssignmentItem, InstructorCourseSummary } from '../../models/instructor-workspace.model';
+import { AssignmentItem, InstructorCourseSummary, CourseAssessmentConfig } from '../../models/instructor-workspace.model';
 
 @Component({
   selector: 'app-instructor-assignments',
@@ -43,6 +43,7 @@ export class InstructorAssignmentsComponent implements OnInit {
   courses = signal<InstructorCourseSummary[]>([]);
   selectedCourseId = signal<number | null>(null);
   assignments = signal<AssignmentItem[]>([]);
+  assessmentConfig = signal<CourseAssessmentConfig | null>(null);
   isLoading = signal<boolean>(true);
   isSaving = signal<boolean>(false);
 
@@ -53,6 +54,7 @@ export class InstructorAssignmentsComponent implements OnInit {
 
   formTitle = signal<string>('');
   formInstructions = signal<string>('');
+  formAssignmentNumber = signal<number | null>(null);
   formMaxPoints = signal<number>(100);
   formDueDate = signal<string>('');
   formIsPublished = signal<boolean>(true);
@@ -84,6 +86,14 @@ export class InstructorAssignmentsComponent implements OnInit {
     if (!cid) return;
 
     this.isLoading.set(true);
+
+    this.instructorService.getCourseAssessmentConfig(cid).subscribe({
+      next: (config) => {
+        this.assessmentConfig.set(config);
+      },
+      error: (err) => console.error('Failed to load assessment config:', err)
+    });
+
     this.instructorService.getAssignments(cid).subscribe({
       next: (list) => {
         this.assignments.set(list || []);
@@ -101,10 +111,14 @@ export class InstructorAssignmentsComponent implements OnInit {
   }
 
   openCreateDialog(): void {
+    const config = this.assessmentConfig();
+    const available = config?.availableAssignmentNumbers || [];
+
     this.isEditing.set(false);
     this.editingId.set(null);
     this.formTitle.set('');
     this.formInstructions.set('');
+    this.formAssignmentNumber.set(available.length > 0 ? available[0] : null);
     this.formMaxPoints.set(100);
     const d = new Date();
     d.setDate(d.getDate() + 7);
@@ -119,6 +133,7 @@ export class InstructorAssignmentsComponent implements OnInit {
     this.editingId.set(a.id);
     this.formTitle.set(a.title);
     this.formInstructions.set(a.instructions);
+    this.formAssignmentNumber.set(a.assignmentNumber || 1);
     this.formMaxPoints.set(a.maxPoints);
     this.formDueDate.set(new Date(a.dueDate).toISOString().slice(0, 16));
     this.formIsPublished.set(a.isPublished);
@@ -165,6 +180,7 @@ export class InstructorAssignmentsComponent implements OnInit {
     } else {
       this.instructorService.createAssignment({
         courseId: cid,
+        assignmentNumber: this.formAssignmentNumber() ? Number(this.formAssignmentNumber()) : undefined,
         title: this.formTitle(),
         instructions: this.formInstructions(),
         maxPoints: this.formMaxPoints(),
@@ -180,7 +196,11 @@ export class InstructorAssignmentsComponent implements OnInit {
             this.finalizeSave();
           }
         },
-        error: () => this.isSaving.set(false)
+        error: (err) => {
+          this.isSaving.set(false);
+          const errMsg = err?.error?.message || 'Failed to create assignment. Please verify the assignment number and fields.';
+          this.snackBar.open(errMsg, 'Close', { duration: 4000 });
+        }
       });
     }
   }

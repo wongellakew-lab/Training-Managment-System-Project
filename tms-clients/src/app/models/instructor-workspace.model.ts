@@ -1,4 +1,4 @@
-import { Course } from './course.model';
+import { Course, CourseSchedule } from './course.model';
 
 export interface InstructorTodayClass {
   scheduleId: number;
@@ -11,6 +11,7 @@ export interface InstructorTodayClass {
   location: string;
   studentCount: number;
   attendanceStatus: 'Taken' | 'Pending';
+  status?: 'In Progress' | 'Completed' | 'Upcoming';
 }
 
 export interface InstructorPendingGrading {
@@ -30,6 +31,7 @@ export interface InstructorUpcomingSession {
   startTime: string;
   endTime: string;
   room: string;
+  location?: string;
   enrolledStudentsCount: number;
 }
 
@@ -78,6 +80,15 @@ export interface CourseAttendanceResponse {
   courseTitle: string;
   courseCode: string;
   sessionDate: string;
+  hasScheduledSession?: boolean;
+  isRecorded?: boolean;
+  scheduleInfo?: {
+    startTime: string;
+    endTime: string;
+    location?: string;
+    room?: string;
+    scheduleType?: string;
+  };
   totalEnrolled: number;
   presentCount: number;
   lateCount: number;
@@ -138,6 +149,16 @@ export interface CourseBuilderDetail {
   featuresJson: string;
   instructorId?: number;
   instructorName?: string;
+  startDate?: string;
+  endDate?: string;
+  maxCapacity?: number;
+  schedules?: CourseSchedule[];
+  rejectionReason?: string;
+  expectedAssignmentCount?: number;
+  expectedMidtermCount?: number;
+  expectedFinalCount?: number;
+  totalAssessments?: number;
+  createdAssignmentsCount?: number;
   modules: BuilderModule[];
   resources: CourseResourceItem[];
 }
@@ -159,10 +180,29 @@ export interface InstructorCourseSummary {
   description: string;
   startDate: string;
   endDate: string;
+  rejectionReason?: string;
+  schedulesCount?: number;
+  expectedAssignmentCount?: number;
+  expectedMidtermCount?: number;
+  expectedFinalCount?: number;
+}
+
+export interface CourseAssessmentConfig {
+  courseId: number;
+  courseTitle: string;
+  expectedAssignments: number;
+  expectedMidterm: number;
+  expectedFinal: number;
+  totalAssessments: number;
+  createdAssignmentNumbers: number[];
+  availableAssignmentNumbers: number[];
+  createdCount: number;
+  isAllAssignmentsCreated: boolean;
 }
 
 export interface AssignmentItem {
   id: number;
+  assignmentNumber: number;
   courseId: number;
   courseModuleId?: number;
   moduleTitle?: string;
@@ -225,10 +265,13 @@ export interface GradebookRow {
   registrationNumber?: string;
   avatarUrl?: string;
   grades: GradebookCell[];
-  totalScore: number;
-  totalMaxScore: number;
-  averagePercentage: number;
+  totalScore: number | null;
+  totalMaxScore: number | null;
+  averagePercentage: number | null;
   letterGrade: string;
+  isGradingComplete?: boolean;
+  gradedAssessmentCount?: number;
+  requiredAssessmentCount?: number;
 }
 
 export interface GradebookAssignmentHeader {

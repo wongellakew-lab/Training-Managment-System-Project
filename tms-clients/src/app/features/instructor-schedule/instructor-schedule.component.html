@@ -32,44 +32,165 @@
       <p>Synchronizing instructor calendar with database...</p>
     </div>
 
-    <!-- Calendar Month Grid -->
-    <div *ngIf="!isLoading()" class="calendar-grid-card">
-      <!-- Weekday Headers -->
-      <div class="weekdays-row">
-        <div *ngFor="let day of weekDays" class="weekday-cell">{{ day }}</div>
+    <!-- Dual-Pane Layout: Left = Interactive Calendar | Right = Master Schedule Sessions for Selected Date -->
+    <div *ngIf="!isLoading()" class="master-schedule-layout">
+      <!-- LEFT COLUMN: Interactive Calendar -->
+      <div class="calendar-pane-col">
+        <div class="interactive-calendar-card">
+          <!-- Calendar Month Navigation Bar -->
+          <div class="cal-card-nav">
+            <span class="cal-month-title">{{ currentMonthLabel() }}</span>
+            <div class="cal-nav-buttons">
+              <button mat-icon-button (click)="prevMonth()" aria-label="Previous month">
+                <mat-icon>chevron_left</mat-icon>
+              </button>
+              <button mat-icon-button (click)="nextMonth()" aria-label="Next month">
+                <mat-icon>chevron_right</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Weekday Headers -->
+          <div class="cal-weekdays-row">
+            <div *ngFor="let day of weekDays" class="cal-weekday-cell">{{ day }}</div>
+          </div>
+
+          <!-- Days Grid Matrix -->
+          <div class="cal-days-grid">
+            <div
+              *ngFor="let cell of calendarDays()"
+              class="cal-day-cell"
+              [class.outside-month]="!cell.isCurrentMonth"
+              [class.is-today]="cell.isToday"
+              [class.is-selected]="cell.isSelected"
+              [class.has-classes]="cell.schedules.length > 0"
+              (click)="selectDate(cell.date)"
+            >
+              <div class="cell-day-number-row">
+                <span class="cell-day-number" [class.today-badge]="cell.isToday">
+                  {{ cell.day }}
+                </span>
+                <span *ngIf="cell.schedules.length > 0" class="cal-cell-dot" [title]="cell.schedules.length + ' classes'"></span>
+              </div>
+
+              <!-- Miniature session indicators -->
+              <div *ngIf="cell.schedules.length > 0" class="mini-classes-stack">
+                <div
+                  *ngFor="let s of cell.schedules.slice(0, 2)"
+                  class="mini-class-chip"
+                  [ngClass]="getTypeClass(s.scheduleType)"
+                  [title]="s.courseCode + ' ' + s.startTime"
+                >
+                  <span class="mini-time">{{ s.startTime }}</span>
+                  <span class="mini-code">{{ s.courseCode || s.title }}</span>
+                </div>
+                <span *ngIf="cell.schedules.length > 2" class="mini-overflow">
+                  +{{ cell.schedules.length - 2 }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Days Grid -->
-      <div class="days-grid">
-        <div
-          *ngFor="let cell of calendarDays()"
-          class="calendar-cell"
-          [class.outside-month]="!cell.isCurrentMonth"
-          [class.is-today]="cell.isToday"
-        >
-          <div class="cell-top">
-            <span class="day-number" [class.today-badge]="cell.isToday">{{ cell.date.getDate() }}</span>
-            <span *ngIf="cell.schedules.length > 0" class="session-count-indicator">
-              {{ cell.schedules.length }} {{ cell.schedules.length === 1 ? 'class' : 'classes' }}
+      <!-- RIGHT COLUMN: Master Schedule session information for selected day -->
+      <div class="schedule-sessions-col">
+        <div class="sessions-pane-card">
+          <!-- Session Header with Selected Date & Count -->
+          <div class="sessions-header">
+            <div class="date-info">
+              <span class="eyebrow">Master Schedule</span>
+              <h2 class="selected-date-heading">{{ selectedDate() | date:'EEEE, MMMM d, y' }}</h2>
+            </div>
+            <span class="classes-count-badge">
+              {{ selectedDayClasses().length }} {{ selectedDayClasses().length === 1 ? 'Class Scheduled' : 'Classes Scheduled' }}
             </span>
           </div>
 
-          <div class="sessions-stack">
+          <!-- Session List when Classes are Scheduled -->
+          <div *ngIf="selectedDayClasses().length > 0" class="sessions-list">
             <div
-              *ngFor="let s of cell.schedules"
-              class="session-chip"
-              (click)="selectSchedule(s, $event)"
-              [title]="s.title"
+              *ngFor="let s of selectedDayClasses()"
+              class="session-detail-card"
+              [ngClass]="getTypeClass(s.scheduleType)"
             >
-              <span class="chip-time">{{ s.startTime }}</span>
-              <span class="chip-title">{{ s.courseCode || s.title }}</span>
+              <div class="session-card-top">
+                <span class="course-code-tag">{{ s.courseCode || 'COURSE' }}</span>
+                <span class="schedule-type-badge">{{ s.scheduleType || 'Lecture' }}</span>
+                <span class="time-range-badge">
+                  <mat-icon>schedule</mat-icon>
+                  <span>{{ s.startTime }} - {{ s.endTime }}</span>
+                </span>
+              </div>
+
+              <h3 class="session-course-title">{{ s.courseTitle || s.title }}</h3>
+
+              <div class="session-attributes-grid">
+                <div class="attr-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <div>
+                    <span class="attr-lbl">Date</span>
+                    <span class="attr-val">{{ s.date | date:'mediumDate' }}</span>
+                  </div>
+                </div>
+
+                <div class="attr-item">
+                  <mat-icon>room</mat-icon>
+                  <div>
+                    <span class="attr-lbl">Room / Location</span>
+                    <span class="attr-val">{{ s.room || s.location || 'Main Training Center' }}</span>
+                  </div>
+                </div>
+
+                <div class="attr-item">
+                  <mat-icon>person</mat-icon>
+                  <div>
+                    <span class="attr-lbl">Assigned Instructor</span>
+                    <span class="attr-val">{{ s.instructorName || s.picName || 'Instructor' }}</span>
+                  </div>
+                </div>
+
+                <div class="attr-item">
+                  <mat-icon>groups</mat-icon>
+                  <div>
+                    <span class="attr-lbl">Enrolled Students</span>
+                    <span class="attr-val">{{ s.attendeesCount || 0 }} Enrolled</span>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="s.notes" class="session-notes-box">
+                <span class="notes-lbl">Session Notes:</span>
+                <p class="notes-txt">{{ s.notes }}</p>
+              </div>
+
+              <div class="session-card-actions">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  class="roll-call-btn"
+                  (click)="goToAttendance(s.courseId, s.date)"
+                >
+                  <mat-icon>fact_check</mat-icon>
+                  <span>Take Digital Roll Call</span>
+                </button>
+              </div>
             </div>
+          </div>
+
+          <!-- Empty State: No Classes Scheduled for this date -->
+          <div *ngIf="selectedDayClasses().length === 0" class="no-classes-empty-state">
+            <div class="empty-icon-circle">
+              <mat-icon>event_busy</mat-icon>
+            </div>
+            <h3>No classes scheduled.</h3>
+            <p>There are no classes or laboratory sessions scheduled for {{ selectedDate() | date:'MMMM d, y' }}.</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Session Detail Modal -->
+    <!-- Session Detail Modal (when clicked directly) -->
     <div *ngIf="selectedSchedule()" class="detail-overlay" (click)="closeDetails()">
       <div class="detail-card" (click)="$event.stopPropagation()">
         <div class="detail-header">
@@ -134,3 +255,4 @@
     </div>
   </div>
 </app-layout>
+

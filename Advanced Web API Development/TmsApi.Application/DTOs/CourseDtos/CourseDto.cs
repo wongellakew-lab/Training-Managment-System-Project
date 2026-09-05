@@ -40,6 +40,12 @@ public class CourseDto
     public bool IsStudentEnrolled { get; set; } = false;
     public string? StudentEnrollmentStatus { get; set; }
     public decimal? StudentProgress { get; set; }
+    public string? RejectionReason { get; set; }
+    public int ExpectedAssignmentCount { get; set; } = 5;
+    public int ExpectedMidtermCount { get; set; } = 1;
+    public int ExpectedFinalCount { get; set; } = 1;
+    public int TotalAssessments => ExpectedAssignmentCount + ExpectedMidtermCount + ExpectedFinalCount;
+    public int CreatedAssignmentsCount { get; set; }
     public List<CourseScheduleDto> Schedules { get; set; } = new();
     public List<CourseModuleDto> Modules { get; set; } = new();
     public List<CourseResourceDto> Resources { get; set; } = new();
@@ -61,6 +67,10 @@ public class CourseLessonDto
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int OrderIndex { get; set; } = 1;
+    public int DurationMinutes { get; set; } = 45;
+    public string? ContentText { get; set; }
+    public string? PdfUrl { get; set; }
+    public string? PdfFileName { get; set; }
 }
 
 public class CourseResourceDto
@@ -114,6 +124,14 @@ public class CreateCourseDto
     public int Credits { get; set; } = 3;
     public int MaxCapacity { get; set; } = 50;
     public int? InstructorId { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public int DurationWeeks { get; set; } = 6;
+    public int ExpectedAssignmentCount { get; set; } = 5;
+    public int ExpectedMidtermCount { get; set; } = 1;
+    public int ExpectedFinalCount { get; set; } = 1;
+    public List<CreateCourseScheduleDto> Schedules { get; set; } = new();
+    public List<CourseModuleDto> Modules { get; set; } = new();
 }
 
 public class UpdateCourseDto
@@ -134,6 +152,19 @@ public class UpdateCourseDto
     public string FeaturesJson { get; set; } = "[]";
     public string ResourcesJson { get; set; } = "[]";
     public int Credits { get; set; } = 3;
-    public int MaxCapacity { get; set; }
+    public int MaxCapacity { get; set; } = 50;
     public int? InstructorId { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public int DurationWeeks { get; set; } = 6;
+    public int ExpectedAssignmentCount { get; set; } = 5;
+    public int ExpectedMidtermCount { get; set; } = 1;
+    public int ExpectedFinalCount { get; set; } = 1;
+    public List<CreateCourseScheduleDto> Schedules { get; set; } = new();
+    public List<CourseModuleDto> Modules { get; set; } = new();
+}
+
+public class RejectCourseDto
+{
+    public string Reason { get; set; } = string.Empty;
 }

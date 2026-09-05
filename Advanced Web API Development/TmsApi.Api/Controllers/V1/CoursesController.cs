@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.DTOs;
@@ -22,22 +23,36 @@ public class CoursesController : ControllerBase
     private readonly TmsDbContext _context;
     private readonly IHubContext<TmsHub, ITmsClient> _hubContext;
     private readonly IWebHostEnvironment _env;
+    private readonly IValidator<CreateCourseDto> _createValidator;
+    private readonly IValidator<UpdateCourseDto> _updateValidator;
+    private readonly INotificationService _notificationService;
 
     public CoursesController(
         ICourseService courseService,
         TmsDbContext context,
         IHubContext<TmsHub, ITmsClient> hubContext,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        IValidator<CreateCourseDto> createValidator,
+        IValidator<UpdateCourseDto> updateValidator,
+        INotificationService notificationService)
     {
         _courseService = courseService;
         _context = context;
         _hubContext = hubContext;
         _env = env;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetCourses([FromQuery] PagedRequest request, CancellationToken cancellationToken)
     {
+        if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
+        {
+            request.Status = "Active";
+        }
+
         if (!string.IsNullOrWhiteSpace(request.Fields))
         {
             var shapedResponse = await _courseService.GetShapedCoursesAsync(request, cancellationToken);
@@ -64,7 +79,23 @@ public class CoursesController : ControllerBase
             {
                 course.IsStudentEnrolled = true;
                 course.StudentEnrollmentStatus = enrollment.Status.ToString();
-                course.StudentProgress = enrollment.Grade;
+
+                int totalExpected = course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount;
+                if (totalExpected == 0)
+                {
+                    int totalAssignments = await _context.Assignments
+                        .CountAsync(a => a.CourseId == id && !a.IsDeleted && a.IsPublished, cancellationToken);
+                    totalExpected = totalAssignments > 0 ? totalAssignments : 1;
+                }
+
+                int evaluatedAssessments = await _context.Assessments
+                    .CountAsync(a => a.CourseId == id && a.StudentId == studentId.Value && a.Status == "Graded" && a.ScoredPoints.HasValue, cancellationToken);
+
+                course.StudentProgress = enrollment.Status == Domain.Entities.EnrollmentStatus.Completed
+                    ? 100m
+                    : totalExpected > 0
+                        ? Math.Min(100m, Math.Round((evaluatedAssessments / (decimal)totalExpected) * 100m, 1))
+                        : 0m;
             }
         }
 
@@ -74,6 +105,8 @@ public class CoursesController : ControllerBase
     [HttpGet("catalog")]
     public async Task<IActionResult> GetCatalog([FromQuery] PagedRequest request, CancellationToken cancellationToken)
     {
+        // Enforce strictly that only Admin-approved "Active" courses appear in the student catalog
+        request.Status = "Active";
         var response = await _courseService.GetCoursesAsync(request, cancellationToken);
         var studentId = await User.ResolveStudentIdAsync(_context);
         if (studentId.HasValue && response.Items != null && response.Items.Any())
@@ -84,13 +117,27 @@ public class CoursesController : ControllerBase
                 .Where(e => e.StudentId == studentId.Value && courseIds.Contains(e.CourseId) && e.Status != Domain.Entities.EnrollmentStatus.Dropped && e.Status != Domain.Entities.EnrollmentStatus.Rejected)
                 .ToDictionaryAsync(e => e.CourseId, cancellationToken);
 
+            var enrolledCourseIds = studentEnrollments.Keys.ToList();
+
+            var completedCounts = await _context.Assessments
+                .Where(a => enrolledCourseIds.Contains(a.CourseId) && a.StudentId == studentId.Value && a.Status == "Graded" && a.ScoredPoints.HasValue)
+                .GroupBy(a => a.CourseId)
+                .Select(g => new { CourseId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CourseId, x => x.Count, cancellationToken);
+
             foreach (var item in response.Items)
             {
                 if (studentEnrollments.TryGetValue(item.Id, out var enrollment))
                 {
                     item.IsStudentEnrolled = true;
                     item.StudentEnrollmentStatus = enrollment.Status.ToString();
-                    item.StudentProgress = enrollment.Grade;
+
+                    int total = item.TotalAssessments > 0 ? item.TotalAssessments : 1;
+                    int evaluated = completedCounts.TryGetValue(item.Id, out var c) ? c : 0;
+
+                    item.StudentProgress = enrollment.Status == Domain.Entities.EnrollmentStatus.Completed
+                        ? 100m
+                        : Math.Min(100m, Math.Round((evaluated / (decimal)total) * 100m, 1));
                 }
             }
         }
@@ -123,20 +170,216 @@ public class CoursesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDto dto, CancellationToken cancellationToken)
     {
+        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
+        {
+            var instructorId = await User.ResolveInstructorIdAsync(_context);
+            if (!instructorId.HasValue) return Forbid("Authenticated user is not linked to an instructor profile.");
+            dto.InstructorId = instructorId.Value;
+
+            if (dto.Status == "Active" || dto.Status == "Published")
+            {
+                dto.Status = "Under Review";
+            }
+        }
+
+        // Auto-generate code if not provided
+        if (string.IsNullOrWhiteSpace(dto.Code))
+        {
+            var prefix = !string.IsNullOrWhiteSpace(dto.Category) && dto.Category.Length >= 3
+                ? dto.Category.Substring(0, 3).ToUpperInvariant()
+                : "CRS";
+            dto.Code = $"{prefix}-{Random.Shared.Next(100, 999)}";
+        }
+        else
+        {
+            var codeConflict = await _context.Courses
+                .AnyAsync(c => c.Code.ToLower() == dto.Code.Trim().ToLower() && !c.IsDeleted, cancellationToken);
+            if (codeConflict)
+            {
+                return BadRequest(new
+                {
+                    message = "Course code already exists.",
+                    errors = new Dictionary<string, string[]>
+                    {
+                        ["code"] = new[] { "Course code already exists." }
+                    }
+                });
+            }
+        }
+
+        var validationResult = await _createValidator.ValidateAsync(dto, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new
+            {
+                message = "Course validation failed.",
+                errors = validationResult.Errors.GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => string.IsNullOrEmpty(g.Key) ? g.Key : char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                        g => g.Select(e => e.ErrorMessage).ToArray()
+                    )
+            });
+        }
+
         var course = await _courseService.CreateCourseAsync(dto, cancellationToken);
-        return CreatedAtAction(nameof(GetCourseById), new { version = "1.0", id = course.Id }, course);
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseCreated", courseId = course.Id });
+
+        string createMsg = course.Status == "Under Review"
+            ? "Course submitted successfully. Your course is now under review."
+            : (course.Status == "Active" ? "Course published successfully!" : "Course draft saved successfully!");
+
+        return CreatedAtAction(nameof(GetCourseById), new { version = "1.0", id = course.Id }, new
+        {
+            id = course.Id,
+            code = course.Code,
+            title = course.Title,
+            category = course.Category,
+            level = course.Level,
+            status = course.Status,
+            durationHours = course.DurationHours,
+            startDate = course.StartDate,
+            endDate = course.EndDate,
+            message = createMsg
+        });
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateCourse(int id, [FromBody] UpdateCourseDto dto, CancellationToken cancellationToken)
     {
+        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
+        {
+            var instructorId = await User.ResolveInstructorIdAsync(_context);
+            if (!instructorId.HasValue) return Forbid("Authenticated user is not linked to an instructor profile.");
+
+            var existingAuth = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (existingAuth == null) return NotFound(new { message = $"Course with ID {id} not found." });
+            if (existingAuth.InstructorId != instructorId.Value) return Forbid("You can only edit courses assigned to you.");
+
+            // Always enforce instructor ownership on update
+            dto.InstructorId = existingAuth.InstructorId ?? instructorId.Value;
+
+            // Instructors cannot directly publish to Active
+            if (dto.Status == "Active" || dto.Status == "Published")
+            {
+                dto.Status = "Under Review";
+            }
+        }
+        else if (!dto.InstructorId.HasValue)
+        {
+            var existingCourse = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (existingCourse != null)
+            {
+                dto.InstructorId = existingCourse.InstructorId;
+            }
+        }
+
+        var existing = await _context.Courses
+            .Include(c => c.Modules)
+                .ThenInclude(m => m.Lessons)
+            .Include(c => c.Enrollments)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
+
+        if (existing == null) return NotFound(new { message = $"Course with ID {id} not found." });
+
+        if (string.IsNullOrWhiteSpace(dto.Code))
+        {
+            dto.Code = existing.Code;
+        }
+
+        // Code uniqueness check if modified
+        if (!string.IsNullOrWhiteSpace(dto.Code) && !string.Equals(dto.Code.Trim(), existing.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            var codeConflict = await _context.Courses
+                .AnyAsync(c => c.Id != id && c.Code.ToLower() == dto.Code.Trim().ToLower() && !c.IsDeleted, cancellationToken);
+            if (codeConflict)
+            {
+                return BadRequest(new
+                {
+                    message = "Course code already exists.",
+                    errors = new Dictionary<string, string[]>
+                    {
+                        ["code"] = new[] { "Course code already exists." }
+                    }
+                });
+            }
+        }
+
+        // Authoritative Publish/Submit check: Course Content must not be empty
+        if (dto.Status == "Active" || dto.Status == "Published" || dto.Status == "Under Review")
+        {
+            bool hasContent = (dto.Modules != null && dto.Modules.Count > 0 && dto.Modules.Any(m => m.Lessons != null && m.Lessons.Count > 0))
+                || (existing.Modules != null && existing.Modules.Count > 0 && existing.Modules.Any(m => m.Lessons != null && m.Lessons.Count > 0));
+
+            if (!hasContent)
+            {
+                return BadRequest(new
+                {
+                    message = "Course content is required. Add at least one content item before publishing.",
+                    errors = new Dictionary<string, string[]>
+                    {
+                        ["courseContent"] = new[] { "Course content is required. Add at least one content item before publishing." }
+                    }
+                });
+            }
+        }
+
+        // Integrity check: Cannot reduce expected assignment count below already-created assignments
+        var createdAssignmentsCount = await _context.Assignments
+            .CountAsync(a => a.CourseId == id && !a.IsDeleted, cancellationToken);
+
+        if (dto.ExpectedAssignmentCount < createdAssignmentsCount)
+        {
+            return BadRequest(new
+            {
+                message = $"Cannot reduce configured assignment count to {dto.ExpectedAssignmentCount}. There are already {createdAssignmentsCount} assignments created for this course.",
+                errors = new Dictionary<string, string[]>
+                {
+                    ["expectedAssignmentCount"] = new[] { $"Cannot reduce assignment count below {createdAssignmentsCount}, as {createdAssignmentsCount} assignments have already been created." }
+                }
+            });
+        }
+
+        var validationResult = await _updateValidator.ValidateAsync(dto, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new
+            {
+                message = "Course validation failed.",
+                errors = validationResult.Errors.GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => string.IsNullOrEmpty(g.Key) ? g.Key : char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                        g => g.Select(e => e.ErrorMessage).ToArray()
+                    )
+            });
+        }
+
         var updated = await _courseService.UpdateCourseAsync(id, dto, cancellationToken);
         if (!updated) return NotFound(new { message = $"Course with ID {id} not found." });
 
+        var reloaded = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+
         await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseUpdated", courseId = id });
 
-        return NoContent();
+        string currentStatus = reloaded?.Status ?? dto.Status;
+        string returnMsg = currentStatus == "Under Review"
+            ? "Course submitted successfully. Your course is now under review."
+            : (currentStatus == "Active" || currentStatus == "Published" ? "Course published successfully!" : "Course draft saved successfully!");
+
+        return Ok(new
+        {
+            message = returnMsg,
+            courseId = id,
+            id = id,
+            code = reloaded?.Code ?? dto.Code,
+            title = reloaded?.Title ?? dto.Title,
+            category = reloaded?.Category ?? dto.Category,
+            level = reloaded?.Level ?? dto.Level,
+            status = currentStatus,
+            durationHours = reloaded?.DurationHours ?? dto.DurationHours,
+            startDate = reloaded?.StartDate,
+            endDate = reloaded?.EndDate
+        });
     }
 
     [Authorize(Roles = "Admin")]
@@ -177,10 +420,12 @@ public class CoursesController : ControllerBase
             category = c.Category,
             level = c.Level,
             status = c.Status,
+            rejectionReason = c.RejectionReason,
             durationHours = c.DurationHours,
             lessonsCount = c.Modules.SelectMany(m => m.Lessons).Count(),
             modulesCount = c.Modules.Count,
             resourcesCount = c.Resources.Count,
+            schedulesCount = c.Schedules.Count(s => !s.IsDeleted),
             activeStudentsCount = c.Enrollments.Count(e => e.Status == Domain.Entities.EnrollmentStatus.Active || e.Status == Domain.Entities.EnrollmentStatus.Completed),
             imageUrl = c.ImageUrl,
             about = c.About,
@@ -199,6 +444,7 @@ public class CoursesController : ControllerBase
         var course = await _context.Courses
             .AsNoTracking()
             .Include(c => c.Instructor)
+            .Include(c => c.Schedules)
             .Include(c => c.Modules.OrderBy(m => m.OrderIndex))
                 .ThenInclude(m => m.Lessons.OrderBy(l => l.OrderIndex))
             .Include(c => c.Resources)
@@ -216,6 +462,7 @@ public class CoursesController : ControllerBase
             category = course.Category,
             level = course.Level,
             status = course.Status,
+            rejectionReason = course.RejectionReason,
             durationHours = course.DurationHours,
             lessonsCount = course.Modules.SelectMany(m => m.Lessons).Count(),
             imageUrl = course.ImageUrl,
@@ -223,6 +470,25 @@ public class CoursesController : ControllerBase
             featuresJson = course.FeaturesJson,
             instructorId = course.InstructorId,
             instructorName = course.Instructor != null ? $"{course.Instructor.FirstName} {course.Instructor.LastName}" : "Instructor",
+            startDate = course.StartDate,
+            endDate = course.EndDate,
+            maxCapacity = course.MaxCapacity,
+            expectedAssignmentCount = course.ExpectedAssignmentCount,
+            expectedMidtermCount = course.ExpectedMidtermCount,
+            expectedFinalCount = course.ExpectedFinalCount,
+            totalAssessments = course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount,
+            createdAssignmentsCount = _context.Assignments.Count(a => a.CourseId == course.Id && !a.IsDeleted),
+            schedules = course.Schedules.Where(s => !s.IsDeleted).Select(s => new
+            {
+                id = s.Id,
+                dayOfWeek = (int)s.DayOfWeek,
+                dayName = s.DayOfWeek.ToString(),
+                startTime = s.StartTime,
+                endTime = s.EndTime,
+                location = s.Location,
+                room = s.Room,
+                scheduleType = s.ScheduleType
+            }).ToList(),
             modules = course.Modules.OrderBy(m => m.OrderIndex).Select(m => new
             {
                 id = m.Id,
@@ -249,6 +515,100 @@ public class CoursesController : ControllerBase
                 fileSize = r.FileSize,
                 url = r.Url
             }).ToList()
+        });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/approve")]
+    public async Task<IActionResult> ApproveCourse(int id, CancellationToken cancellationToken)
+    {
+        var course = await _context.Courses
+            .Include(c => c.Instructor)
+                .ThenInclude(i => i!.User)
+            .Include(c => c.Modules)
+                .ThenInclude(m => m.Lessons)
+            .Include(c => c.Schedules)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
+
+        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
+
+        bool hasContent = course.Modules.Any(m => m.Lessons.Any());
+        if (!hasContent)
+        {
+            return BadRequest(new { message = "Course cannot be approved because it has no modules or lessons." });
+        }
+
+        if (!course.Schedules.Any(s => !s.IsDeleted))
+        {
+            return BadRequest(new { message = "Course cannot be approved because it has no scheduled classes." });
+        }
+
+        course.Status = "Active";
+        course.RejectionReason = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseApproved", courseId = id });
+
+        if (course.Instructor != null && !string.IsNullOrEmpty(course.Instructor.UserId))
+        {
+            await _notificationService.CreateNotificationAsync(
+                course.Instructor.UserId,
+                "Course Approved",
+                $"Your course '{course.Title}' ({course.Code}) has been approved by administration and is now active in the catalog.",
+                "Course",
+                course.Id,
+                "Course",
+                cancellationToken);
+        }
+
+        return Ok(new
+        {
+            message = "Course approved successfully.",
+            courseId = id,
+            status = "Active",
+            course = await _courseService.GetCourseByIdAsync(id, cancellationToken)
+        });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/reject")]
+    public async Task<IActionResult> RejectCourse(int id, [FromBody] RejectCourseDto dto, CancellationToken cancellationToken)
+    {
+        var course = await _context.Courses
+            .Include(c => c.Instructor)
+                .ThenInclude(i => i!.User)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
+
+        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
+
+        var reason = !string.IsNullOrWhiteSpace(dto?.Reason)
+            ? dto.Reason.Trim()
+            : "Course does not meet catalog specifications.";
+
+        course.Status = "Rejected";
+        course.RejectionReason = reason;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseRejected", courseId = id });
+
+        if (course.Instructor != null && !string.IsNullOrEmpty(course.Instructor.UserId))
+        {
+            await _notificationService.CreateNotificationAsync(
+                course.Instructor.UserId,
+                "Course Rejected",
+                $"Your course '{course.Title}' ({course.Code}) was rejected. Reason: {reason}",
+                "Course",
+                course.Id,
+                "Course",
+                cancellationToken);
+        }
+
+        return Ok(new
+        {
+            message = "Course rejected.",
+            courseId = id,
+            status = "Rejected",
+            rejectionReason = reason
         });
     }
 

@@ -27,6 +27,7 @@ export class LiveSyncService {
   // Event streams
   readonly enrollmentUpdated$ = new Subject<{ studentId: number; courseId: number; status?: string; grade?: number; letterGrade?: string }>();
   readonly gradePublished$ = new Subject<{ studentId: number; courseId: number; grade: number; letterGrade: string }>();
+  readonly assignmentUpdated$ = new Subject<any>();
   readonly scheduleUpdated$ = new Subject<void>();
   readonly courseCapacityChanged$ = new Subject<{ courseId: number; enrolledCount: number; maxCapacity: number }>();
   readonly transcriptCompleted$ = new Subject<{ jobId: string; studentId: number; downloadUrl: string }>();
@@ -160,6 +161,10 @@ export class LiveSyncService {
 
     this.hubConnection.on('ReceiveScheduleUpdate', () => {
       this.scheduleUpdated$.next();
+    });
+
+    this.hubConnection.on('ReceiveAssignmentUpdate', (data: any) => {
+      this.assignmentUpdated$.next(data);
     });
 
     // Generic system message

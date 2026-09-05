@@ -1,11 +1,11 @@
 /* ==========================================================================
-   Eduva Training Management System - Core Design System & Theme Tokens
+   Training Management System (TMS) - Core Design System & Theme Tokens
    ========================================================================== */
 
 @import '@angular/material/prebuilt-themes/azure-blue.css';
 
 :root {
-  /* Light Theme Palette (Eduva Default matching mockups) */
+  /* Light Theme Palette */
   --bg-app: #f4f6fa;
   --bg-primary: #f4f6fa;
   --bg-surface: #ffffff;
@@ -27,7 +27,7 @@
   --text-muted: #8993a4;
   --text-inverse: #ffffff;
 
-  /* Eduva Accent Colors */
+  /* Accent Colors */
   --eduva-navy: #172b4d;
   --eduva-navy-active: #0f1c33;
   --eduva-blue: #0284c7;
@@ -164,6 +164,7 @@ html, body {
   color: #059669;
 }
 
+.pill-badge.under-review,
 .pill-badge.draft,
 .pill-badge.applied,
 .pill-badge.pending,
@@ -172,6 +173,7 @@ html, body {
   color: #d97706;
 }
 
+.pill-badge.rejected,
 .pill-badge.archived,
 .pill-badge.waitlisted,
 .pill-badge.unpaid,

@@ -47,15 +47,17 @@ export class StudentDashboardComponent implements OnInit {
 
   readonly gpaDisplay = computed(() => {
     const dash = this.dashboardData();
-    if (dash && dash.cumulativeGpa) return dash.cumulativeGpa.toFixed(2);
-    const rec = this.academicRecord();
-    return rec && rec.gpa ? rec.gpa.toFixed(2) : '0.00';
+    let rawGpa = (dash && dash.cumulativeGpa) ? dash.cumulativeGpa : (this.academicRecord()?.gpa ?? 0);
+    // Safety check: if raw percentage > 4.0, convert to 4.00 scale
+    if (rawGpa > 4.0) {
+      rawGpa = rawGpa >= 90 ? 4.0 : rawGpa >= 80 ? 3.0 : rawGpa >= 70 ? 2.0 : rawGpa >= 60 ? 1.0 : 0.0;
+    }
+    return Math.min(4.0, Math.max(0, rawGpa)).toFixed(2);
   });
 
   readonly gpaPercent = computed(() => {
-    const dash = this.dashboardData();
-    const gpa = dash?.cumulativeGpa || this.academicRecord()?.gpa || 0;
-    return Math.min((gpa / 4.0) * 100, 100);
+    const gpaNum = parseFloat(this.gpaDisplay());
+    return Math.min((gpaNum / 4.0) * 100, 100);
   });
 
   ngOnInit(): void {

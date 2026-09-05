@@ -33,6 +33,8 @@ export interface StudentEnrolledCourse {
   enrollmentStatus: string;
   academicStatus: 'Active' | 'Upcoming' | 'Completed' | 'Withdrawn' | string;
   progressPercentage: number;
+  completedAssessments?: number;
+  totalAssessments?: number;
   totalLessons: number;
   completedLessons: number;
   totalModules: number;

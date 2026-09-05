@@ -17,6 +17,9 @@ public class Assessment
     public DateTime? GradedAt { get; set; }
     public string? RubricScoresJson { get; set; }
     public string? SubmissionFileUrl { get; set; }
+    public string? SubmissionFileName { get; set; }
+    public string? SubmissionFileType { get; set; }
+    public long? SubmissionFileSize { get; set; }
     public string? SubmissionText { get; set; }
 
     public Student? Student { get; set; }

@@ -40,7 +40,10 @@
       } @else {
         <div class="progress-cards-grid">
           @for (course of dashboardData()!.courseProgress; track course.courseId) {
-            <mat-card class="course-prog-card eduva-card">
+            <mat-card
+              class="course-prog-card eduva-card clickable-card"
+              [routerLink]="['/student/progress', course.courseId]"
+            >
               <div class="card-head">
                 <div>
                   <span class="code-pill font-mono">{{ course.courseCode }}</span>
@@ -61,8 +64,8 @@
                   </div>
                 }
                 <div class="stat-col">
-                  <span class="stat-val font-mono">{{ course.completedAssignments }} / {{ course.totalAssignments }}</span>
-                  <span class="stat-label">Milestones Met</span>
+                  <span class="stat-val font-mono">{{ course.completedAssessments ?? course.completedAssignments }} / {{ course.totalAssessments ?? course.totalAssignments }}</span>
+                  <span class="stat-label">Assessments Evaluated</span>
                 </div>
                 <div class="stat-col">
                   <span class="stat-val">{{ course.status }}</span>
@@ -77,7 +80,13 @@
               </div>
 
               <div class="card-footer">
-                <a mat-stroked-button color="primary" routerLink="/student/gradebook" class="view-btn">
+                <a
+                  mat-stroked-button
+                  color="primary"
+                  routerLink="/student/gradebook"
+                  (click)="$event.stopPropagation()"
+                  class="view-btn"
+                >
                   <mat-icon>task_alt</mat-icon>
                   <span>View Assignments</span>
                 </a>

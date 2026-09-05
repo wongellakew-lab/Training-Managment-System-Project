@@ -46,6 +46,14 @@ export class HeaderComponent implements OnInit {
     return '/admin/dashboard';
   });
 
+  /** Dedicated profile path based on role */
+  readonly profilePath = computed(() => {
+    const role = this.authService.userRole();
+    if (role === 'Instructor') return '/instructor/profile';
+    if (role === 'Student') return '/student/profile';
+    return '/admin/dashboard';
+  });
+
   readonly greeting = computed(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';

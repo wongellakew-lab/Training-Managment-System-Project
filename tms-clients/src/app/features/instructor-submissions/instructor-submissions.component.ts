@@ -147,23 +147,47 @@ export class InstructorSubmissionsComponent implements OnInit {
     });
   }
 
-  submitGrade(): void {
+  onScoreEnter(event: Event): void {
+    event.preventDefault();
+    this.submitGrade(true);
+  }
+
+  submitGrade(advanceToNext: boolean = false): void {
     const sub = this.selectedSubmission();
     if (!sub) return;
 
-    if (this.gradeScore() < 0 || this.gradeScore() > sub.maxPoints) {
-      this.snackBar.open(`Score must be between 0 and ${sub.maxPoints} points.`, 'Close', { duration: 3000 });
+    if (this.isSubmittingGrade()) {
+      return; // Prevent duplicate requests while saving
+    }
+
+    const rawScore = this.gradeScore();
+    if (rawScore === null || rawScore === undefined || String(rawScore).trim() === '') {
+      this.snackBar.open('Grade is required.', 'Close', { duration: 3500 });
+      this.focusScoreInput();
+      return;
+    }
+
+    const score = Number(rawScore);
+    if (isNaN(score)) {
+      this.snackBar.open('Please enter a valid numeric grade.', 'Close', { duration: 3500 });
+      this.focusScoreInput();
+      return;
+    }
+
+    if (score < 0 || score > sub.maxPoints) {
+      this.snackBar.open(`Grade must be between 0 and ${sub.maxPoints}.`, 'Close', { duration: 3500 });
+      this.focusScoreInput();
       return;
     }
 
     this.isSubmittingGrade.set(true);
     this.instructorService.gradeSubmission(sub.id, {
-      scoredPoints: this.gradeScore(),
+      scoredPoints: score,
       feedback: this.gradeFeedback()
     }).subscribe({
       next: (res) => {
         this.isSubmittingGrade.set(false);
-        this.snackBar.open('Grade and feedback saved! Student notified via live SignalR sync.', 'OK', { duration: 3500 });
+        this.snackBar.open('Grade saved successfully.', 'OK', { duration: 3000 });
 
         // Update local submission list status
         this.submissions.update(list => list.map(s => {
@@ -188,11 +212,40 @@ export class InstructorSubmissionsComponent implements OnInit {
             gradedAt: res.gradedAt
           } : null);
         }
+
+        if (advanceToNext) {
+          const currentList = this.submissions();
+          const currentIndex = currentList.findIndex(s => s.id === sub.id);
+          if (currentIndex >= 0 && currentIndex < currentList.length - 1) {
+            const nextSub = currentList[currentIndex + 1];
+            this.selectSubmission(nextSub);
+            // Automatically focus next student's grade input once loaded
+            setTimeout(() => {
+              this.focusScoreInput();
+            }, 300);
+          } else {
+            // Last student: keep focus on current input, do not wrap around
+            this.focusScoreInput();
+          }
+        }
       },
-      error: () => {
+      error: (err) => {
         this.isSubmittingGrade.set(false);
-        this.snackBar.open('Failed to submit grade.', 'Close', { duration: 3000 });
+        const errorMsg = err.error?.message || 'Failed to submit grade.';
+        this.snackBar.open(errorMsg, 'Close', { duration: 4000 });
+        // Stay on current student and keep focus
+        this.focusScoreInput();
       }
     });
+  }
+
+  private focusScoreInput(): void {
+    setTimeout(() => {
+      const el = document.getElementById('grade-score-input') as HTMLInputElement | null;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    }, 50);
   }
 }

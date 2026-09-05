@@ -149,7 +149,7 @@
               <mat-icon>school</mat-icon>
             </div>
             <div class="kpi-meta">
-              <span class="kpi-val">{{ transcript()?.summary?.cumulativeGpa | number:'1.2-2' }}</span>
+              <span class="kpi-val">{{ transcript()?.summary?.cumulativeGpa !== null && transcript()?.summary?.cumulativeGpa !== undefined ? (transcript()?.summary?.cumulativeGpa | number:'1.2-2') : 'N/A' }}</span>
               <span class="kpi-lbl">Cumulative GPA / 4.00</span>
             </div>
           </div>
@@ -297,7 +297,13 @@
               </div>
               <div class="sum-cell">
                 <span class="sum-lbl">Cumulative GPA</span>
-                <span class="sum-num text-primary">{{ transcript()?.summary?.cumulativeGpa | number:'1.2-2' }} <small>/ 4.00</small></span>
+                <span class="sum-num text-primary">
+                  @if (transcript()?.summary?.cumulativeGpa !== null && transcript()?.summary?.cumulativeGpa !== undefined) {
+                    {{ transcript()?.summary?.cumulativeGpa | number:'1.2-2' }} <small>/ 4.00</small>
+                  } @else {
+                    N/A
+                  }
+                </span>
               </div>
               <div class="sum-cell">
                 <span class="sum-lbl">Academic Standing</span>

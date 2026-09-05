@@ -1,0 +1,332 @@
+<app-layout>
+  <div class="progress-details-page-container">
+    <!-- Back Navigation -->
+    <div class="back-nav-bar">
+      <a mat-button routerLink="/student/progress" class="back-link">
+        <mat-icon>arrow_back</mat-icon>
+        <span>Back to Progress Tracking</span>
+      </a>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="state-container loading-state">
+        <mat-progress-spinner mode="indeterminate" diameter="48" color="primary"></mat-progress-spinner>
+        <p>Loading course progress details...</p>
+      </div>
+    }
+
+    <!-- Error State -->
+    @else if (errorMessage()) {
+      <div class="state-container error-state">
+        <div class="error-icon-circle">
+          <mat-icon>error_outline</mat-icon>
+        </div>
+        <h3>Unable to load course</h3>
+        <p>{{ errorMessage() }}</p>
+        <button mat-flat-button color="primary" routerLink="/student/progress">Return to Progress</button>
+      </div>
+    }
+
+    <!-- Content State -->
+    @else if (progressData(); as data) {
+      <!-- Header Banner -->
+      <section class="summary-banner eduva-card">
+        <div class="banner-left">
+          <div class="meta-tags">
+            <span class="code-pill font-mono">{{ data.courseSummary.courseCode }}</span>
+            <span class="status-pill status-{{ data.courseSummary.enrollmentStatus.toLowerCase() }}">
+              {{ data.courseSummary.enrollmentStatus }}
+            </span>
+            <span class="dept-pill">{{ data.courseSummary.department }}</span>
+          </div>
+
+          <h1 class="banner-title">{{ data.courseSummary.courseTitle }}</h1>
+          <p class="banner-desc">{{ data.courseSummary.description }}</p>
+
+          <div class="course-meta-row">
+            <div class="meta-item">
+              <mat-icon>person</mat-icon>
+              <span><strong>Instructor:</strong> {{ data.courseSummary.instructorName }}</span>
+            </div>
+            <div class="meta-item">
+              <mat-icon>calendar_today</mat-icon>
+              <span>{{ data.courseSummary.startDate | date:'mediumDate' }} – {{ data.courseSummary.endDate | date:'mediumDate' }}</span>
+            </div>
+            <div class="meta-item">
+              <mat-icon>workspace_premium</mat-icon>
+              <span>{{ data.courseSummary.credits }} Credits ({{ data.courseSummary.level }})</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="banner-right">
+          <div class="progress-dial-box">
+            <span class="dial-val font-mono">{{ data.progress.progressPercentage }}%</span>
+            <span class="dial-label">Overall Completion</span>
+            <span class="dial-sub font-mono">{{ data.progress.completedAssessments }} of {{ data.progress.totalAssessments }} Evaluated</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Grid Sections -->
+      <div class="details-grid">
+        <!-- Left Column: Attendance & Final Grade -->
+        <div class="grid-column-side">
+          <!-- Final Grade Card -->
+          <div class="detail-card eduva-card grade-card">
+            <div class="card-header">
+              <div class="title-with-icon">
+                <mat-icon class="icon-grade">grade</mat-icon>
+                <h3>Academic Evaluation</h3>
+              </div>
+              <span class="badge font-mono" [class.badge-evaluated]="data.finalGrade.isEvaluated" [class.badge-pending]="!data.finalGrade.isEvaluated">
+                {{ data.finalGrade.status }}
+              </span>
+            </div>
+
+            <div class="card-body">
+              @if (data.finalGrade.isEvaluated) {
+                <div class="grade-display-box">
+                  <div class="score-circle">
+                    <span class="score-val font-mono">{{ data.finalGrade.score | number:'1.0-1' }}%</span>
+                    <span class="score-letter font-mono">{{ data.finalGrade.letter }}</span>
+                  </div>
+                  <div class="grade-details">
+                    <div class="grade-row">
+                      <span class="label">Grade Point:</span>
+                      <span class="val font-mono">{{ data.finalGrade.gradePoint | number:'1.1-2' }} / 4.0</span>
+                    </div>
+                    <div class="grade-row">
+                      <span class="label">Status:</span>
+                      <span class="val text-success">Official Grade Recorded</span>
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="pending-grade-box">
+                  <mat-icon>schedule</mat-icon>
+                  <p class="pending-title">Evaluation in Progress</p>
+                  <p class="pending-desc">Your final grade will be calculated and published once all coursework and exams are completed and evaluated by your instructor.</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Attendance Card -->
+          <div class="detail-card eduva-card attendance-card">
+            <div class="card-header">
+              <div class="title-with-icon">
+                <mat-icon class="icon-att">event_available</mat-icon>
+                <h3>Attendance Summary</h3>
+              </div>
+              <span class="rate-badge font-mono">{{ data.attendance.attendanceRate }}%</span>
+            </div>
+
+            <div class="card-body">
+              <!-- Attendance Stats Metrics -->
+              <div class="stats-metric-grid">
+                <div class="metric-item metric-present">
+                  <span class="metric-num font-mono">{{ data.attendance.presentCount }}</span>
+                  <span class="metric-lbl">Present</span>
+                </div>
+                <div class="metric-item metric-late">
+                  <span class="metric-num font-mono">{{ data.attendance.lateCount }}</span>
+                  <span class="metric-lbl">Late</span>
+                </div>
+                <div class="metric-item metric-absent">
+                  <span class="metric-num font-mono">{{ data.attendance.absentCount }}</span>
+                  <span class="metric-lbl">Absent</span>
+                </div>
+                <div class="metric-item metric-total">
+                  <span class="metric-num font-mono">{{ data.attendance.totalSessions }}</span>
+                  <span class="metric-lbl">Total Sessions</span>
+                </div>
+              </div>
+
+              <!-- Session History Table -->
+              <div class="attendance-history-section">
+                <h4 class="history-title">Session History</h4>
+                @if (data.attendance.sessions.length === 0) {
+                  <div class="mini-empty">
+                    <mat-icon>event_busy</mat-icon>
+                    <p>No attendance records logged for this course yet.</p>
+                  </div>
+                } @else {
+                  <div class="sessions-list">
+                    @for (s of data.attendance.sessions; track s.id) {
+                      <div class="session-row">
+                        <div class="session-info">
+                          <span class="session-date font-mono">{{ s.sessionDate | date:'mediumDate' }}</span>
+                          @if (s.remarks) {
+                            <span class="session-remarks">{{ s.remarks }}</span>
+                          }
+                        </div>
+                        <span class="status-tag tag-{{ s.status.toLowerCase() }}">
+                          {{ s.status }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Class Schedule Card -->
+          <div class="detail-card eduva-card schedule-card">
+            <div class="card-header">
+              <div class="title-with-icon">
+                <mat-icon class="icon-sched">schedule</mat-icon>
+                <h3>Class Schedule</h3>
+              </div>
+            </div>
+
+            <div class="card-body">
+              @if (data.schedules.length === 0) {
+                <div class="mini-empty">
+                  <mat-icon>event_note</mat-icon>
+                  <p>No recurring schedule entries configured for this course.</p>
+                </div>
+              } @else {
+                <div class="schedule-rows">
+                  @for (sch of data.schedules; track sch.id) {
+                    <div class="sched-item">
+                      <div class="sched-day-badge">
+                        {{ getDayName(sch.dayOfWeek) | slice:0:3 }}
+                      </div>
+                      <div class="sched-details">
+                        <div class="sched-time font-mono">
+                          {{ sch.startTime }} – {{ sch.endTime }}
+                        </div>
+                        <div class="sched-loc">
+                          <mat-icon>room</mat-icon>
+                          <span>{{ sch.location }} • {{ sch.room }} ({{ sch.scheduleType }})</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Assignments Breakdown -->
+        <div class="grid-column-main">
+          <div class="detail-card eduva-card assignments-card">
+            <div class="card-header">
+              <div class="title-with-icon">
+                <mat-icon class="icon-assign">assignment</mat-icon>
+                <div>
+                  <h3>Course Assignments</h3>
+                  <p class="subtitle">Track submission statuses, deadlines, and graded evaluations</p>
+                </div>
+              </div>
+
+              <!-- Tab Switcher -->
+              <div class="tab-switcher">
+                <button
+                  type="button"
+                  class="tab-btn"
+                  [class.active]="activeTab() === 'inProgress'"
+                  (click)="setActiveTab('inProgress')"
+                >
+                  <span>In Progress</span>
+                  <span class="count-badge">{{ data.assignments.inProgress.length }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="tab-btn"
+                  [class.active]="activeTab() === 'completed'"
+                  (click)="setActiveTab('completed')"
+                >
+                  <span>Completed</span>
+                  <span class="count-badge count-completed">{{ data.assignments.completed.length }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <!-- In Progress Tab -->
+              @if (activeTab() === 'inProgress') {
+                @if (data.assignments.inProgress.length === 0) {
+                  <div class="tab-empty-state">
+                    <mat-icon>task_alt</mat-icon>
+                    <h4>All caught up!</h4>
+                    <p>You have no pending assignments waiting for submission or grading in this course.</p>
+                  </div>
+                } @else {
+                  <div class="assignment-items-list">
+                    @for (item of data.assignments.inProgress; track item.assignmentId) {
+                      <div class="assignment-row">
+                        <div class="assignment-header-line">
+                          <span class="num-pill font-mono">Assignment {{ item.assignmentNumber }}</span>
+                          <span class="due-badge" [class.submitted-badge]="item.submissionStatus === 'Submitted'">
+                            @if (item.submissionStatus === 'Submitted') {
+                              <mat-icon>check_circle</mat-icon> Submitted (Awaiting Grade)
+                            } @else {
+                              <mat-icon>timer</mat-icon> Due: {{ item.dueDate | date:'mediumDate' }}
+                            }
+                          </span>
+                        </div>
+
+                        <h4 class="item-title">{{ item.title }}</h4>
+
+                        <div class="item-footer">
+                          <span class="points-label font-mono">Max: {{ item.maxPoints }} pts</span>
+                          @if (item.submittedAt) {
+                            <span class="submitted-at font-mono">Turned in: {{ item.submittedAt | date:'short' }}</span>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+
+              <!-- Completed Tab -->
+              @if (activeTab() === 'completed') {
+                @if (data.assignments.completed.length === 0) {
+                  <div class="tab-empty-state">
+                    <mat-icon>pending_actions</mat-icon>
+                    <h4>No graded assignments yet</h4>
+                    <p>Once your submissions are reviewed and graded by your instructor, they will appear here with scores and feedback.</p>
+                  </div>
+                } @else {
+                  <div class="assignment-items-list">
+                    @for (item of data.assignments.completed; track item.assignmentId) {
+                      <div class="assignment-row graded-row">
+                        <div class="assignment-header-line">
+                          <span class="num-pill font-mono">Assignment {{ item.assignmentNumber }}</span>
+                          <span class="score-pill font-mono">
+                            {{ item.scoredPoints }} / {{ item.maxPoints }} pts
+                          </span>
+                        </div>
+
+                        <h4 class="item-title">{{ item.title }}</h4>
+
+                        @if (item.feedback) {
+                          <div class="feedback-box">
+                            <strong>Instructor Feedback:</strong>
+                            <p>{{ item.feedback }}</p>
+                          </div>
+                        }
+
+                        <div class="item-footer">
+                          <span class="graded-at font-mono">
+                            Graded: {{ item.gradedAt ? (item.gradedAt | date:'mediumDate') : 'Recorded' }}
+                          </span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</app-layout>

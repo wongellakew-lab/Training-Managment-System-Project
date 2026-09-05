@@ -54,6 +54,8 @@ public class StudentCourseProgressDto
     public string CourseCode { get; set; } = string.Empty;
     public int CompletedAssignments { get; set; }
     public int TotalAssignments { get; set; }
+    public int CompletedAssessments { get; set; }
+    public int TotalAssessments { get; set; }
     public int CompletedModules { get; set; }
     public int TotalModules { get; set; }
     public decimal CompletionPercentage { get; set; }
@@ -92,6 +94,7 @@ public class InstructorTodayClassDto
     public string Location { get; set; } = string.Empty;
     public int StudentCount { get; set; }
     public string AttendanceStatus { get; set; } = "Pending"; // "Taken", "Pending"
+    public string Status { get; set; } = "In Progress"; // "In Progress", "Completed"
 }
 
 public class InstructorPendingGradingDto
@@ -113,6 +116,7 @@ public class InstructorUpcomingSessionDto
     public string StartTime { get; set; } = string.Empty;
     public string EndTime { get; set; } = string.Empty;
     public string Room { get; set; } = string.Empty;
+    public string Location { get; set; } = string.Empty;
     public int EnrolledStudentsCount { get; set; }
 }
 
@@ -156,23 +160,12 @@ public class AdminDashboardDto
     public int WaitlistedEnrollments { get; set; }
     public int TotalCertificates { get; set; }
 
-    // Revenue Widget (computed from enrollment fees)
-    public decimal TotalRevenue { get; set; }
-    public List<MonthlyRevenueDto> RevenueHistory { get; set; } = new();
-
     // Enrollment Trends Widget
-    public decimal TotalEnrollmentValue { get; set; }
     public decimal EnrollmentGrowthPercentage { get; set; }
     public List<MonthlyEnrollmentTrendDto> EnrollmentTrends { get; set; } = new();
 
     // Top Courses Donut Widget
     public List<TopCourseStatDto> TopCoursesDistribution { get; set; } = new();
-
-    // Learning Activity 7x6 Heatmap
-    public List<ActivityHeatmapCellDto> LearningActivityHeatmap { get; set; } = new();
-
-    // Student Demographics Widget
-    public List<CountryDemographicDto> StudentDemographics { get; set; } = new();
 
     // New Courses Widget
     public List<CourseDto> NewCourses { get; set; } = new();
@@ -180,20 +173,13 @@ public class AdminDashboardDto
     // Right Sidebar Mini Calendar Schedules
     public List<ScheduleDto> UpcomingSchedules { get; set; } = new();
 
-    // Recent Activities Feed (from notifications)
+    // Recent Activities Feed (Audit trail with resolved actors)
     public List<SystemActivityDto> RecentActivities { get; set; } = new();
 
     public IEnumerable<EnrollmentDto> PendingApprovalList { get; set; } = new List<EnrollmentDto>();
     public IEnumerable<SystemActivityDto> RecentActivity { get; set; } = new List<SystemActivityDto>();
 }
 
-public class MonthlyRevenueDto
-{
-    public string Month { get; set; } = string.Empty;
-    public decimal Revenue { get; set; }
-    public decimal Profit { get; set; }
-    public decimal Expense { get; set; }
-}
 
 public class MonthlyEnrollmentTrendDto
 {
@@ -210,28 +196,15 @@ public class TopCourseStatDto
     public string Color { get; set; } = "#1E40AF";
 }
 
-public class ActivityHeatmapCellDto
-{
-    public string Day { get; set; } = "Mon";
-    public string TimeSlot { get; set; } = "9am";
-    public int Level { get; set; } = 1;
-    public int Value { get; set; }
-}
-
-public class CountryDemographicDto
-{
-    public string Country { get; set; } = string.Empty;
-    public string Flag { get; set; } = string.Empty;
-    public int StudentsCount { get; set; }
-    public int Percentage { get; set; }
-}
-
 public class SystemActivityDto
 {
     public string Id { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Type { get; set; } = "System";
+    public string? ActorName { get; set; }
+    public string? ActorRole { get; set; }
     public string UserAvatar { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
 }
+

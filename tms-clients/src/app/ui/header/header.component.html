@@ -82,9 +82,9 @@
         <mat-icon>dashboard</mat-icon>
         <span>My Dashboard</span>
       </button>
-      <button mat-menu-item routerLink="/profile">
+      <button mat-menu-item [routerLink]="profilePath()">
         <mat-icon>person_outline</mat-icon>
-        <span>Profile</span>
+        <span>My Profile</span>
       </button>
       <mat-divider></mat-divider>
       <button mat-menu-item (click)="logout()" class="logout-menu-item">

@@ -9,11 +9,11 @@
         <div>
           <div class="title-status-row">
             <h1>Course Content Builder</h1>
-            <span class="status-pill" [class.active]="course().status === 'Active'">
+            <span class="status-pill" [class.active]="course().status === 'Active' || course().status === 'Published'" [class.under-review]="course().status === 'Under Review'" [class.rejected]="course().status === 'Rejected'">
               {{ course().status || 'Draft' }}
             </span>
           </div>
-          <p>Structure your curriculum, chronology of modules, lessons, and PDF resource documents.</p>
+          <p>Structure your curriculum, chronology of modules, lessons, weekly schedules, and PDF resources.</p>
         </div>
       </div>
 
@@ -21,9 +21,9 @@
         <button mat-stroked-button (click)="saveDraft()" [disabled]="isSaving()">
           Save as Draft
         </button>
-        <button mat-flat-button color="primary" (click)="publishCourse()" [disabled]="isSaving()" class="publish-btn">
-          <mat-icon>publish</mat-icon>
-          <span>{{ isSaving() ? 'Saving...' : 'Publish Course' }}</span>
+        <button mat-flat-button color="primary" (click)="submitForReview()" [disabled]="isSaving()" class="publish-btn">
+          <mat-icon>send</mat-icon>
+          <span>{{ isSaving() ? 'Submitting...' : 'Submit for Review' }}</span>
         </button>
       </div>
     </div>
@@ -66,41 +66,325 @@
           </div>
         </div>
 
+        <!-- Rejection Feedback Card (If course was rejected) -->
+        <div class="rejection-alert-card" *ngIf="course().status === 'Rejected'">
+          <div class="rejection-header">
+            <mat-icon>feedback</mat-icon>
+            <div>
+              <h4>Course Revision Required</h4>
+              <span class="rejection-sub">Administration requested changes before this course can be published.</span>
+            </div>
+          </div>
+          <div class="rejection-body">
+            <strong>Administrator Feedback:</strong>
+            <p>{{ course().rejectionReason || 'Please review course schedule and curriculum content before resubmitting.' }}</p>
+          </div>
+          <div class="rejection-tip">
+            <mat-icon>info</mat-icon>
+            <span>Please address the feedback above and click <strong>Submit for Review</strong> when ready.</span>
+          </div>
+        </div>
+
+        <!-- Under Review Card (If currently in review) -->
+        <div class="under-review-alert-card" *ngIf="course().status === 'Under Review'">
+          <div class="under-review-header">
+            <mat-icon>hourglass_top</mat-icon>
+            <div>
+              <h4>Under Administrative Review</h4>
+              <span class="under-review-sub">This course is currently undergoing review by academic administrators.</span>
+            </div>
+          </div>
+          <p class="under-review-text">
+            Students cannot see or enroll in this course until an administrator approves it. You can still make updates and resubmit if necessary.
+          </p>
+        </div>
+
         <!-- Basic Course Fields -->
         <div class="form-card">
+          <!-- Form General Alert (Business rule or server error) -->
+          @if (formGeneralError()) {
+            <div class="form-general-alert">
+              <mat-icon>error</mat-icon>
+              <span>{{ formGeneralError() }}</span>
+            </div>
+          }
+
           <!-- Course Name -->
-          <div class="form-group">
-            <label class="form-label">Course Name</label>
+          <div class="form-group" [class.has-error]="isFieldInvalid('title')">
+            <label class="form-label" for="field-title">
+              Course Name <span class="required-star">*</span>
+            </label>
             <input
+              id="field-title"
               type="text"
               class="form-control"
+              [class.is-invalid]="isFieldInvalid('title')"
               [(ngModel)]="course().title"
+              (blur)="touchField('title')"
+              (input)="validateField('title')"
               placeholder="e.g. Advanced Angular & Full-Stack Architecture"
             />
+            @if (getFieldError('title'); as errorMsg) {
+              <span class="validation-error-msg">
+                <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+              </span>
+            }
+          </div>
+
+          <!-- Course Code & Capacity -->
+          <div class="form-row-2">
+            <div class="form-group" [class.has-error]="isFieldInvalid('code')">
+              <label class="form-label" for="field-code">
+                Course Code
+              </label>
+              <input
+                id="field-code"
+                type="text"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('code')"
+                [(ngModel)]="course().code"
+                (blur)="touchField('code')"
+                (input)="validateField('code')"
+                placeholder="Auto-generated if empty"
+              />
+              @if (getFieldError('code'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
+            </div>
+
+            <div class="form-group" [class.has-error]="isFieldInvalid('maxCapacity')">
+              <label class="form-label" for="field-maxCapacity">
+                Capacity <span class="required-star">*</span>
+              </label>
+              <input
+                id="field-maxCapacity"
+                type="number"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('maxCapacity')"
+                [(ngModel)]="course().maxCapacity"
+                (blur)="touchField('maxCapacity')"
+                (input)="validateField('maxCapacity')"
+                min="1"
+                placeholder="30"
+              />
+              @if (getFieldError('maxCapacity'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <!-- Start Date & End Date -->
+          <div class="form-row-2">
+            <div class="form-group" [class.has-error]="isFieldInvalid('startDate')">
+              <label class="form-label" for="field-startDate">
+                Start Date
+              </label>
+              <input
+                id="field-startDate"
+                type="date"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('startDate')"
+                [(ngModel)]="course().startDate"
+                (blur)="touchField('startDate')"
+                (change)="validateField('startDate'); validateField('endDate')"
+              />
+              @if (getFieldError('startDate'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
+            </div>
+
+            <div class="form-group" [class.has-error]="isFieldInvalid('endDate')">
+              <label class="form-label" for="field-endDate">
+                End Date
+              </label>
+              <input
+                id="field-endDate"
+                type="date"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('endDate')"
+                [(ngModel)]="course().endDate"
+                (blur)="touchField('endDate')"
+                (change)="validateField('endDate'); validateField('startDate')"
+              />
+              @if (getFieldError('endDate'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <!-- Weekly Class Schedule Section -->
+          <div id="field-schedules" class="schedule-section-card" [class.has-error]="isFieldInvalid('schedules')">
+            <div class="schedule-section-header">
+              <div>
+                <label class="form-label schedule-title">
+                  <mat-icon class="schedule-title-icon">calendar_month</mat-icon>
+                  Weekly Class Schedule <span class="required-star">*</span>
+                </label>
+                <p class="schedule-subtitle">Configure days, times, and rooms for lectures and lab sessions.</p>
+              </div>
+              <button type="button" mat-stroked-button (click)="addScheduleRow()" class="add-slot-header-btn">
+                <mat-icon>add</mat-icon>
+                <span>Add Slot</span>
+              </button>
+            </div>
+
+            @if (getFieldError('schedules'); as schedErrMsg) {
+              <div class="schedule-error-alert">
+                <mat-icon>error_outline</mat-icon>
+                <span>{{ schedErrMsg }}</span>
+              </div>
+            }
+
+            <div class="schedule-slots-stack">
+              <div *ngFor="let slot of course().schedules; let sIdx = index" class="schedule-slot-box" [class.has-row-error]="scheduleRowErrors().has(sIdx)">
+                <div class="slot-header-row">
+                  <span class="slot-index-pill font-mono">Session #{{ sIdx + 1 }}</span>
+                  <button
+                    type="button"
+                    mat-icon-button
+                    color="warn"
+                    (click)="removeScheduleRow(sIdx)"
+                    [disabled]="(course().schedules?.length ?? 0) <= 1"
+                    title="Remove session slot"
+                    class="remove-slot-icon-btn"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+
+                <div class="slot-inputs-grid">
+                  <!-- Day of Week -->
+                  <div class="slot-field">
+                    <label class="slot-input-label">Day of Week <span class="required-star">*</span></label>
+                    <select
+                      class="form-control slot-select"
+                      [(ngModel)]="slot.dayOfWeek"
+                      (change)="onScheduleDayChange(slot)"
+                    >
+                      <option *ngFor="let d of daysOfWeek" [value]="d.value">{{ d.label }}</option>
+                    </select>
+                  </div>
+
+                  <!-- Start Time -->
+                  <div class="slot-field">
+                    <label class="slot-input-label">Start Time <span class="required-star">*</span></label>
+                    <input
+                      type="time"
+                      class="form-control slot-input font-mono"
+                      [(ngModel)]="slot.startTime"
+                      (change)="validateSchedules()"
+                    />
+                  </div>
+
+                  <!-- End Time -->
+                  <div class="slot-field">
+                    <label class="slot-input-label">End Time <span class="required-star">*</span></label>
+                    <input
+                      type="time"
+                      class="form-control slot-input font-mono"
+                      [(ngModel)]="slot.endTime"
+                      (change)="validateSchedules()"
+                    />
+                  </div>
+
+                  <!-- Class Type -->
+                  <div class="slot-field">
+                    <label class="slot-input-label">Class Type</label>
+                    <select
+                      class="form-control slot-select"
+                      [(ngModel)]="slot.scheduleType"
+                    >
+                      <option *ngFor="let st of scheduleTypes" [value]="st">{{ st }}</option>
+                    </select>
+                  </div>
+
+                  <!-- Room -->
+                  <div class="slot-field">
+                    <label class="slot-input-label">Room</label>
+                    <input
+                      type="text"
+                      class="form-control slot-input"
+                      [(ngModel)]="slot.room"
+                      placeholder="e.g. Room 101 / Lab 3"
+                    />
+                  </div>
+
+                  <!-- Location -->
+                  <div class="slot-field">
+                    <label class="slot-input-label">Location</label>
+                    <input
+                      type="text"
+                      class="form-control slot-input"
+                      [(ngModel)]="slot.location"
+                      placeholder="e.g. Main Campus / Virtual"
+                    />
+                  </div>
+                </div>
+
+                <!-- Row error if any -->
+                @if (scheduleRowErrors().get(sIdx); as rowErr) {
+                  <div class="slot-row-error">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>{{ rowErr }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <button type="button" class="add-another-slot-action" (click)="addScheduleRow()">
+              <mat-icon>add_circle_outline</mat-icon>
+              <span>Add Another Class Schedule Slot</span>
+            </button>
           </div>
 
           <!-- Category -->
-          <div class="form-group">
-            <label class="form-label">Course Category</label>
-            <select class="form-control" [(ngModel)]="course().category">
+          <div class="form-group" [class.has-error]="isFieldInvalid('category')">
+            <label class="form-label" for="field-category">
+              Course Category <span class="required-star">*</span>
+            </label>
+            <select
+              id="field-category"
+              class="form-control"
+              [class.is-invalid]="isFieldInvalid('category')"
+              [(ngModel)]="course().category"
+              (blur)="touchField('category')"
+              (change)="validateField('category')">
               <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
             </select>
+            @if (getFieldError('category'); as errorMsg) {
+              <span class="validation-error-msg">
+                <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+              </span>
+            }
           </div>
 
           <!-- Skill Level Radio Pills -->
-          <div class="form-group">
-            <label class="form-label">Skill Level</label>
-            <div class="skill-pills">
+          <div class="form-group" [class.has-error]="isFieldInvalid('level')">
+            <label class="form-label" for="field-level">Skill Level <span class="required-star">*</span></label>
+            <div id="field-level" class="skill-pills" [class.is-invalid]="isFieldInvalid('level')">
               <button
                 *ngFor="let lvl of skillLevels"
                 type="button"
                 class="skill-pill"
                 [class.active]="course().level === lvl"
-                (click)="course().level = lvl"
+                (click)="course().level = lvl; validateField('level')"
               >
                 {{ lvl }}
               </button>
             </div>
+            @if (getFieldError('level'); as errorMsg) {
+              <span class="validation-error-msg">
+                <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+              </span>
+            }
           </div>
 
           <!-- Instructor Field -->
@@ -123,26 +407,48 @@
                 min="0"
               />
             </div>
-            <div class="form-group">
-              <label class="form-label">Duration (Hours)</label>
+            <div class="form-group" [class.has-error]="isFieldInvalid('durationHours')">
+              <label class="form-label" for="field-durationHours">
+                Duration (Hours) <span class="required-star">*</span>
+              </label>
               <input
+                id="field-durationHours"
                 type="number"
                 class="form-control"
+                [class.is-invalid]="isFieldInvalid('durationHours')"
                 [(ngModel)]="course().durationHours"
-                min="1"
+                (blur)="touchField('durationHours')"
+                (input)="validateField('durationHours')"
+                min="0"
               />
+              @if (getFieldError('durationHours'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
             </div>
           </div>
 
           <!-- About the Course -->
-          <div class="form-group">
-            <label class="form-label">About the Course</label>
+          <div class="form-group" [class.has-error]="isFieldInvalid('about')">
+            <label class="form-label" for="field-about">
+              About the Course <span class="required-star">*</span>
+            </label>
             <textarea
+              id="field-about"
               class="form-control textarea"
+              [class.is-invalid]="isFieldInvalid('about')"
               rows="4"
               [(ngModel)]="course().about"
+              (blur)="touchField('about')"
+              (input)="validateField('about')"
               placeholder="Provide a comprehensive summary of syllabus, learning outcomes, and prerequisites..."
             ></textarea>
+            @if (getFieldError('about'); as errorMsg) {
+              <span class="validation-error-msg">
+                <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+              </span>
+            }
           </div>
 
           <!-- Features Toggles -->
@@ -173,15 +479,114 @@
             </div>
           </div>
         </div>
+
+        <!-- Assessment Structure Card -->
+        <div id="field-assessmentStructure" class="form-card assessment-structure-card" [class.has-error]="isFieldInvalid('assessmentStructure')">
+          <div class="assessment-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="assessment-header-icon">checklist</mat-icon>
+              <div>
+                <h3 class="assessment-card-title">Assessment Structure</h3>
+                <p class="assessment-card-subtitle">These values determine the assessments required to complete the course.</p>
+              </div>
+            </div>
+            <div class="total-assessments-badge">
+              <span class="total-count">{{ (course().expectedAssignmentCount || 0) + (course().expectedMidtermCount || 0) + (course().expectedFinalCount || 0) }}</span>
+              <span class="total-label">Total Required</span>
+            </div>
+          </div>
+
+          @if (getFieldError('assessmentStructure'); as structError) {
+            <div class="assessment-error-banner">
+              <mat-icon>error_outline</mat-icon>
+              <span>{{ structError }}</span>
+            </div>
+          }
+
+          <div class="form-row-3 assessment-inputs-grid">
+            <!-- Number of Assignments -->
+            <div id="field-expectedAssignmentCount" class="form-group" [class.has-error]="isFieldInvalid('expectedAssignmentCount')">
+              <label class="form-label" for="field-expectedAssignments">
+                Assignments <span class="required-star">*</span>
+              </label>
+              <input
+                id="field-expectedAssignments"
+                type="number"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('expectedAssignmentCount')"
+                [(ngModel)]="course().expectedAssignmentCount"
+                (blur)="touchField('expectedAssignmentCount')"
+                (input)="validateField('expectedAssignmentCount')"
+                [min]="course().createdAssignmentsCount || 0"
+                placeholder="5"
+              />
+              @if (getFieldError('expectedAssignmentCount'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              } @else if (course().createdAssignmentsCount && course().createdAssignmentsCount! > 0) {
+                <span class="assessment-count-hint">
+                  <mat-icon>info</mat-icon> {{ course().createdAssignmentsCount }} created
+                </span>
+              }
+            </div>
+
+            <!-- Midterm Exam -->
+            <div id="field-expectedMidtermCount" class="form-group" [class.has-error]="isFieldInvalid('expectedMidtermCount')">
+              <label class="form-label" for="field-expectedMidterm">
+                Midterm Exam <span class="required-star">*</span>
+              </label>
+              <input
+                id="field-expectedMidterm"
+                type="number"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('expectedMidtermCount')"
+                [(ngModel)]="course().expectedMidtermCount"
+                (blur)="touchField('expectedMidtermCount')"
+                (input)="validateField('expectedMidtermCount')"
+                min="0"
+                placeholder="1"
+              />
+              @if (getFieldError('expectedMidtermCount'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
+            </div>
+
+            <!-- Final Exam -->
+            <div id="field-expectedFinalCount" class="form-group" [class.has-error]="isFieldInvalid('expectedFinalCount')">
+              <label class="form-label" for="field-expectedFinal">
+                Final Exam <span class="required-star">*</span>
+              </label>
+              <input
+                id="field-expectedFinal"
+                type="number"
+                class="form-control"
+                [class.is-invalid]="isFieldInvalid('expectedFinalCount')"
+                [(ngModel)]="course().expectedFinalCount"
+                (blur)="touchField('expectedFinalCount')"
+                (input)="validateField('expectedFinalCount')"
+                min="0"
+                placeholder="1"
+              />
+              @if (getFieldError('expectedFinalCount'); as errorMsg) {
+                <span class="validation-error-msg">
+                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                </span>
+              }
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ─── RIGHT COLUMN: Course Content & Resources ───────────────────── -->
       <div class="col-right">
         <!-- Course Content Accordion -->
-        <div class="form-card">
+        <div id="field-courseContent" class="form-card" [class.has-error]="isFieldInvalid('courseContent')">
           <div class="card-section-header">
             <div>
-              <h3>Course Content</h3>
+              <h3>Course Content <span class="required-star">*</span></h3>
               <p>Organize chronological modules and sequential sub-content lessons.</p>
             </div>
             <button mat-stroked-button (click)="addModule()" class="add-module-header-btn">
@@ -190,9 +595,17 @@
             </button>
           </div>
 
-          <div *ngIf="course().modules.length === 0" class="empty-modules">
+          <!-- Clear Course Content Validation Error -->
+          @if (getFieldError('courseContent'); as contentErrMsg) {
+            <div class="content-error-banner">
+              <mat-icon>error_outline</mat-icon>
+              <span>{{ contentErrMsg }}</span>
+            </div>
+          }
+
+          <div *ngIf="course().modules.length === 0" class="empty-modules" [class.is-invalid]="isFieldInvalid('courseContent')">
             <mat-icon>library_books</mat-icon>
-            <p>No modules created yet. Click below to add your first module.</p>
+            <p>No modules created yet. Click below or above to add your first module.</p>
           </div>
 
           <!-- Modules List -->
@@ -361,9 +774,9 @@
         <button mat-stroked-button (click)="saveDraft()" [disabled]="isSaving()">
           Save as Draft
         </button>
-        <button mat-flat-button color="primary" (click)="publishCourse()" [disabled]="isSaving()" class="publish-btn">
-          <mat-icon>check_circle</mat-icon>
-          <span>{{ isSaving() ? 'Saving...' : 'Publish Course' }}</span>
+        <button mat-flat-button color="primary" (click)="submitForReview()" [disabled]="isSaving()" class="publish-btn">
+          <mat-icon>send</mat-icon>
+          <span>{{ isSaving() ? 'Submitting...' : 'Submit for Review' }}</span>
         </button>
       </div>
     </div>
@@ -387,6 +800,66 @@
 
         <div class="pdf-modal-body">
           <iframe [src]="previewResource()?.url" class="pdf-iframe"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Course Submitted for Review Success Modal -->
+    <div *ngIf="publishSuccessData()" class="publish-success-backdrop">
+      <div class="publish-success-card">
+        <div class="success-icon-circle">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+
+        <h2 class="success-title">Course submitted successfully!</h2>
+        <p class="success-subtitle">Course submitted successfully. Your course is now under review.</p>
+        <p class="review-explanation-note">
+          Department administrators will evaluate the curriculum, learning outcomes, and schedule before approving this course for the student catalog.
+        </p>
+
+        <div class="published-course-meta">
+          <div class="meta-item">
+            <span class="meta-label">Course Name</span>
+            <span class="meta-value font-semibold">{{ publishSuccessData().title }}</span>
+          </div>
+
+          <div class="meta-row-split">
+            <div class="meta-item">
+              <span class="meta-label">Course Code</span>
+              <span class="meta-value font-mono">{{ publishSuccessData().code }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Skill Level</span>
+              <span class="meta-value">{{ publishSuccessData().level }}</span>
+            </div>
+          </div>
+
+          <div class="meta-row-split" *ngIf="publishSuccessData().startDate || publishSuccessData().endDate">
+            <div class="meta-item" *ngIf="publishSuccessData().startDate">
+              <span class="meta-label">Start Date</span>
+              <span class="meta-value">{{ publishSuccessData().startDate | date:'mediumDate' }}</span>
+            </div>
+            <div class="meta-item" *ngIf="publishSuccessData().endDate">
+              <span class="meta-label">End Date</span>
+              <span class="meta-value">{{ publishSuccessData().endDate | date:'mediumDate' }}</span>
+            </div>
+          </div>
+
+          <div class="meta-item" style="margin-top: 8px;">
+            <span class="meta-label">Current Status</span>
+            <span class="pill-badge status-under-review font-mono">&bull; Under Review</span>
+          </div>
+        </div>
+
+        <div class="success-actions" style="display: flex; gap: 12px; justify-content: center;">
+          <button mat-stroked-button class="view-courses-btn" (click)="acknowledgePublishSuccess()">
+            <mat-icon>arrow_back</mat-icon>
+            <span>My Courses</span>
+          </button>
+          <button mat-flat-button color="primary" class="view-courses-btn" (click)="viewCourseDetails(publishSuccessData().courseId)">
+            <span>View Course Overview</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
         </div>
       </div>
     </div>

@@ -109,10 +109,12 @@
                 <div class="class-actions">
                   <span
                     class="status-chip"
+                    [class.in-progress]="cls.status === 'In Progress'"
+                    [class.completed]="cls.status === 'Completed'"
                     [class.taken]="cls.attendanceStatus === 'Taken'"
                     [class.pending]="cls.attendanceStatus === 'Pending'"
                   >
-                    {{ cls.attendanceStatus === 'Taken' ? 'Attendance Taken' : 'Attendance Pending' }}
+                    {{ cls.status === 'Completed' ? 'Completed' : (cls.status === 'In Progress' ? 'In Progress' : (cls.attendanceStatus === 'Taken' ? 'Attendance Taken' : 'Attendance Pending')) }}
                   </span>
 
                   <button
@@ -187,7 +189,7 @@
             <div class="card-content">
               <div *ngIf="!dashboard()?.upcomingSessions?.length" class="empty-state">
                 <mat-icon>calendar_today</mat-icon>
-                <p>No upcoming sessions recorded.</p>
+                <p>No upcoming sessions.</p>
               </div>
 
               <div *ngFor="let s of dashboard()?.upcomingSessions" class="upcoming-session-item">
@@ -199,7 +201,7 @@
                   <h4>{{ s.courseName }}</h4>
                   <div class="session-sub">
                     <span><mat-icon>schedule</mat-icon> {{ s.startTime }} - {{ s.endTime }}</span>
-                    <span><mat-icon>location_on</mat-icon> {{ s.room }}</span>
+                    <span><mat-icon>location_on</mat-icon> {{ s.room || s.location }}</span>
                   </div>
                 </div>
                 <div class="session-attendees">

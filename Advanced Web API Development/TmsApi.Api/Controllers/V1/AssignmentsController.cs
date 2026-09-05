@@ -31,6 +31,7 @@ public class AssignmentsController : ControllerBase
 
     public record CreateAssignmentRequest(
         int CourseId,
+        int AssignmentNumber,
         int? CourseModuleId,
         int? CourseLessonId,
         string Title,
@@ -62,6 +63,45 @@ public class AssignmentsController : ControllerBase
     }
 
     [Authorize(Roles = "Admin,Instructor")]
+    [HttpGet("course/{courseId:int}/config")]
+    public async Task<IActionResult> GetCourseAssessmentConfig(int courseId, CancellationToken cancellationToken)
+    {
+        if (!await CanManageCourseAsync(courseId)) return Forbid();
+
+        var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted, cancellationToken);
+        if (course == null) return NotFound(new { message = "Course not found." });
+
+        var createdAssignmentNumbers = await _context.Assignments
+            .Where(a => a.CourseId == courseId && !a.IsDeleted)
+            .OrderBy(a => a.AssignmentNumber)
+            .Select(a => a.AssignmentNumber)
+            .ToListAsync(cancellationToken);
+
+        var availableNumbers = new List<int>();
+        for (int i = 1; i <= course.ExpectedAssignmentCount; i++)
+        {
+            if (!createdAssignmentNumbers.Contains(i))
+            {
+                availableNumbers.Add(i);
+            }
+        }
+
+        return Ok(new
+        {
+            courseId = course.Id,
+            courseTitle = course.Title,
+            expectedAssignments = course.ExpectedAssignmentCount,
+            expectedMidterm = course.ExpectedMidtermCount,
+            expectedFinal = course.ExpectedFinalCount,
+            totalAssessments = course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount,
+            createdAssignmentNumbers = createdAssignmentNumbers,
+            availableAssignmentNumbers = availableNumbers,
+            createdCount = createdAssignmentNumbers.Count,
+            isAllAssignmentsCreated = availableNumbers.Count == 0
+        });
+    }
+
+    [Authorize(Roles = "Admin,Instructor")]
     [HttpGet("course/{courseId:int}")]
     public async Task<IActionResult> GetAssignmentsByCourse(int courseId, CancellationToken cancellationToken)
     {
@@ -73,12 +113,14 @@ public class AssignmentsController : ControllerBase
             .Include(a => a.CourseLesson)
             .Include(a => a.Submissions)
             .Where(a => a.CourseId == courseId && !a.IsDeleted)
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderBy(a => a.AssignmentNumber)
+            .ThenBy(a => a.Id)
             .ToListAsync(cancellationToken);
 
         var list = assignments.Select(a => new
         {
             id = a.Id,
+            assignmentNumber = a.AssignmentNumber,
             courseId = a.CourseId,
             courseModuleId = a.CourseModuleId,
             moduleTitle = a.CourseModule?.Title,
@@ -118,6 +160,7 @@ public class AssignmentsController : ControllerBase
         return Ok(new
         {
             id = a.Id,
+            assignmentNumber = a.AssignmentNumber,
             courseId = a.CourseId,
             courseTitle = a.Course?.Title,
             courseModuleId = a.CourseModuleId,
@@ -144,11 +187,33 @@ public class AssignmentsController : ControllerBase
     {
         if (!await CanManageCourseAsync(request.CourseId)) return Forbid();
 
+        var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CourseId && !c.IsDeleted, cancellationToken);
+        if (course == null) return NotFound(new { message = "Course not found." });
+
+        if (request.AssignmentNumber <= 0)
+        {
+            return BadRequest(new { message = "Assignment number must be greater than 0." });
+        }
+
+        if (request.AssignmentNumber > course.ExpectedAssignmentCount)
+        {
+            return BadRequest(new { message = $"Assignment number {request.AssignmentNumber} exceeds the course's configured assignment count of {course.ExpectedAssignmentCount}." });
+        }
+
+        var exists = await _context.Assignments
+            .AnyAsync(a => a.CourseId == request.CourseId && a.AssignmentNumber == request.AssignmentNumber && !a.IsDeleted, cancellationToken);
+
+        if (exists)
+        {
+            return BadRequest(new { message = $"Assignment {request.AssignmentNumber} has already been created for this course." });
+        }
+
         var instructorId = await User.ResolveInstructorIdAsync(_context);
 
         var assignment = new Assignment
         {
             CourseId = request.CourseId,
+            AssignmentNumber = request.AssignmentNumber,
             CourseModuleId = request.CourseModuleId,
             CourseLessonId = request.CourseLessonId,
             Title = request.Title,
@@ -280,7 +345,10 @@ public class AssignmentsController : ControllerBase
             .AsNoTracking()
             .Include(s => s.Student)
                 .ThenInclude(st => st.User)
-            .Where(s => s.AssignmentId == id)
+            .Where(s => s.AssignmentId == id &&
+                        (s.Status == "Submitted" || s.Status == "Graded") &&
+                        s.SubmittedAt != null &&
+                        (!string.IsNullOrEmpty(s.SubmissionText) || !string.IsNullOrEmpty(s.SubmissionFileUrl)))
             .OrderByDescending(s => s.SubmittedAt)
             .ToListAsync(cancellationToken);
 
@@ -391,6 +459,319 @@ public class AssignmentsController : ControllerBase
             status = assessment.Status,
             scoredPoints = assessment.ScoredPoints,
             gradedAt = assessment.GradedAt
+        });
+    }
+
+    // ─── Student Assignment Viewing & Submission ─────────────────────────────
+
+    [Authorize(Roles = "Student,Admin")]
+    [HttpGet("my-assignments")]
+    public async Task<IActionResult> GetMyAssignments(CancellationToken cancellationToken)
+    {
+        var studentId = await User.ResolveStudentIdAsync(_context);
+        if (!studentId.HasValue) return Forbid("User is not linked to a student account.");
+
+        var activeEnrollments = await _context.Enrollments
+            .AsNoTracking()
+            .Include(e => e.Course)
+            .Where(e => e.StudentId == studentId.Value &&
+                        e.Status != EnrollmentStatus.Dropped &&
+                        e.Status != EnrollmentStatus.Rejected &&
+                        !e.IsDeleted && !e.IsArchived &&
+                        e.Course != null && !e.Course.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var enrolledCourseIds = activeEnrollments.Select(e => e.CourseId).ToList();
+
+        var assignments = await _context.Assignments
+            .AsNoTracking()
+            .Include(a => a.Course)
+            .Include(a => a.CourseModule)
+            .Include(a => a.CourseLesson)
+            .Where(a => enrolledCourseIds.Contains(a.CourseId) && !a.IsDeleted && a.IsPublished)
+            .OrderBy(a => a.DueDate)
+            .ToListAsync(cancellationToken);
+
+        var studentSubmissions = await _context.Assessments
+            .AsNoTracking()
+            .Where(a => a.StudentId == studentId.Value && enrolledCourseIds.Contains(a.CourseId))
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var list = assignments.Select(a =>
+        {
+            var sub = studentSubmissions.FirstOrDefault(s => s.AssignmentId == a.Id);
+            var status = sub?.Status ?? "Pending";
+            var isPastDue = now > a.DueDate;
+            var canSubmit = status != "Graded" && !isPastDue;
+
+            return new
+            {
+                id = a.Id,
+                submissionId = sub?.Id,
+                courseId = a.CourseId,
+                courseTitle = a.Course?.Title ?? "Course",
+                courseCode = a.Course?.Code ?? "",
+                courseModuleId = a.CourseModuleId,
+                moduleTitle = a.CourseModule?.Title,
+                courseLessonId = a.CourseLessonId,
+                lessonTitle = a.CourseLesson?.Title,
+                title = a.Title,
+                instructions = a.Instructions,
+                maxPoints = a.MaxPoints,
+                dueDate = a.DueDate,
+                attachmentUrl = a.AttachmentUrl,
+                attachmentFileName = a.AttachmentFileName,
+                status = status,
+                submittedAt = sub?.SubmittedAt,
+                scoredPoints = sub?.ScoredPoints,
+                feedback = sub?.Feedback,
+                gradedAt = sub?.GradedAt,
+                submissionFileUrl = sub?.SubmissionFileUrl,
+                submissionFileName = sub?.SubmissionFileName,
+                submissionFileType = sub?.SubmissionFileType,
+                submissionFileSize = sub?.SubmissionFileSize,
+                submissionText = sub?.SubmissionText,
+                isPastDue = isPastDue,
+                canSubmit = canSubmit
+            };
+        }).ToList();
+
+        return Ok(list);
+    }
+
+    [Authorize(Roles = "Student,Admin")]
+    [HttpGet("{id:int}/student-view")]
+    public async Task<IActionResult> GetStudentAssignmentDetail(int id, CancellationToken cancellationToken)
+    {
+        var studentId = await User.ResolveStudentIdAsync(_context);
+        if (!studentId.HasValue) return StatusCode(StatusCodes.Status403Forbidden, new { message = "User is not linked to a student account." });
+
+        var assignment = await _context.Assignments
+            .AsNoTracking()
+            .Include(a => a.Course)
+            .Include(a => a.CourseModule)
+            .Include(a => a.CourseLesson)
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && a.IsPublished, cancellationToken);
+
+        if (assignment == null) return NotFound(new { message = "Assignment not found." });
+
+        var isEnrolled = await _context.Enrollments.AnyAsync(e =>
+            e.StudentId == studentId.Value &&
+            e.CourseId == assignment.CourseId &&
+            e.Status != EnrollmentStatus.Dropped &&
+            e.Status != EnrollmentStatus.Rejected &&
+            !e.IsDeleted && !e.IsArchived, cancellationToken);
+
+        if (!isEnrolled) return StatusCode(StatusCodes.Status403Forbidden, new { message = "You are not actively enrolled in this course." });
+
+        var sub = await _context.Assessments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.AssignmentId == id && s.StudentId == studentId.Value, cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var status = sub?.Status ?? "Pending";
+        var isPastDue = now > assignment.DueDate;
+        var canSubmit = status != "Graded" && !isPastDue;
+
+        return Ok(new
+        {
+            id = assignment.Id,
+            submissionId = sub?.Id,
+            courseId = assignment.CourseId,
+            courseTitle = assignment.Course?.Title ?? "Course",
+            courseCode = assignment.Course?.Code ?? "",
+            courseModuleId = assignment.CourseModuleId,
+            moduleTitle = assignment.CourseModule?.Title,
+            courseLessonId = assignment.CourseLessonId,
+            lessonTitle = assignment.CourseLesson?.Title,
+            title = assignment.Title,
+            instructions = assignment.Instructions,
+            maxPoints = assignment.MaxPoints,
+            dueDate = assignment.DueDate,
+            attachmentUrl = assignment.AttachmentUrl,
+            attachmentFileName = assignment.AttachmentFileName,
+            status = status,
+            submittedAt = sub?.SubmittedAt,
+            scoredPoints = sub?.ScoredPoints,
+            feedback = sub?.Feedback,
+            gradedAt = sub?.GradedAt,
+            submissionFileUrl = sub?.SubmissionFileUrl,
+            submissionFileName = sub?.SubmissionFileName,
+            submissionFileType = sub?.SubmissionFileType,
+            submissionFileSize = sub?.SubmissionFileSize,
+            submissionText = sub?.SubmissionText,
+            isPastDue = isPastDue,
+            canSubmit = canSubmit
+        });
+    }
+
+    [Authorize(Roles = "Student,Admin")]
+    [HttpPost("{id:int}/submit")]
+    public async Task<IActionResult> SubmitAssignment(int id, [FromForm] IFormFile? file, [FromForm] string? submissionText, CancellationToken cancellationToken)
+    {
+        var studentId = await User.ResolveStudentIdAsync(_context);
+        if (!studentId.HasValue) return StatusCode(StatusCodes.Status403Forbidden, new { message = "User is not linked to a student account." });
+
+        var student = await _context.Students.FindAsync(new object[] { studentId.Value }, cancellationToken);
+        if (student == null) return StatusCode(StatusCodes.Status403Forbidden, new { message = "Student profile not found." });
+
+        var assignment = await _context.Assignments
+            .Include(a => a.Course)
+            .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && a.IsPublished, cancellationToken);
+
+        if (assignment == null) return NotFound(new { message = "Assignment not found." });
+
+        var isEnrolled = await _context.Enrollments.AnyAsync(e =>
+            e.StudentId == studentId.Value &&
+            e.CourseId == assignment.CourseId &&
+            e.Status != EnrollmentStatus.Dropped &&
+            e.Status != EnrollmentStatus.Rejected &&
+            !e.IsDeleted && !e.IsArchived, cancellationToken);
+
+        if (!isEnrolled) return StatusCode(StatusCodes.Status403Forbidden, new { message = "You are not actively enrolled in this course." });
+
+        // Rule: Deadlines enforced on backend
+        if (DateTime.UtcNow > assignment.DueDate)
+        {
+            return BadRequest(new { message = "Assignment submission deadline has passed. Late submissions are not accepted." });
+        }
+
+        // Rule: Must provide at least file or written response with meaningful content
+        if ((file == null || file.Length == 0) && string.IsNullOrWhiteSpace(submissionText))
+        {
+            return BadRequest(new
+            {
+                message = "Assignment submission validation failed.",
+                errors = new
+                {
+                    submission = new[] { "Add a response or attachment before submitting." }
+                }
+            });
+        }
+
+        string? fileUrl = null;
+        string? fileName = null;
+        string? fileType = null;
+        long? fileSize = null;
+
+        if (file != null && file.Length > 0)
+        {
+            // Rule: Max file size 25MB
+            if (file.Length > 25 * 1024 * 1024)
+            {
+                return BadRequest(new { message = "Uploaded file exceeds the maximum 25MB limit." });
+            }
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".zip", ".txt", ".png", ".jpg", ".jpeg", ".csv", ".xlsx" };
+            if (!allowedExtensions.Contains(ext))
+            {
+                return BadRequest(new { message = $"File extension '{ext}' is not supported. Allowed formats: PDF, Word, ZIP, Text, Images." });
+            }
+
+            var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "submissions");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueName = $"sub_{studentId.Value}_{assignment.Id}_{DateTime.UtcNow.Ticks}{ext}";
+            var filePath = Path.Combine(uploadsFolder, uniqueName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream, cancellationToken);
+            }
+
+            fileUrl = $"/uploads/submissions/{uniqueName}";
+            fileName = file.FileName;
+            fileType = ext;
+            fileSize = file.Length;
+        }
+
+        // Check if an existing assessment record exists for this assignment & student
+        var assessment = await _context.Assessments
+            .FirstOrDefaultAsync(a => a.AssignmentId == id && a.StudentId == studentId.Value, cancellationToken);
+
+        if (assessment != null)
+        {
+            // Rule: Cannot resubmit once graded
+            if (assessment.Status == "Graded")
+            {
+                return BadRequest(new { message = "This assignment has already been evaluated and graded. Submissions are closed." });
+            }
+
+            // Update existing assessment record (resubmission)
+            assessment.Title = assignment.Title;
+            assessment.MaxScore = assignment.MaxPoints;
+            assessment.DueDate = assignment.DueDate;
+            assessment.SubmittedAt = DateTime.UtcNow;
+            assessment.Status = "Submitted";
+            if (!string.IsNullOrWhiteSpace(submissionText)) assessment.SubmissionText = submissionText;
+            if (fileUrl != null)
+            {
+                assessment.SubmissionFileUrl = fileUrl;
+                assessment.SubmissionFileName = fileName;
+                assessment.SubmissionFileType = fileType;
+                assessment.SubmissionFileSize = fileSize;
+            }
+        }
+        else
+        {
+            // Create new Assessment record
+            assessment = new Assessment
+            {
+                StudentId = studentId.Value,
+                CourseId = assignment.CourseId,
+                AssignmentId = assignment.Id,
+                Title = assignment.Title,
+                MaxScore = assignment.MaxPoints,
+                DueDate = assignment.DueDate,
+                SubmittedAt = DateTime.UtcNow,
+                Status = "Submitted",
+                IsPublished = true,
+                SubmissionText = submissionText,
+                SubmissionFileUrl = fileUrl,
+                SubmissionFileName = fileName,
+                SubmissionFileType = fileType,
+                SubmissionFileSize = fileSize
+            };
+            await _context.Assessments.AddAsync(assessment, cancellationToken);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Real-time SignalR notifications
+        await _hubContext.Clients.All.ReceiveAssignmentUpdate(new
+        {
+            action = "submitted",
+            assignmentId = assignment.Id,
+            courseId = assignment.CourseId,
+            studentId = studentId.Value
+        });
+
+        await _hubContext.Clients.All.ReceiveEnrollmentNotification(new
+        {
+            action = "submission",
+            studentId = studentId.Value,
+            courseId = assignment.CourseId
+        });
+
+        // Notify instructor if present
+        if (assignment.CreatedByInstructorId.HasValue)
+        {
+            await _hubContext.Clients.Group($"Instructor_{assignment.CreatedByInstructorId.Value}")
+                .ReceiveNotification("New Student Submission", $"{student.FirstName} {student.LastName} submitted '{assignment.Title}'.");
+        }
+
+        return Ok(new
+        {
+            message = "Assignment submitted successfully.",
+            submissionId = assessment.Id,
+            assignmentId = assignment.Id,
+            status = assessment.Status,
+            submittedAt = assessment.SubmittedAt,
+            fileName = assessment.SubmissionFileName,
+            fileUrl = assessment.SubmissionFileUrl,
+            submissionText = assessment.SubmissionText
         });
     }
 }

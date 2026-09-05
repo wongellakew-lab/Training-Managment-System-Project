@@ -30,11 +30,17 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Resources, opt => opt.MapFrom(src => src.Resources));
         CreateMap<CourseSchedule, CourseScheduleDto>();
         CreateMap<CreateCourseScheduleDto, CourseSchedule>();
-        CreateMap<CourseModule, CourseModuleDto>();
-        CreateMap<CourseLesson, CourseLessonDto>();
+        CreateMap<CourseModule, CourseModuleDto>().ReverseMap();
+        CreateMap<CourseLesson, CourseLessonDto>().ReverseMap();
         CreateMap<CourseResource, CourseResourceDto>();
         CreateMap<CreateCourseDto, Course>();
-        CreateMap<UpdateCourseDto, Course>();
+        CreateMap<UpdateCourseDto, Course>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.InstructorId, opt => opt.Condition((src, dest) => src.InstructorId.HasValue && src.InstructorId.Value > 0))
+            .ForMember(dest => dest.Modules, opt => opt.Ignore())
+            .ForMember(dest => dest.Enrollments, opt => opt.Ignore())
+            .ForMember(dest => dest.Schedules, opt => opt.Ignore())
+            .ForMember(dest => dest.Resources, opt => opt.Ignore());
 
         CreateMap<Enrollment, EnrollmentDto>()
             .ForMember(dest => dest.StudentName, opt => opt.MapFrom(src => src.Student != null ? $"{src.Student.FirstName} {src.Student.LastName}" : string.Empty))

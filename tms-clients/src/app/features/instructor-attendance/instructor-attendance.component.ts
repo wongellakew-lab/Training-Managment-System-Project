@@ -36,14 +36,25 @@ export class InstructorAttendanceComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private snackBar = inject(MatSnackBar);
 
+  readonly todayDateStr = new Date().toISOString().split('T')[0];
+
   courses = signal<InstructorCourseSummary[]>([]);
   selectedCourseId = signal<number | null>(null);
-  selectedDate = signal<string>(new Date().toISOString().split('T')[0]);
+  selectedDate = signal<string>(this.todayDateStr);
+  maxDate = signal<string>(this.todayDateStr);
 
   attendanceData = signal<CourseAttendanceResponse | null>(null);
   students = signal<AttendanceStudentItem[]>([]);
+  hasScheduledSession = signal<boolean>(true);
+  isRecorded = signal<boolean>(false);
+  scheduleInfo = signal<any>(null);
+
   isLoading = signal<boolean>(true);
   isSaving = signal<boolean>(false);
+
+  // Date Navigation State
+  isToday = computed(() => this.selectedDate() === this.todayDateStr);
+  canGoNext = computed(() => this.selectedDate() < this.todayDateStr);
 
   // Computed summary counts based on current student pills
   presentCount = computed(() => this.students().filter(s => s.statusCode === 1).length);
@@ -96,6 +107,9 @@ export class InstructorAttendanceComponent implements OnInit {
       next: (resp) => {
         this.attendanceData.set(resp);
         this.students.set(resp.students || []);
+        this.hasScheduledSession.set(resp.hasScheduledSession ?? true);
+        this.isRecorded.set(resp.isRecorded ?? false);
+        this.scheduleInfo.set(resp.scheduleInfo || null);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -110,6 +124,26 @@ export class InstructorAttendanceComponent implements OnInit {
   }
 
   onDateChange(): void {
+    this.loadAttendance();
+  }
+
+  goToPreviousDay(): void {
+    const current = new Date(this.selectedDate() + 'T00:00:00');
+    current.setDate(current.getDate() - 1);
+    this.selectedDate.set(current.toISOString().split('T')[0]);
+    this.loadAttendance();
+  }
+
+  goToNextDay(): void {
+    if (!this.canGoNext()) return;
+    const current = new Date(this.selectedDate() + 'T00:00:00');
+    current.setDate(current.getDate() + 1);
+    this.selectedDate.set(current.toISOString().split('T')[0]);
+    this.loadAttendance();
+  }
+
+  goToToday(): void {
+    this.selectedDate.set(this.todayDateStr);
     this.loadAttendance();
   }
 

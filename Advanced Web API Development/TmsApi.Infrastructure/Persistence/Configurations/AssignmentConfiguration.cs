@@ -10,15 +10,23 @@ public class AssignmentConfiguration : IEntityTypeConfiguration<Assignment>
     {
         builder.HasKey(a => a.Id);
 
+        builder.Property(a => a.AssignmentNumber).IsRequired().HasDefaultValue(1);
         builder.Property(a => a.Title).IsRequired().HasMaxLength(250);
         builder.Property(a => a.Instructions).HasMaxLength(10000);
         builder.Property(a => a.MaxPoints).HasPrecision(6, 2).HasDefaultValue(100m);
         builder.Property(a => a.AttachmentUrl).HasMaxLength(500);
         builder.Property(a => a.AttachmentFileName).HasMaxLength(250);
 
+        builder.HasQueryFilter(a => !a.IsDeleted);
+
+        builder.HasIndex(a => new { a.CourseId, a.AssignmentNumber })
+            .HasFilter("\"IsDeleted\" = false")
+            .IsUnique();
+
         builder.HasOne(a => a.Course)
             .WithMany()
             .HasForeignKey(a => a.CourseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(a => a.CourseModule)

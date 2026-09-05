@@ -36,6 +36,8 @@ public class StudentEnrolledCourseDto
     public string EnrollmentStatus { get; set; } = "Active";
     public string AcademicStatus { get; set; } = "Active"; // "Active", "Upcoming", "Completed", "Withdrawn"
     public decimal ProgressPercentage { get; set; }
+    public int CompletedAssessments { get; set; }
+    public int TotalAssessments { get; set; }
     public int TotalLessons { get; set; }
     public int CompletedLessons { get; set; }
     public int TotalModules { get; set; }

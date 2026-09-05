@@ -15,6 +15,7 @@ public class CourseModuleConfiguration : IEntityTypeConfiguration<CourseModule>
         builder.HasOne(m => m.Course)
             .WithMany(c => c.Modules)
             .HasForeignKey(m => m.CourseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(m => m.Lessons)
@@ -47,6 +48,7 @@ public class CourseResourceConfiguration : IEntityTypeConfiguration<CourseResour
         builder.HasOne(r => r.Course)
             .WithMany(c => c.Resources)
             .HasForeignKey(r => r.CourseId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
