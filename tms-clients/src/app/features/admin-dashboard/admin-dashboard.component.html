@@ -3,7 +3,7 @@
     <!-- Main Center Content Area -->
     <div class="dashboard-main-col">
 
-      <!-- Top 3 Stat Cards Row -->
+      <!-- Top 4 Stat Cards Row -->
       <div class="stats-cards-row">
         <!-- Total Courses -->
         <div class="stat-card">
@@ -22,7 +22,7 @@
             <mat-icon>co_present</mat-icon>
           </div>
           <div class="stat-info">
-            <span class="stat-label">Total Mentors</span>
+            <span class="stat-label">Total Faculty Mentors</span>
             <div class="stat-value">{{ dashboard()?.totalInstructors ?? 0 }}</div>
           </div>
         </div>
@@ -33,61 +33,25 @@
             <mat-icon>school</mat-icon>
           </div>
           <div class="stat-info">
-            <span class="stat-label">Total Current Students</span>
+            <span class="stat-label">Enrolled Students</span>
             <div class="stat-value">{{ dashboard()?.totalStudents ?? 0 }}</div>
+          </div>
+        </div>
+
+        <!-- Active Enrollments -->
+        <div class="stat-card">
+          <div class="stat-icon-wrapper green-icon">
+            <mat-icon>how_to_reg</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Active Enrollments</span>
+            <div class="stat-value">{{ dashboard()?.activeEnrollments ?? 0 }}</div>
           </div>
         </div>
       </div>
 
-      <!-- Charts Row 1: Revenue & Enrollment Trends -->
+      <!-- Charts Row 1: Enrollment Trends & Top Courses -->
       <div class="charts-row-two-col">
-        <!-- Revenue Card -->
-        <div class="eduva-card chart-card">
-          <div class="card-header-flex">
-            <div>
-              <h3 class="card-title">Revenue</h3>
-              <div class="main-metric">\${{ (dashboard()?.totalRevenue ?? 0) | number:'1.0-0' }}</div>
-            </div>
-            <div class="card-header-actions">
-              <span class="date-period-tag font-mono">Last 6 Months</span>
-            </div>
-          </div>
-
-          <!-- Legend -->
-          <div class="chart-legend">
-            <span class="legend-item"><span class="legend-dot dot-revenue"></span>Revenue</span>
-            <span class="legend-item"><span class="legend-dot dot-profit"></span>Profit</span>
-            <span class="legend-item"><span class="legend-dot dot-expense"></span>Expense</span>
-          </div>
-
-          <!-- Revenue Interactive Bar Chart -->
-          <div class="revenue-chart-container">
-            @if (!dashboard()?.revenueHistory || dashboard()!.revenueHistory.length === 0) {
-              <div class="chart-empty-msg">
-                <mat-icon>bar_chart</mat-icon>
-                <span>No revenue data available for this timeframe</span>
-              </div>
-            } @else {
-              <div class="bars-wrapper">
-                @for (rev of dashboard()!.revenueHistory; track rev.month) {
-                  <div class="bar-col">
-                    <div class="breakdown-tooltip">
-                      <div class="tooltip-title">{{ rev.month }}</div>
-                      <div class="tooltip-row"><span class="tooltip-dot dot-revenue"></span> Revenue <strong>\${{ rev.revenue | number:'1.0-0' }}</strong></div>
-                      <div class="tooltip-row"><span class="tooltip-dot dot-profit"></span> Profit <strong>\${{ rev.profit | number:'1.0-0' }}</strong></div>
-                      <div class="tooltip-row"><span class="tooltip-dot dot-expense"></span> Expense <strong>\${{ rev.expense | number:'1.0-0' }}</strong></div>
-                    </div>
-                    <div class="bar-pill-group" [style.height.%]="getRevenuePercent(rev.revenue)">
-                      <div class="bar-segment bar-revenue" style="height: 100%;"></div>
-                    </div>
-                    <span class="x-label">{{ rev.month }}</span>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        </div>
-
         <!-- Enrollment Trends Card -->
         <div class="eduva-card chart-card">
           <div class="card-header-flex">
@@ -101,7 +65,7 @@
               </div>
             </div>
             <div class="card-header-actions">
-              <span class="date-period-tag font-mono">Monthly Trend</span>
+              <span class="date-period-tag font-mono">Monthly Registrations</span>
             </div>
           </div>
 
@@ -131,10 +95,7 @@
             }
           </div>
         </div>
-      </div>
 
-      <!-- Charts Row 2: Top Courses & Learning Activity Heatmap -->
-      <div class="charts-row-two-col">
         <!-- Top Courses Card -->
         <div class="eduva-card chart-card">
           <div class="card-header-flex">
@@ -167,99 +128,16 @@
             }
           </div>
         </div>
-
-        <!-- Learning Activity Heatmap Card -->
-        <div class="eduva-card chart-card">
-          <div class="card-header-flex">
-            <h3 class="card-title">Learning Activity Heatmap</h3>
-            <span class="date-period-tag font-mono">Real Activity Distribution</span>
-          </div>
-
-          <!-- Heatmap Matrix -->
-          <div class="heatmap-matrix-container">
-            @if (!dashboard()?.learningActivityHeatmap || dashboard()!.learningActivityHeatmap.length === 0) {
-              <div class="chart-empty-msg">
-                <mat-icon>grid_on</mat-icon>
-                <span>No learning activities recorded yet</span>
-              </div>
-            } @else {
-              <div class="heatmap-body">
-                <div class="heatmap-y-labels">
-                  <span>6pm</span>
-                  <span>3pm</span>
-                  <span>1pm</span>
-                  <span>11am</span>
-                  <span>9am</span>
-                  <span>7am</span>
-                </div>
-                <div class="heatmap-grid dynamic-heatmap">
-                  @for (cell of dashboard()!.learningActivityHeatmap; track $index) {
-                    <div
-                      class="cell"
-                      [class]="'cell level-' + cell.level"
-                      [title]="cell.day + ' ' + cell.timeSlot + ': ' + cell.value + ' events'"
-                    ></div>
-                  }
-                  <div class="heatmap-x-labels">
-                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Heatmap Scale Legend -->
-              <div class="heatmap-scale-legend">
-                <span class="scale-text">Low</span>
-                <div class="scale-boxes">
-                  <span class="cell level-0"></span>
-                  <span class="cell level-1"></span>
-                  <span class="cell level-2"></span>
-                  <span class="cell level-3"></span>
-                  <span class="cell level-4"></span>
-                </div>
-                <span class="scale-text">High</span>
-              </div>
-            }
-          </div>
-        </div>
       </div>
 
-      <!-- Bottom Row: Student Demographic & New Courses -->
+
+      <!-- Bottom Row: Recent Courses & Pending Approvals -->
       <div class="charts-row-two-col">
-        <!-- Student Demographic Card -->
-        <div class="eduva-card demographic-card">
-          <div class="card-header-flex">
-            <h3 class="card-title">Student Demographic</h3>
-            <button class="export-btn" (click)="exportReport()">
-              <span>Export Report</span>
-              <mat-icon>download</mat-icon>
-            </button>
-          </div>
-
-          @if (!dashboard()?.studentDemographics || dashboard()!.studentDemographics.length === 0) {
-            <div class="chart-empty-msg">
-              <mat-icon>public</mat-icon>
-              <span>No student country data recorded yet</span>
-            </div>
-          } @else {
-            <!-- Country List Breakdown -->
-            <div class="demographic-country-grid">
-              @for (c of dashboard()!.studentDemographics; track c.country) {
-                <div class="country-cell">
-                  <span class="country-flag">{{ c.flag || '🌐' }}</span>
-                  <span class="country-name">{{ c.country }}</span>
-                  <span class="country-count font-mono">{{ c.studentsCount }}</span>
-                  <span class="country-pct font-mono">{{ c.percentage }}%</span>
-                </div>
-              }
-            </div>
-          }
-        </div>
-
         <!-- New Courses Card -->
         <div class="eduva-card new-courses-card">
           <div class="card-header-flex">
             <h3 class="card-title">Recently Added Courses</h3>
-            <a routerLink="/courses" class="link-action">View All</a>
+            <a routerLink="/admin/courses" class="link-action">View All</a>
           </div>
 
           @if (!dashboard()?.newCourses || dashboard()!.newCourses.length === 0) {
@@ -270,7 +148,7 @@
           } @else {
             <div class="new-courses-list">
               @for (course of dashboard()!.newCourses; track course.id) {
-                <div class="new-course-item" [routerLink]="['/courses', course.id]">
+                <div class="new-course-item" [routerLink]="['/admin/courses', course.id]">
                   <div class="course-item-info">
                     <div class="course-tag tag-webdev">{{ course.category || 'Course' }}</div>
                     <h4 class="course-item-title">{{ course.title }}</h4>
@@ -278,6 +156,33 @@
                       <span class="student-count font-mono">{{ course.enrolledCount }} / {{ course.maxCapacity }} Enrolled</span>
                     </div>
                   </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Pending Approvals Card -->
+        <div class="eduva-card pending-approvals-card">
+          <div class="card-header-flex">
+            <h3 class="card-title">Pending Approvals</h3>
+            <a routerLink="/admin/enrollments" class="link-action">Manage</a>
+          </div>
+
+          @if (!dashboard()?.pendingApprovalList || dashboard()!.pendingApprovalList!.length === 0) {
+            <div class="chart-empty-msg">
+              <mat-icon>check_circle</mat-icon>
+              <span>No pending approvals awaiting review</span>
+            </div>
+          } @else {
+            <div class="pending-list">
+              @for (en of dashboard()!.pendingApprovalList; track en.id) {
+                <div class="pending-item">
+                  <div class="pending-info">
+                    <span class="student-name">{{ en.studentName || 'Applicant' }}</span>
+                    <span class="course-name text-muted">{{ en.courseTitle }}</span>
+                  </div>
+                  <span class="pill-badge status-pending">Pending</span>
                 </div>
               }
             </div>
@@ -311,10 +216,14 @@
             <div
               class="cal-day-cell"
               [class.other-month]="!d.isCurrentMonth"
+              [class.has-schedule]="d.hasSchedule && d.isCurrentMonth"
               [class.selected-day]="d.day === selectedCalendarDay() && d.isCurrentMonth"
               (click)="d.isCurrentMonth && selectDay(d.day)"
             >
-              {{ d.day }}
+              <span class="day-num">{{ d.day }}</span>
+              @if (d.hasSchedule && d.isCurrentMonth) {
+                <span class="schedule-dot" aria-hidden="true"></span>
+              }
             </div>
           }
         </div>
@@ -368,19 +277,25 @@
           <div class="activities-timeline">
             @for (act of dashboard()!.recentActivities; track act.id) {
               <div class="activity-timeline-item">
-                <div class="activity-icon-badge">
-                  <mat-icon>notifications</mat-icon>
+                <div class="activity-icon-badge" [ngClass]="act.type.toLowerCase()">
+                  <mat-icon>{{ act.type.toLowerCase() === 'enrollment' ? 'school' : 'menu_book' }}</mat-icon>
                 </div>
                 <div class="activity-body">
-                  <span class="activity-tag">{{ act.type }}</span>
+                  <div class="activity-tag-row">
+                    <span class="activity-tag" [ngClass]="act.type.toLowerCase()">{{ act.type }}</span>
+                    @if (act.actorRole) {
+                      <span class="actor-role-tag font-mono">{{ act.actorRole }}</span>
+                    }
+                  </div>
                   <p class="activity-text">
-                    <strong>{{ act.title }}</strong>: {{ act.description }}
+                    {{ act.description }}
                   </p>
                   <span class="activity-time font-mono">{{ act.timestamp | date:'medium' }}</span>
                 </div>
               </div>
             }
           </div>
+
         }
       </div>
     </div>

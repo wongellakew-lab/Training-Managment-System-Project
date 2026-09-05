@@ -7,7 +7,9 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { LayoutComponent } from '../../ui/layout/layout.component';
 import { DashboardService } from '../../services/dashboard.service';
+import { ScheduleService } from '../../services/schedule.service';
 import { AdminDashboardMetrics } from '../../models/dashboard.model';
+import { Schedule } from '../../models/schedule.model';
 import { LiveSyncService } from '../../services/live-sync.service';
 
 @Component({
@@ -27,9 +29,11 @@ import { LiveSyncService } from '../../services/live-sync.service';
 })
 export class AdminDashboardComponent implements OnInit {
   private dashboardService = inject(DashboardService);
+  private scheduleService = inject(ScheduleService);
   private liveSync = inject(LiveSyncService);
 
   readonly dashboard = signal<AdminDashboardMetrics | null>(null);
+  readonly monthlySchedules = signal<Schedule[]>([]);
   readonly isLoading = signal(false);
   readonly selectedMonth = signal('February');
   readonly currentDate = signal(new Date());
@@ -43,16 +47,26 @@ export class AdminDashboardComponent implements OnInit {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-    const days: { day: number; isCurrentMonth: boolean }[] = [];
+    const schedules = this.monthlySchedules();
+    const scheduledDays = new Set(
+      schedules
+        .map(s => {
+          const dt = new Date(s.date);
+          return (dt.getFullYear() === year && dt.getMonth() === month) ? dt.getDate() : -1;
+        })
+        .filter(day => day > 0)
+    );
+
+    const days: { day: number; isCurrentMonth: boolean; hasSchedule: boolean }[] = [];
     for (let x = firstDayIndex; x > 0; x--) {
-      days.push({ day: daysInPrevMonth - x + 1, isCurrentMonth: false });
+      days.push({ day: daysInPrevMonth - x + 1, isCurrentMonth: false, hasSchedule: false });
     }
     for (let i = 1; i <= daysInMonth; i++) {
-      days.push({ day: i, isCurrentMonth: true });
+      days.push({ day: i, isCurrentMonth: true, hasSchedule: scheduledDays.has(i) });
     }
     const remaining = 35 - days.length;
     for (let j = 1; j <= (remaining > 0 ? remaining : 0); j++) {
-      days.push({ day: j, isCurrentMonth: false });
+      days.push({ day: j, isCurrentMonth: false, hasSchedule: false });
     }
     return days;
   }
@@ -61,19 +75,14 @@ export class AdminDashboardComponent implements OnInit {
     const d = new Date(this.currentDate());
     d.setMonth(d.getMonth() - 1);
     this.currentDate.set(d);
+    this.loadMonthSchedules();
   }
 
   nextMonth(): void {
     const d = new Date(this.currentDate());
     d.setMonth(d.getMonth() + 1);
     this.currentDate.set(d);
-  }
-
-  getRevenuePercent(val: number): number {
-    const list = this.dashboard()?.revenueHistory;
-    if (!list || list.length === 0) return 0;
-    const max = Math.max(...list.map(r => r.revenue), 1);
-    return Math.round((val / max) * 100);
+    this.loadMonthSchedules();
   }
 
   getTrendPercent(val: number): number {
@@ -85,8 +94,18 @@ export class AdminDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDashboard();
+    this.loadMonthSchedules();
     this.liveSync.enrollmentUpdated$.subscribe(() => {
       this.loadDashboard();
+      this.loadMonthSchedules();
+    });
+  }
+
+  loadMonthSchedules(): void {
+    const d = this.currentDate();
+    this.scheduleService.getSchedules(undefined, d.getMonth() + 1, d.getFullYear()).subscribe({
+      next: (schedules) => this.monthlySchedules.set(schedules ?? []),
+      error: () => this.monthlySchedules.set([])
     });
   }
 
@@ -106,14 +125,5 @@ export class AdminDashboardComponent implements OnInit {
   selectDay(day: number): void {
     this.selectedCalendarDay.set(day);
   }
-
-  exportReport(): void {
-    const data = this.dashboard();
-    if (!data) return;
-    const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", jsonStr);
-    dlAnchorElem.setAttribute("download", "eduva_student_demographics_report.json");
-    dlAnchorElem.click();
-  }
 }
+

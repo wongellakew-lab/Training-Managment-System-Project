@@ -55,7 +55,7 @@ public class DashboardController : ControllerBase
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpGet("instructor")]
-    public async Task<IActionResult> GetInstructorDashboard([FromQuery] int? instructorId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetInstructorDashboard([FromQuery] int? instructorId, [FromQuery] DateTime? clientTime, CancellationToken cancellationToken)
     {
         int resolvedId;
         if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
@@ -72,7 +72,7 @@ public class DashboardController : ControllerBase
             resolvedId = instructorId ?? (await User.ResolveInstructorIdAsync(_context, _userManager)) ?? 1;
         }
 
-        var result = await _dashboardService.GetInstructorDashboardAsync(resolvedId, cancellationToken);
+        var result = await _dashboardService.GetInstructorDashboardAsync(resolvedId, clientTime, cancellationToken);
         return Ok(result);
     }
 
