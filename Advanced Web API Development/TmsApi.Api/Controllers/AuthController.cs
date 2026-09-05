@@ -129,6 +129,28 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
+        if (await _userManager.IsLockedOutAsync(user))
+        {
+            return Unauthorized(new { message = "Your account is suspended. Please contact an administrator." });
+        }
+
+        if (user.InstructorId.HasValue)
+        {
+            var instructor = await _context.Instructors.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == user.InstructorId.Value);
+            if (instructor != null && string.Equals(instructor.Status, "Suspended", StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new { message = "Your account is suspended. Please contact an administrator." });
+            }
+        }
+        else if (user.StudentId.HasValue)
+        {
+            var student = await _context.Students.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Id == user.StudentId.Value);
+            if (student != null && string.Equals(student.Status, "Suspended", StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new { message = "Your account is suspended. Please contact an administrator." });
+            }
+        }
+
         var roles = await _userManager.GetRolesAsync(user);
         var (accessToken, refreshToken) = await _tokenService.GenerateTokensAsync(user, roles);
 

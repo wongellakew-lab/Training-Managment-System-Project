@@ -9,6 +9,7 @@ public class Instructor
     public string Email { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
     public DateTime HireDate { get; set; } = DateTime.UtcNow;
+    public string Status { get; set; } = "Active";
     public bool IsDeleted { get; set; } = false;
     public string? UserId { get; set; }
     public virtual TmsUser? User { get; set; }

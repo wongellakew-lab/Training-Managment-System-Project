@@ -27,6 +27,7 @@ public class TmsDbContext : IdentityDbContext<TmsUser>
     public DbSet<Attendance> Attendances => Set<Attendance>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
     public DbSet<StudentQuestion> StudentQuestions => Set<StudentQuestion>();
+    public DbSet<InstructorSuspensionHistory> InstructorSuspensionHistories => Set<InstructorSuspensionHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,0 +1,311 @@
+<app-layout pageTitle="Instructors">
+  <div class="instructors-page">
+    <!-- Top Filter & Search Bar matching Screenshot 1 -->
+    <div class="search-filter-card">
+      <div class="search-input-wrapper">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input
+          type="text"
+          placeholder="Search anything"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          aria-label="Search instructors"
+          class="search-field"
+        />
+        <button
+          *ngIf="searchQuery()"
+          mat-icon-button
+          class="clear-search-btn"
+          (click)="clearSearch()"
+          aria-label="Clear search"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="controls-right">
+        <!-- Real Department Filter Chips -->
+        <div class="filter-chips-group">
+          <button
+            *ngFor="let dept of departments"
+            type="button"
+            class="chip-btn"
+            [class.active]="selectedDepartment() === dept"
+            (click)="selectDepartment(dept)"
+          >
+            {{ dept }}
+          </button>
+        </div>
+
+        <!-- Add Instructor Action Button -->
+        <button
+          mat-flat-button
+          class="add-instructor-btn"
+          (click)="openAddModal()"
+        >
+          <mat-icon>add</mat-icon>
+          <span>Add Instructor</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-container">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading instructors directory...</p>
+    </div>
+
+    <!-- Instructors Grid (3-column desktop, 2-column tablet, 1-column mobile) -->
+    <div *ngIf="!isLoading()" class="instructors-grid-container">
+      <div *ngIf="instructors().length > 0" class="instructors-grid">
+        <div
+          *ngFor="let inst of instructors()"
+          class="instructor-card"
+          (click)="viewInstructor(inst.id)"
+          tabindex="0"
+          role="button"
+          (keydown.enter)="viewInstructor(inst.id)"
+        >
+          <!-- Card Top: Avatar, Name, Code, Badges -->
+          <div class="card-top-row">
+            <div class="avatar-container">
+              <img
+                *ngIf="inst.avatar"
+                [src]="inst.avatar"
+                [alt]="inst.firstName + ' ' + inst.lastName"
+                class="avatar-img"
+                (error)="onAvatarError($event, inst)"
+              />
+              <div *ngIf="!inst.avatar" class="avatar-fallback">
+                {{ inst.firstName[0] }}{{ inst.lastName[0] }}
+              </div>
+            </div>
+
+            <div class="info-block">
+              <h3 class="instructor-name">{{ inst.firstName }} {{ inst.lastName }}</h3>
+              <span class="instructor-code">{{ inst.employeeNumber || ('ID: #' + inst.id) }}</span>
+              <div class="badges-row">
+                <span
+                  class="status-badge"
+                  [class.active-badge]="(inst.status || 'Active') === 'Active'"
+                  [class.suspended-badge]="inst.status === 'Suspended'"
+                >
+                  {{ inst.status || 'Active' }}
+                </span>
+                <span class="dept-badge">{{ inst.department || 'General' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Middle: Courses Taught -->
+          <div class="courses-box">
+            <span class="box-label">Courses</span>
+            <p class="courses-text" [title]="getCoursesDisplay(inst)">
+              {{ getCoursesDisplay(inst) }}
+            </p>
+          </div>
+
+          <!-- Card Bottom: Contact Information -->
+          <div class="contact-row">
+            <div class="contact-item">
+              <span class="contact-label">Email</span>
+              <span class="contact-value" [title]="inst.email">{{ inst.email }}</span>
+            </div>
+            <div class="contact-item" *ngIf="inst.phoneNumber">
+              <span class="contact-label">Phone Number</span>
+              <span class="contact-value">{{ inst.phoneNumber }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="instructors().length === 0" class="empty-state-card">
+        <div class="empty-icon-circle">
+          <mat-icon>person_search</mat-icon>
+        </div>
+        <h3>No instructors found.</h3>
+        <p *ngIf="searchQuery() || selectedDepartment() !== 'All'">
+          No faculty members matched your filter criteria. Try adjusting your search query or department filter.
+        </p>
+        <p *ngIf="!searchQuery() && selectedDepartment() === 'All'">
+          No instructor profiles currently exist in the database.
+        </p>
+        <button
+          *ngIf="searchQuery() || selectedDepartment() !== 'All'"
+          mat-stroked-button
+          (click)="resetFilters()"
+          class="reset-btn"
+        >
+          Reset Filters
+        </button>
+      </div>
+
+      <!-- Pagination Footer matching Screenshot 1 -->
+      <div *ngIf="totalCount() > 0" class="pagination-footer">
+        <div class="pagination-left">
+          <span class="page-size-label">Show</span>
+          <select [ngModel]="pageSize()" (ngModelChange)="onPageSizeChange($event)" class="page-size-select">
+            <option [value]="6">6</option>
+            <option [value]="12">12</option>
+            <option [value]="24">24</option>
+            <option [value]="48">48</option>
+          </select>
+          <span class="total-results-label">of {{ totalCount() }} results</span>
+        </div>
+
+        <div class="pagination-controls" *ngIf="totalPages() > 1">
+          <button
+            mat-icon-button
+            class="nav-btn"
+            [disabled]="currentPage() === 1"
+            (click)="goToPage(currentPage() - 1)"
+            aria-label="Previous Page"
+          >
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+
+          <ng-container *ngFor="let p of pagesArray()">
+            <button
+              *ngIf="p > 0"
+              class="page-num-btn"
+              [class.active]="p === currentPage()"
+              (click)="goToPage(p)"
+            >
+              {{ p }}
+            </button>
+            <span *ngIf="p === -1" class="page-ellipsis">...</span>
+          </ng-container>
+
+          <button
+            mat-icon-button
+            class="nav-btn"
+            [disabled]="currentPage() === totalPages()"
+            (click)="goToPage(currentPage() + 1)"
+            aria-label="Next Page"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Instructor Modal Dialog -->
+    <div *ngIf="showAddModal()" class="modal-backdrop" (click)="closeAddModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <mat-icon class="modal-title-icon">person_add</mat-icon>
+            <h3>Add New Instructor</h3>
+          </div>
+          <button mat-icon-button (click)="closeAddModal()" aria-label="Close dialog">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <form (ngSubmit)="submitNewInstructor()" class="modal-body" #form="ngForm">
+          <div *ngIf="modalError()" class="modal-error-alert">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ modalError() }}</span>
+          </div>
+
+          <div class="form-row-two">
+            <div class="form-group">
+              <label for="firstName">First Name <span class="required">*</span></label>
+              <input
+                id="firstName"
+                type="text"
+                name="firstName"
+                [(ngModel)]="newInstructor.firstName"
+                required
+                placeholder="e.g. Fabricio"
+                class="form-control"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="lastName">Last Name <span class="required">*</span></label>
+              <input
+                id="lastName"
+                type="text"
+                name="lastName"
+                [(ngModel)]="newInstructor.lastName"
+                required
+                placeholder="e.g. Conrad"
+                class="form-control"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address <span class="required">*</span></label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              [(ngModel)]="newInstructor.email"
+              required
+              placeholder="e.g. fabricio.conrad@tms.local"
+              class="form-control"
+            />
+          </div>
+
+          <div class="form-row-two">
+            <div class="form-group">
+              <label for="employeeNumber">Employee ID / Code <span class="required">*</span></label>
+              <input
+                id="employeeNumber"
+                type="text"
+                name="employeeNumber"
+                [(ngModel)]="newInstructor.employeeNumber"
+                required
+                placeholder="e.g. INS-2030-007"
+                class="form-control"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="department">Department <span class="required">*</span></label>
+              <select
+                id="department"
+                name="department"
+                [(ngModel)]="newInstructor.department"
+                required
+                class="form-control"
+              >
+                <option value="Web Dev">Web Dev</option>
+                <option value="Design">Design</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Communication">Communication</option>
+                <option value="Business">Business</option>
+                <option value="Language">Language</option>
+                <option value="Computer Science">Computer Science</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              mat-stroked-button
+              (click)="closeAddModal()"
+              [disabled]="isSaving()"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              mat-flat-button
+              color="primary"
+              [disabled]="isSaving() || !form.valid"
+              class="save-btn"
+            >
+              <mat-spinner *ngIf="isSaving()" diameter="18"></mat-spinner>
+              <span *ngIf="!isSaving()">Create Instructor</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</app-layout>

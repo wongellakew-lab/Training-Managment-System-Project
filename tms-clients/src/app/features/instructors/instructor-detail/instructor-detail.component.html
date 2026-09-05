@@ -1,0 +1,454 @@
+<app-layout pageTitle="Instructor Details" [showGreeting]="false">
+  <div class="instructor-detail-page">
+    <!-- Top Navigation & Breadcrumbs matching Screenshot 2 -->
+    <div class="detail-top-nav">
+      <button
+        mat-icon-button
+        (click)="goBack()"
+        class="back-nav-btn"
+        aria-label="Back to instructors list"
+        title="Back to Instructors"
+      >
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+
+      <div class="nav-breadcrumbs">
+        <h1 class="instructor-heading" *ngIf="instructor()">
+          {{ instructor()?.firstName }} {{ instructor()?.lastName }}
+        </h1>
+        <div class="breadcrumb-trail">
+          <span class="crumb-link" (click)="goBack()">Instructors</span>
+          <mat-icon class="crumb-separator">chevron_right</mat-icon>
+          <span class="crumb-current">Instructor Details</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div *ngIf="isLoading()" class="loading-container">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading instructor profile and course schedules...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="!isLoading() && error()" class="error-container">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <h3>Instructor Not Found</h3>
+      <p>{{ error() }}</p>
+      <button mat-flat-button color="primary" (click)="goBack()">
+        Back to Instructors
+      </button>
+    </div>
+
+    <!-- Main Content Dual-Column Layout matching Screenshot 2 -->
+    <div *ngIf="!isLoading() && instructor()" class="detail-workspace-grid">
+      <!-- LEFT COLUMN: Profile Card & Courses List -->
+      <div class="main-content-col">
+        <!-- 1. Instructor Profile Card -->
+        <div class="profile-card">
+          <div class="profile-top-section">
+            <div class="profile-avatar-container">
+              <img
+                *ngIf="instructor()?.avatar"
+                [src]="instructor()?.avatar"
+                [alt]="instructor()?.firstName + ' ' + instructor()?.lastName"
+                class="profile-avatar-img"
+                (error)="onAvatarError($event)"
+              />
+              <div *ngIf="!instructor()?.avatar" class="profile-avatar-fallback">
+                {{ instructor()?.firstName?.[0] }}{{ instructor()?.lastName?.[0] }}
+              </div>
+            </div>
+
+            <div class="profile-meta-info">
+              <div class="name-id-row">
+                <h2 class="instructor-full-name">
+                  {{ instructor()?.firstName }} {{ instructor()?.lastName }}
+                </h2>
+                <div class="profile-badges">
+                  <span
+                    class="status-pill"
+                    [class.active-pill]="(instructor()?.status || 'Active') === 'Active'"
+                    [class.suspended-pill]="instructor()?.status === 'Suspended'"
+                  >
+                    {{ instructor()?.status || 'Active' }}
+                  </span>
+                  <span class="id-pill font-mono">
+                    {{ instructor()?.employeeNumber || ('ID: #' + instructor()?.id) }}
+                  </span>
+
+                  <!-- Suspend or Activate Account Buttons -->
+                  @if (instructor()?.status === 'Suspended') {
+                    <button
+                      mat-flat-button
+                      class="btn-activate-account"
+                      [disabled]="isProcessing()"
+                      (click)="confirmActivation()"
+                      title="Reactivate instructor account and restore assigned courses"
+                    >
+                      <mat-icon>lock_open</mat-icon>
+                      Activate Account
+                    </button>
+                  } @else {
+                    <button
+                      mat-stroked-button
+                      class="btn-suspend-account"
+                      [disabled]="isProcessing()"
+                      (click)="openSuspendModal()"
+                      title="Suspend instructor account and reassign courses"
+                    >
+                      <mat-icon>block</mat-icon>
+                      Suspend Instructor
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Courses Taught Summary Line -->
+              <div class="assigned-courses-summary" *ngIf="instructor()?.courses && instructor()!.courses.length > 0">
+                <div class="summary-label-col">
+                  <span class="field-label">Courses</span>
+                  <div class="course-titles-list">
+                    <span
+                      *ngFor="let c of instructor()!.courses; let last = last"
+                      class="course-summary-tag"
+                    >
+                      <strong>{{ c.code }}:</strong> {{ c.title }}{{ last ? '' : ' • ' }}
+                    </span>
+                  </div>
+                </div>
+                <span class="dept-pill">{{ instructor()?.department || 'Faculty' }}</span>
+              </div>
+
+              <!-- Contact & Details Grid -->
+              <div class="contact-details-grid">
+                <div class="detail-col">
+                  <span class="field-label">Email</span>
+                  <span class="field-value email-value" [title]="instructor()?.email">
+                    {{ instructor()?.email }}
+                  </span>
+                </div>
+
+                <div class="detail-col" *ngIf="instructor()?.phoneNumber">
+                  <span class="field-label">Phone Number</span>
+                  <span class="field-value font-mono">
+                    {{ instructor()?.phoneNumber }}
+                  </span>
+                </div>
+
+                <div class="detail-col">
+                  <span class="field-label">Department</span>
+                  <span class="field-value">
+                    {{ instructor()?.department || 'Academic Faculty' }}
+                  </span>
+                </div>
+
+                <div class="detail-col" *ngIf="instructor()?.hireDate">
+                  <span class="field-label">Hire Date</span>
+                  <span class="field-value">
+                    {{ instructor()?.hireDate | date:'mediumDate' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Optional Bio (if present in database) -->
+              <div *ngIf="instructor()?.bio" class="bio-container">
+                <span class="field-label">About</span>
+                <p class="bio-text">{{ instructor()?.bio }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. My Course List (Strictly Real Data, Zero Financial Figures) -->
+        <div class="course-list-card">
+          <div class="card-header-row">
+            <div class="title-with-count">
+              <h3 class="section-title">My Course List</h3>
+              <span class="count-pill">
+                {{ instructor()?.courses?.length || 0 }} {{ instructor()?.courses?.length === 1 ? 'Course' : 'Courses' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Courses Items List -->
+          <div *ngIf="instructor()?.courses && instructor()!.courses.length > 0" class="courses-stack">
+            <div
+              *ngFor="let course of instructor()!.courses"
+              class="course-row-card"
+              (click)="navigateToCourse(course.id)"
+              role="button"
+              tabindex="0"
+              (keydown.enter)="navigateToCourse(course.id)"
+              title="View Course Details"
+            >
+              <div class="course-visual-thumbnail">
+                <img
+                  *ngIf="course.imageUrl"
+                  [src]="course.imageUrl"
+                  [alt]="course.title"
+                  class="thumb-img"
+                  (error)="onThumbError($event)"
+                />
+                <div *ngIf="!course.imageUrl" class="thumb-icon-fallback" [ngClass]="getCategoryClass(course.category)">
+                  <mat-icon>{{ getCategoryIcon(course.category) }}</mat-icon>
+                </div>
+              </div>
+
+              <div class="course-main-meta">
+                <div class="meta-tag-row">
+                  <span class="category-chip" [ngClass]="getCategoryClass(course.category)">
+                    {{ course.category || 'General' }}
+                  </span>
+                  <span class="level-chip">{{ course.level || 'All Levels' }}</span>
+                </div>
+
+                <h4 class="course-card-title">{{ course.title }}</h4>
+                <span class="course-code-text font-mono">{{ course.code }}</span>
+              </div>
+
+              <!-- Enrolled Students & Progress Statistics -->
+              <div class="course-metrics-group">
+                <div class="students-metric">
+                  <mat-icon class="students-icon">groups</mat-icon>
+                  <span class="students-num font-mono">{{ course.enrolledStudentsCount }}</span>
+                  <span class="students-lbl">enrolled</span>
+                </div>
+
+                <div class="lessons-metric">
+                  <mat-icon class="lessons-icon">menu_book</mat-icon>
+                  <span class="lessons-num font-mono">{{ course.lessonsCount }}</span>
+                  <span class="lessons-lbl">lessons</span>
+                </div>
+              </div>
+
+              <!-- Status Badge (No money/financial figures) -->
+              <div class="course-status-col">
+                <span
+                  class="status-chip"
+                  [class.status-active]="course.status.toLowerCase() === 'active'"
+                  [class.status-draft]="course.status.toLowerCase() === 'draft'"
+                  [class.status-archived]="course.status.toLowerCase() === 'archived'"
+                >
+                  <span class="dot"></span>
+                  <span>{{ course.status }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty Courses State -->
+          <div *ngIf="!instructor()?.courses || instructor()!.courses.length === 0" class="empty-courses-state">
+            <mat-icon>school</mat-icon>
+            <h4>No courses assigned</h4>
+            <p>This instructor currently does not have any active course assignments.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Mini Calendar & Instructor Schedules -->
+      <div class="sidebar-calendar-col">
+        <!-- Mini Calendar Card -->
+        <div class="mini-calendar-card">
+          <div class="calendar-header-row">
+            <span class="current-month-heading">{{ currentMonthLabel() }}</span>
+            <div class="calendar-arrows-group">
+              <button
+                mat-icon-button
+                (click)="prevMonth()"
+                aria-label="Previous month"
+                title="Previous month"
+                class="arrow-btn"
+              >
+                <mat-icon>chevron_left</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                (click)="nextMonth()"
+                aria-label="Next month"
+                title="Next month"
+                class="arrow-btn"
+              >
+                <mat-icon>chevron_right</mat-icon>
+              </button>
+              <button
+                mat-stroked-button
+                (click)="goToToday()"
+                class="today-jump-btn"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+
+          <!-- Weekdays Row -->
+          <div class="calendar-weekdays-row">
+            <span *ngFor="let day of weekDays" class="weekday-lbl">{{ day }}</span>
+          </div>
+
+          <!-- Days Grid Matrix (7 columns) -->
+          <div class="calendar-matrix-grid">
+            <div
+              *ngFor="let cell of calendarDays()"
+              class="calendar-day-cell"
+              [class.outside-month]="!cell.isCurrentMonth"
+              [class.is-today]="cell.isToday"
+              [class.is-selected]="cell.isSelected"
+              [class.has-classes]="cell.schedules.length > 0"
+              (click)="selectDate(cell.date)"
+            >
+              <span class="day-number" [class.today-badge]="cell.isToday">
+                {{ cell.day }}
+              </span>
+              <span
+                *ngIf="cell.schedules.length > 0"
+                class="class-indicator-dot"
+                [title]="cell.schedules.length + ' classes scheduled'"
+              ></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedules Card for Selected Date -->
+        <div class="schedules-detail-card">
+          <div class="schedules-header-row">
+            <div class="schedules-title-group">
+              <h3 class="schedules-title">Schedules</h3>
+              <span class="selected-date-indicator">
+                {{ selectedDate() | date:'EEEE, MMM d, y' }}
+              </span>
+            </div>
+            <span class="classes-badge font-mono">
+              {{ selectedDaySchedules().length }}
+            </span>
+          </div>
+
+          <!-- Classes List for Selected Date -->
+          <div *ngIf="selectedDaySchedules().length > 0" class="schedules-list">
+            <div
+              *ngFor="let s of selectedDaySchedules()"
+              class="schedule-item-card"
+              [ngClass]="getScheduleTypeClass(s.scheduleType)"
+            >
+              <div class="item-header-row">
+                <span class="schedule-course-tag">{{ s.courseCode || 'COURSE' }}</span>
+                <span class="schedule-type-pill">{{ s.scheduleType || 'Lecture' }}</span>
+              </div>
+
+              <h4 class="schedule-title">{{ s.courseTitle || s.title }}</h4>
+
+              <div class="schedule-meta-row">
+                <div class="meta-item">
+                  <mat-icon class="meta-icon">schedule</mat-icon>
+                  <span class="meta-val font-mono">{{ s.startTime }} - {{ s.endTime }}</span>
+                </div>
+                <div class="meta-item" *ngIf="s.room || s.location">
+                  <mat-icon class="meta-icon">room</mat-icon>
+                  <span class="meta-val">{{ s.room || s.location }}</span>
+                </div>
+              </div>
+
+              <div class="schedule-attendees-row" *ngIf="s.attendeesCount">
+                <mat-icon class="meta-icon">groups</mat-icon>
+                <span class="meta-val font-mono">{{ s.attendeesCount }} Students Enrolled</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty Date State -->
+          <div *ngIf="selectedDaySchedules().length === 0" class="no-classes-state">
+            <div class="empty-icon-circle">
+              <mat-icon>event_busy</mat-icon>
+            </div>
+            <h4>No classes scheduled.</h4>
+            <p>There are no classes scheduled for {{ selectedDate() | date:'MMMM d, y' }}.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Suspend Instructor & Course Reassignment Modal -->
+  @if (showSuspendModal()) {
+    <div class="eduva-modal-overlay" (click)="closeSuspendModal()">
+      <div class="eduva-modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">Suspend Instructor?</h3>
+          <button class="modal-close-btn" (click)="closeSuspendModal()">✕</button>
+        </div>
+
+        <div class="modal-body-content">
+          <p class="modal-desc">
+            Suspending <strong>{{ instructor()?.firstName }} {{ instructor()?.lastName }}</strong> will lock their account and prevent them from logging in.
+          </p>
+
+          @if (instructor()?.courses && instructor()!.courses.length > 0) {
+            <div class="courses-reassign-warning">
+              <mat-icon class="warning-icon">warning</mat-icon>
+              <div>
+                <strong>Active Courses Reassignment Required</strong>
+                <p>
+                  This instructor currently teaches <strong>{{ instructor()!.courses.length }}</strong> active course(s). You must select a replacement instructor for each course before suspending.
+                </p>
+              </div>
+            </div>
+
+            <div class="reassign-list">
+              @for (c of instructor()!.courses; track c.id) {
+                <div class="reassign-item">
+                  <div class="reassign-course-info">
+                    <span class="course-code font-mono">{{ c.code }}</span>
+                    <span class="course-title">{{ c.title }}</span>
+                  </div>
+
+                  <div class="reassign-select-col">
+                    <label class="select-label">Replacement Instructor:</label>
+                    <select
+                      class="replacement-select"
+                      (change)="onReplacementChange(c.id, $event)"
+                      [value]="courseAssignments()[c.id] || ''"
+                      required
+                    >
+                      <option value="" disabled>Select Replacement...</option>
+                      @for (other of activeInstructors(); track other.id) {
+                        <option [value]="other.id">
+                          {{ other.firstName }} {{ other.lastName }} ({{ other.department || 'Faculty' }})
+                        </option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="modal-desc muted">This instructor has no active courses assigned. No reassignment is required.</p>
+          }
+
+          <div class="form-group reason-group">
+            <label>Suspension Reason (Optional)</label>
+            <input
+              type="text"
+              class="modal-input"
+              [(ngModel)]="suspendReason"
+              placeholder="e.g. Leave of absence, administrative review"
+            />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" (click)="closeSuspendModal()" [disabled]="isProcessing()">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-confirm-suspend"
+              (click)="confirmSuspension()"
+              [disabled]="!canSubmitSuspension() || isProcessing()"
+            >
+              {{ isProcessing() ? 'Processing...' : 'Confirm & Suspend' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</app-layout>
