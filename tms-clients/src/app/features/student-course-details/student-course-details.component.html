@@ -267,7 +267,72 @@
           </div>
         </section>
 
-        <!-- 3. Course Content / Academic Outline (Collapsible Accordion) -->
+        <!-- 3. Mode of Evaluation Section -->
+        <section class="eduva-card section-card evaluation-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">assignment_turned_in</mat-icon>
+              <h2 class="section-title">Mode of Evaluation</h2>
+            </div>
+            <span class="eval-total-badge font-mono">
+              Total Assessments: {{ (course()!.totalAssessments !== undefined && course()!.totalAssessments! > 0) ? course()!.totalAssessments : ((course()!.expectedAssignmentCount || 0) + (course()!.expectedMidtermCount || 0) + (course()!.expectedFinalCount || 0)) }}
+            </span>
+          </div>
+
+          <div class="section-body">
+            <p class="evaluation-intro">
+              This course is evaluated according to the academic syllabus structure configured by the instructor:
+            </p>
+
+            <div class="evaluation-grid">
+              <div class="eval-item">
+                <div class="eval-icon-wrap assignments">
+                  <mat-icon>task</mat-icon>
+                </div>
+                <div class="eval-info">
+                  <span class="eval-label">Assignments</span>
+                  <span class="eval-count font-mono">{{ course()!.expectedAssignmentCount ?? 0 }}</span>
+                </div>
+              </div>
+
+              @if ((course()!.expectedMidtermCount ?? 0) > 0) {
+                <div class="eval-item">
+                  <div class="eval-icon-wrap midterm">
+                    <mat-icon>assignment</mat-icon>
+                  </div>
+                  <div class="eval-info">
+                    <span class="eval-label">Midterm Exam</span>
+                    <span class="eval-count font-mono">{{ course()!.expectedMidtermCount }}</span>
+                  </div>
+                </div>
+              }
+
+              @if ((course()!.expectedFinalCount ?? 0) > 0) {
+                <div class="eval-item">
+                  <div class="eval-icon-wrap final">
+                    <mat-icon>school</mat-icon>
+                  </div>
+                  <div class="eval-info">
+                    <span class="eval-label">Final Assessment</span>
+                    <span class="eval-count font-mono">{{ course()!.expectedFinalCount }}</span>
+                  </div>
+                </div>
+              }
+
+              <div class="eval-item eval-item-total">
+                <div class="eval-icon-wrap total">
+                  <mat-icon>assessment</mat-icon>
+                </div>
+                <div class="eval-info">
+                  <span class="eval-label">Total Assessments</span>
+                  <span class="eval-count font-mono">{{ (course()!.totalAssessments !== undefined && course()!.totalAssessments! > 0) ? course()!.totalAssessments : ((course()!.expectedAssignmentCount || 0) + (course()!.expectedMidtermCount || 0) + (course()!.expectedFinalCount || 0)) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Course Content / Academic Outline (Collapsible Accordion) -->
         <section class="eduva-card section-card outline-card">
           <div class="section-card-header">
             <div class="header-icon-title">
