@@ -288,6 +288,7 @@ export interface GradebookRow {
 
 export interface GradebookAssignmentHeader {
   id: number;
+  assignmentNumber?: number;
   title: string;
   maxPoints: number;
   dueDate: string;
@@ -297,6 +298,9 @@ export interface GradebookResponse {
   courseId: number;
   courseTitle: string;
   courseCode: string;
+  courseStatus?: string;
+  isApproved?: boolean;
+  message?: string;
   assignments: GradebookAssignmentHeader[];
   rows: GradebookRow[];
 }

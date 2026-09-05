@@ -123,6 +123,14 @@ export class InstructorGradebookComponent implements OnInit {
     this.loadGradebook();
   }
 
+  isCurrentCourseUnapproved(): boolean {
+    const data = this.gradebookData();
+    if (!data) return false;
+    if (data.isApproved === false) return true;
+    if (data.courseStatus && data.courseStatus !== 'Active' && data.courseStatus !== 'Completed') return true;
+    return false;
+  }
+
   getScore(row: GradebookRow, assignmentId: number): any {
     const key = `${row.studentId}_${assignmentId}`;
     if (this.pendingChanges().has(key)) {

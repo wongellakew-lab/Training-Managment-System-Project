@@ -19,17 +19,20 @@ public class GradesController : ControllerBase
     private readonly TmsDbContext _context;
     private readonly GradingService _gradingService;
     private readonly INotificationService _notificationService;
+    private readonly TmsApi.Application.Interfaces.ICourseService _courseService;
     private readonly Microsoft.AspNetCore.SignalR.IHubContext<TmsApi.Infrastructure.Hubs.TmsHub, TmsApi.Infrastructure.Hubs.ITmsClient> _hubContext;
 
     public GradesController(
         TmsDbContext context,
         GradingService gradingService,
         INotificationService notificationService,
+        TmsApi.Application.Interfaces.ICourseService courseService,
         Microsoft.AspNetCore.SignalR.IHubContext<TmsApi.Infrastructure.Hubs.TmsHub, TmsApi.Infrastructure.Hubs.ITmsClient> hubContext)
     {
         _context = context;
         _gradingService = gradingService;
         _notificationService = notificationService;
+        _courseService = courseService;
         _hubContext = hubContext;
     }
 
@@ -325,13 +328,33 @@ public class GradesController : ControllerBase
 
         if (course == null) return NotFound(new { message = "Course not found." });
 
+        if (course.Status != "Active" && course.Status != "Completed")
+        {
+            return Ok(new
+            {
+                courseId = course.Id,
+                courseTitle = course.Title,
+                courseCode = course.Code,
+                courseStatus = course.Status,
+                isApproved = false,
+                message = "Course is pending approval. Assessments and gradebook will be automatically generated once approved by Admin.",
+                assignments = new List<object>(),
+                rows = new List<object>()
+            });
+        }
+
+        // Ensure configured assessments are created for approved active courses
+        await _courseService.EnsureCourseAssessmentsGeneratedAsync(courseId, cancellationToken);
+
         var assignments = await _context.Assignments
             .AsNoTracking()
             .Where(a => a.CourseId == courseId && !a.IsDeleted && a.IsPublished)
-            .OrderBy(a => a.CreatedAt)
+            .OrderBy(a => a.AssignmentNumber)
+            .ThenBy(a => a.CreatedAt)
             .Select(a => new
             {
                 id = a.Id,
+                assignmentNumber = a.AssignmentNumber,
                 title = a.Title,
                 maxPoints = a.MaxPoints,
                 dueDate = a.DueDate
@@ -406,6 +429,8 @@ public class GradesController : ControllerBase
             courseId = course.Id,
             courseTitle = course.Title,
             courseCode = course.Code,
+            courseStatus = course.Status,
+            isApproved = true,
             assignments,
             rows
         });

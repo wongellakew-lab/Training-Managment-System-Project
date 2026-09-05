@@ -71,9 +71,13 @@
 
     <!-- Empty State -->
     <div *ngIf="!isLoading() && (rows().length === 0 || assignments().length === 0)" class="empty-state-card">
-      <mat-icon>table_chart</mat-icon>
-      <h3>Gradebook Empty</h3>
-      <p>Ensure you have created published assignments and enrolled active students in this course.</p>
+      <mat-icon>{{ isCurrentCourseUnapproved() ? 'pending_actions' : 'table_chart' }}</mat-icon>
+      <h3>{{ isCurrentCourseUnapproved() ? 'Course Pending Approval' : 'Gradebook Empty' }}</h3>
+      <p>
+        {{ isCurrentCourseUnapproved()
+            ? (gradebookData()?.message || 'Assessments for this course will be automatically generated once approved by Admin.')
+            : (rows().length === 0 ? 'No active students are currently enrolled in this course.' : 'No assessments are configured for this course.') }}
+      </p>
     </div>
 
     <!-- Spreadsheet Matrix Table -->
@@ -88,7 +92,7 @@
               <th *ngFor="let asgn of assignments()" class="col-asgn">
                 <div class="asgn-header-cell">
                   <span class="asgn-title">{{ asgn.title }}</span>
-                  <span class="asgn-pts">/ {{ asgn.maxPoints }} pts</span>
+                  <span class="asgn-pts">({{ asgn.maxPoints }})</span>
                 </div>
               </th>
               <th class="col-total">Total</th>

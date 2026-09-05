@@ -255,6 +255,12 @@ public class CoursesController : ControllerBase
             durationHours = course.DurationHours,
             startDate = course.StartDate,
             endDate = course.EndDate,
+            expectedAssignmentCount = course.ExpectedAssignmentCount,
+            assignmentMaxPoints = course.AssignmentMaxPoints,
+            hasMidterm = course.HasMidterm,
+            midtermMaxPoints = course.MidtermMaxPoints,
+            hasFinal = course.HasFinal,
+            finalMaxPoints = course.FinalMaxPoints,
             message = createMsg
         });
     }
@@ -424,7 +430,13 @@ public class CoursesController : ControllerBase
             status = currentStatus,
             durationHours = reloaded?.DurationHours ?? dto.DurationHours,
             startDate = reloaded?.StartDate,
-            endDate = reloaded?.EndDate
+            endDate = reloaded?.EndDate,
+            expectedAssignmentCount = reloaded?.ExpectedAssignmentCount ?? dto.ExpectedAssignmentCount,
+            assignmentMaxPoints = reloaded?.AssignmentMaxPoints ?? dto.AssignmentMaxPoints,
+            hasMidterm = reloaded?.HasMidterm ?? dto.HasMidterm,
+            midtermMaxPoints = reloaded?.MidtermMaxPoints ?? dto.MidtermMaxPoints,
+            hasFinal = reloaded?.HasFinal ?? dto.HasFinal,
+            finalMaxPoints = reloaded?.FinalMaxPoints ?? dto.FinalMaxPoints
         });
     }
 
