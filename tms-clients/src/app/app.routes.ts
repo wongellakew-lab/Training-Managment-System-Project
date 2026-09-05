@@ -68,11 +68,25 @@ export const routes: Routes = [
           import('./features/students/students.component').then((m) => m.StudentsComponent)
       },
       {
+        path: 'students/:id',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Admin'] },
+        loadComponent: () =>
+          import('./features/students/student-detail/student-detail.component').then((m) => m.StudentDetailComponent)
+      },
+      {
         path: 'instructors',
         canActivate: [authGuard, roleGuard],
         data: { roles: ['Admin'] },
         loadComponent: () =>
           import('./features/instructors/instructors.component').then((m) => m.InstructorsComponent)
+      },
+      {
+        path: 'instructors/:id',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Admin'] },
+        loadComponent: () =>
+          import('./features/instructors/instructor-detail/instructor-detail.component').then((m) => m.InstructorDetailComponent)
       },
       {
         path: 'enrollments',
@@ -87,13 +101,6 @@ export const routes: Routes = [
         data: { roles: ['Admin'] },
         loadComponent: () =>
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent)
-      },
-      {
-        path: 'financials',
-        canActivate: [authGuard, roleGuard],
-        data: { roles: ['Admin'] },
-        loadComponent: () =>
-          import('./features/financials/financials.component').then((m) => m.FinancialsComponent)
       }
     ]
   },
@@ -129,6 +136,13 @@ export const routes: Routes = [
         data: { roles: ['Instructor', 'Admin'] },
         loadComponent: () =>
           import('./features/instructor-courses/instructor-courses.component').then((m) => m.InstructorCoursesComponent)
+      },
+      {
+        path: 'courses/:id',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Instructor', 'Admin'] },
+        loadComponent: () =>
+          import('./features/course-detail/course-detail.component').then((m) => m.CourseDetailComponent)
       },
       {
         path: 'courses/:id/builder',
@@ -220,6 +234,13 @@ export const routes: Routes = [
           import('./features/student-schedule/student-schedule.component').then((m) => m.StudentScheduleComponent)
       },
       {
+        path: 'assignments',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/student-assignments/student-assignments.component').then((m) => m.StudentAssignmentsComponent)
+      },
+      {
         path: 'gradebook',
         canActivate: [authGuard, roleGuard],
         data: { roles: ['Student', 'Admin'] },
@@ -232,6 +253,13 @@ export const routes: Routes = [
         data: { roles: ['Student', 'Admin'] },
         loadComponent: () =>
           import('./features/student-progress/student-progress.component').then((m) => m.StudentProgressComponent)
+      },
+      {
+        path: 'progress/:courseId',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Student', 'Admin'] },
+        loadComponent: () =>
+          import('./features/course-progress-details/course-progress-details.component').then((m) => m.CourseProgressDetailsComponent)
       },
       {
         path: 'profile',

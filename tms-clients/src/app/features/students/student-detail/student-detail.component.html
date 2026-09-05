@@ -1,0 +1,235 @@
+<app-layout pageTitle="Student Details" [showGreeting]="false">
+  <div class="student-detail-page">
+    <!-- Top Navigation & Breadcrumbs -->
+    <div class="detail-top-nav">
+      <button
+        mat-icon-button
+        (click)="goBack()"
+        class="back-nav-btn"
+        aria-label="Back to students list"
+        title="Back to Students"
+      >
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+
+      <div class="nav-breadcrumbs">
+        <h1 class="student-heading" *ngIf="student()">
+          {{ student()?.fullName }}
+        </h1>
+        <div class="breadcrumb-trail">
+          <span class="crumb-link" (click)="goBack()">Students</span>
+          <mat-icon class="crumb-separator">chevron_right</mat-icon>
+          <span class="crumb-current">Student Details</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div *ngIf="isLoading()" class="loading-container">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p>Loading student profile and course progress...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="!isLoading() && error()" class="error-container">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <h3>Student Not Found</h3>
+      <p>{{ error() }}</p>
+      <button mat-flat-button color="primary" (click)="goBack()">
+        Back to Students
+      </button>
+    </div>
+
+    <!-- Main Content Layout -->
+    <div *ngIf="!isLoading() && student()" class="student-detail-workspace">
+      <!-- 1. Student Profile Card -->
+      <div class="profile-card eduva-card">
+        <div class="profile-top-section">
+          <div class="profile-avatar-container">
+            <img
+              *ngIf="student()?.avatar"
+              [src]="student()?.avatar"
+              [alt]="student()?.fullName"
+              class="profile-avatar-img"
+              (error)="onAvatarError($event)"
+            />
+            <div *ngIf="!student()?.avatar" class="profile-avatar-fallback">
+              {{ student()?.firstName?.[0] }}{{ student()?.lastName?.[0] }}
+            </div>
+          </div>
+
+          <div class="profile-meta-info">
+            <div class="name-id-row">
+              <div class="name-block">
+                <h2 class="student-full-name">{{ student()?.fullName }}</h2>
+                <span class="reg-number-pill font-mono">{{ student()?.registrationNumber }}</span>
+              </div>
+
+              <div class="action-badges-group">
+                <span
+                  class="status-pill"
+                  [class.active-pill]="student()?.status === 'Active'"
+                  [class.probation-pill]="student()?.status === 'Probation'"
+                  [class.suspended-pill]="student()?.status === 'Suspended'"
+                >
+                  {{ student()?.status }}
+                </span>
+
+                <!-- Status Action Buttons -->
+                @if (student()?.status === 'Suspended') {
+                  <button
+                    mat-flat-button
+                    class="btn-activate"
+                    [disabled]="isProcessing()"
+                    (click)="activateStudent()"
+                  >
+                    <mat-icon>lock_open</mat-icon>
+                    Activate Account
+                  </button>
+                } @else {
+                  @if (student()?.status !== 'Probation') {
+                    <button
+                      mat-stroked-button
+                      class="btn-probation"
+                      [disabled]="isProcessing()"
+                      (click)="placeOnProbation()"
+                    >
+                      <mat-icon>warning</mat-icon>
+                      Place on Probation
+                    </button>
+                  } @else {
+                    <button
+                      mat-stroked-button
+                      class="btn-activate-simple"
+                      [disabled]="isProcessing()"
+                      (click)="activateStudent()"
+                    >
+                      <mat-icon>check_circle</mat-icon>
+                      End Probation
+                    </button>
+                  }
+                  <button
+                    mat-stroked-button
+                    class="btn-suspend"
+                    [disabled]="isProcessing()"
+                    (click)="suspendStudent()"
+                  >
+                    <mat-icon>block</mat-icon>
+                    Suspend Student
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Contact & Academic Meta Grid -->
+            <div class="contact-details-grid">
+              <div class="detail-col">
+                <span class="field-label">Email Address</span>
+                <span class="field-value email-value" [title]="student()?.email">
+                  {{ student()?.email }}
+                </span>
+              </div>
+
+              <div class="detail-col" *ngIf="student()?.phoneNumber">
+                <span class="field-label">Phone Number</span>
+                <span class="field-value font-mono">
+                  {{ student()?.phoneNumber }}
+                </span>
+              </div>
+
+              <div class="detail-col">
+                <span class="field-label">Department</span>
+                <span class="field-value">
+                  {{ student()?.department || 'General Studies' }}
+                </span>
+              </div>
+
+              <div class="detail-col">
+                <span class="field-label">Enrollment Date</span>
+                <span class="field-value">
+                  {{ student()?.enrollmentDate | date:'mediumDate' }}
+                </span>
+              </div>
+
+              <div class="detail-col">
+                <span class="field-label">Cumulative GPA</span>
+                <span class="field-value font-mono font-bold gpa-val">
+                  {{ student()?.gpa?.toFixed(2) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Optional Bio -->
+            <div *ngIf="student()?.bio" class="bio-container">
+              <span class="field-label">Bio / Notes</span>
+              <p class="bio-text">{{ student()?.bio }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Enrolled Courses Section -->
+      <div class="enrolled-courses-section">
+        <div class="section-header-row">
+          <div class="title-with-count">
+            <h3 class="section-title">Enrolled Courses</h3>
+            <span class="count-pill">
+              {{ student()?.enrolledCourses?.length || 0 }} {{ student()?.enrolledCourses?.length === 1 ? 'Course' : 'Courses' }}
+            </span>
+          </div>
+        </div>
+
+        @if (!student()?.enrolledCourses || student()!.enrolledCourses.length === 0) {
+          <div class="eduva-card empty-courses-card">
+            <mat-icon class="empty-icon">school</mat-icon>
+            <h4>No Courses Enrolled</h4>
+            <p>This student is not currently enrolled in any courses.</p>
+          </div>
+        } @else {
+          <div class="courses-grid">
+            @for (course of student()!.enrolledCourses; track course.courseId) {
+              <div class="eduva-card student-course-card" (click)="navigateToCourse(course.courseId)">
+                <div class="card-top">
+                  <div class="course-code-category">
+                    <span class="course-code font-mono">{{ course.code }}</span>
+                    <span class="category-tag">{{ course.category }}</span>
+                  </div>
+                  <span class="enrollment-status-chip" [ngClass]="course.enrollmentStatus.toLowerCase()">
+                    {{ course.enrollmentStatus }}
+                  </span>
+                </div>
+
+                <h4 class="course-card-title">{{ course.title }}</h4>
+
+                <div class="course-instructor-row" *ngIf="course.instructorName">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ course.instructorName }}</span>
+                </div>
+
+                <div class="progress-block">
+                  <div class="progress-labels">
+                    <span class="lbl">Course Progress</span>
+                    <span class="pct font-mono">{{ course.progressPercentage }}%</span>
+                  </div>
+                  <mat-progress-bar mode="determinate" [value]="course.progressPercentage"></mat-progress-bar>
+                </div>
+
+                <div class="card-footer-meta">
+                  <div class="footer-meta-item">
+                    <mat-icon>calendar_today</mat-icon>
+                    <span>Enrolled: {{ course.enrolledAt | date:'MMM yyyy' }}</span>
+                  </div>
+                  @if (course.finalScore !== null && course.finalScore !== undefined) {
+                    <div class="footer-meta-item score font-mono">
+                      <span>Score: {{ course.finalScore }}%</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</app-layout>

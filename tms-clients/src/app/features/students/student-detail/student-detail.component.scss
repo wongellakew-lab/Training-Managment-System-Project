@@ -1,0 +1,609 @@
+.student-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Top Navigation & Breadcrumbs
+───────────────────────────────────────────────────────────── */
+.detail-top-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  .back-nav-btn {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary, #0f172a);
+    transition: all 0.15s ease;
+
+    mat-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+
+    &:hover {
+      background: var(--bg-hover, #f8fafc);
+      border-color: #2563eb;
+      color: #2563eb;
+      transform: translateX(-2px);
+    }
+  }
+
+  .nav-breadcrumbs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+
+    .student-heading {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-primary, #0f172a);
+    }
+
+    .breadcrumb-trail {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8125rem;
+
+      .crumb-link {
+        color: var(--text-secondary, #64748b);
+        cursor: pointer;
+        font-weight: 500;
+
+        &:hover {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+      }
+
+      .crumb-separator {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+        color: var(--text-secondary, #94a3b8);
+      }
+
+      .crumb-current {
+        color: var(--text-secondary, #94a3b8);
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Loading & Error States
+───────────────────────────────────────────────────────────── */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 0;
+  gap: 1rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  gap: 0.75rem;
+
+  .error-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--eduva-rose, #ef4444);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #64748b);
+    max-width: 400px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Workspace & Profile Card
+───────────────────────────────────────────────────────────── */
+.student-detail-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.profile-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-card);
+
+  .profile-top-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.75rem;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .profile-avatar-container {
+      flex-shrink: 0;
+      width: 110px;
+      height: 110px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--eduva-blue, #0284c7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+
+      .profile-avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .profile-avatar-fallback {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #ffffff;
+        text-transform: uppercase;
+      }
+    }
+
+    .profile-meta-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      min-width: 0;
+      width: 100%;
+
+      .name-id-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+
+        .name-block {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+
+          .student-full-name {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+          }
+
+          .reg-number-pill {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            background: var(--bg-subtle, #f1f5f9);
+            border: 1px solid var(--border-subtle);
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+          }
+        }
+
+        .action-badges-group {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+
+          .status-pill {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+
+            &.active-pill {
+              background: var(--eduva-navy, #172b4d);
+              color: #ffffff;
+            }
+
+            &.probation-pill {
+              background: var(--eduva-orange, #f59e0b);
+              color: #ffffff;
+            }
+
+            &.suspended-pill {
+              background: var(--eduva-rose, #ef4444);
+              color: #ffffff;
+            }
+          }
+
+          .btn-activate {
+            background: var(--eduva-green, #10b981) !important;
+            color: #ffffff !important;
+            border-radius: var(--radius-full) !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            height: 32px !important;
+            line-height: 32px !important;
+            padding: 0 12px !important;
+
+            mat-icon {
+              font-size: 16px !important;
+              width: 16px !important;
+              height: 16px !important;
+            }
+          }
+
+          .btn-probation {
+            color: var(--eduva-orange, #f59e0b) !important;
+            border-color: rgba(245, 158, 11, 0.4) !important;
+            border-radius: var(--radius-full) !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            height: 32px !important;
+            line-height: 32px !important;
+            padding: 0 12px !important;
+
+            mat-icon {
+              font-size: 16px !important;
+              width: 16px !important;
+              height: 16px !important;
+            }
+
+            &:hover {
+              background: var(--eduva-orange-light, #fffbeb) !important;
+            }
+          }
+
+          .btn-activate-simple {
+            color: var(--eduva-green, #10b981) !important;
+            border-color: rgba(16, 185, 129, 0.4) !important;
+            border-radius: var(--radius-full) !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            height: 32px !important;
+            line-height: 32px !important;
+            padding: 0 12px !important;
+
+            mat-icon {
+              font-size: 16px !important;
+              width: 16px !important;
+              height: 16px !important;
+            }
+
+            &:hover {
+              background: var(--eduva-green-light, #ecfdf5) !important;
+            }
+          }
+
+          .btn-suspend {
+            color: var(--eduva-rose, #ef4444) !important;
+            border-color: rgba(239, 68, 68, 0.4) !important;
+            border-radius: var(--radius-full) !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            height: 32px !important;
+            line-height: 32px !important;
+            padding: 0 12px !important;
+
+            mat-icon {
+              font-size: 16px !important;
+              width: 16px !important;
+              height: 16px !important;
+            }
+
+            &:hover {
+              background: var(--eduva-rose-light, #fef2f2) !important;
+            }
+          }
+        }
+      }
+
+      .contact-details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        background: var(--bg-subtle, #f8fafc);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+
+        .detail-col {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          .field-label {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+          }
+
+          .field-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+
+            &.gpa-val {
+              color: var(--eduva-blue, #0284c7);
+              font-size: 1rem;
+            }
+          }
+        }
+      }
+
+      .bio-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+
+        .field-label {
+          font-size: 0.6875rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+
+        .bio-text {
+          margin: 0;
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
+        }
+      }
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Enrolled Courses Section
+───────────────────────────────────────────────────────────── */
+.enrolled-courses-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .title-with-count {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .section-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-primary);
+      }
+
+      .count-pill {
+        font-size: 0.75rem;
+        font-weight: 700;
+        background: var(--bg-subtle, #f1f5f9);
+        color: var(--text-secondary);
+        padding: 3px 10px;
+        border-radius: 9999px;
+      }
+    }
+  }
+
+  .empty-courses-card {
+    padding: 3rem 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+
+    .empty-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: var(--text-muted);
+    }
+
+    h4 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+  }
+
+  .courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+
+    .student-course-card {
+      padding: 1.25rem;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--eduva-blue, #0284c7);
+      }
+
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .course-code-category {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+
+          .course-code {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--eduva-blue, #0284c7);
+          }
+
+          .category-tag {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            font-weight: 600;
+          }
+        }
+
+        .enrollment-status-chip {
+          font-size: 0.6875rem;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 9999px;
+          text-transform: uppercase;
+          background: var(--bg-subtle, #f1f5f9);
+          color: var(--text-secondary);
+
+          &.active, &.enrolled {
+            background: var(--eduva-green-light, #ecfdf5);
+            color: #059669;
+          }
+
+          &.pending {
+            background: var(--eduva-orange-light, #fffbeb);
+            color: #d97706;
+          }
+
+          &.completed {
+            background: var(--eduva-blue-light, #e0f2fe);
+            color: #0284c7;
+          }
+        }
+      }
+
+      .course-card-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.35;
+      }
+
+      .course-instructor-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          color: var(--text-muted);
+        }
+      }
+
+      .progress-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 4px;
+
+        .progress-labels {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 0.75rem;
+          font-weight: 600;
+
+          .lbl {
+            color: var(--text-muted);
+          }
+
+          .pct {
+            color: var(--eduva-blue, #0284c7);
+          }
+        }
+      }
+
+      .card-footer-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 10px;
+        border-top: 1px solid var(--border-subtle);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+
+        .footer-meta-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          mat-icon {
+            font-size: 14px;
+            width: 14px;
+            height: 14px;
+          }
+
+          &.score {
+            font-weight: 700;
+            color: var(--eduva-navy, #172b4d);
+          }
+        }
+      }
+    }
+  }
+}

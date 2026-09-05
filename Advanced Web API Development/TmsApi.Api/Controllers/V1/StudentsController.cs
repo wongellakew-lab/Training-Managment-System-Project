@@ -9,6 +9,8 @@ using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 
+using Microsoft.AspNetCore.Identity;
+
 namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
@@ -18,11 +20,13 @@ public class StudentsController : ControllerBase
 {
     private readonly IStudentService _studentService;
     private readonly TmsDbContext _context;
+    private readonly UserManager<TmsUser> _userManager;
 
-    public StudentsController(IStudentService studentService, TmsDbContext context)
+    public StudentsController(IStudentService studentService, TmsDbContext context, UserManager<TmsUser> userManager)
     {
         _studentService = studentService;
         _context = context;
+        _userManager = userManager;
     }
 
     [Authorize(Roles = "Admin,Instructor")]
@@ -88,5 +92,162 @@ public class StudentsController : ControllerBase
         if (!updated) return NotFound(new { message = $"Student with ID {id} not found." });
 
         return NoContent();
+    }
+
+    [Authorize(Roles = "Admin,Instructor")]
+    [HttpGet("{id:int}/detail")]
+    public async Task<IActionResult> GetStudentDetail(int id, CancellationToken cancellationToken)
+    {
+        var student = await _context.Students
+            .AsNoTracking()
+            .Include(s => s.User)
+            .Include(s => s.Enrollments)
+                .ThenInclude(e => e.Course)
+                    .ThenInclude(c => c.Instructor)
+            .Include(s => s.Assessments)
+            .SingleOrDefaultAsync(st => st.Id == id && !st.IsDeleted, cancellationToken);
+
+        if (student == null)
+            return NotFound(new { message = $"Student with ID {id} not found." });
+
+        var enrolledCourseIds = student.Enrollments
+            .Where(e => !e.IsDeleted && e.Course != null && !e.Course.IsDeleted)
+            .Select(e => e.CourseId)
+            .ToList();
+
+        var assignmentsCountByCourse = await _context.Assignments
+            .Where(a => enrolledCourseIds.Contains(a.CourseId) && !a.IsDeleted)
+            .GroupBy(a => a.CourseId)
+            .Select(g => new { CourseId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CourseId, x => x.Count, cancellationToken);
+
+        var enrolledCourses = student.Enrollments
+            .Where(e => !e.IsDeleted && e.Course != null && !e.Course.IsDeleted)
+            .Select(e =>
+            {
+                var course = e.Course!;
+                var totalAssignments = assignmentsCountByCourse.GetValueOrDefault(course.Id, 0);
+                var completedAssignments = student.Assessments?
+                    .Count(a => a.CourseId == course.Id && a.AssignmentId != null && (a.Status == "Graded" || a.Status == "Submitted")) ?? 0;
+
+                decimal progress = totalAssignments > 0
+                    ? Math.Min(100m, Math.Round(((decimal)completedAssignments / totalAssignments) * 100m, 0))
+                    : (e.Status == EnrollmentStatus.Completed ? 100m : (e.Status == EnrollmentStatus.Active ? 50m : 0m));
+
+                var gradedScores = student.Assessments?
+                    .Where(a => a.CourseId == course.Id && a.Status == "Graded" && a.ScoredPoints.HasValue)
+                    .Select(a => a.ScoredPoints!.Value)
+                    .ToList();
+                decimal? avgScore = gradedScores != null && gradedScores.Count > 0 ? Math.Round(gradedScores.Average(), 1) : null;
+
+                return new AdminStudentEnrolledCourseDto
+                {
+                    CourseId = course.Id,
+                    Code = course.Code,
+                    Title = course.Title,
+                    Category = course.Category,
+                    Level = course.Level,
+                    ImageUrl = course.ImageUrl,
+                    DurationHours = course.DurationHours,
+                    LessonsCount = course.LessonsCount,
+                    StartDate = course.StartDate,
+                    EndDate = course.EndDate,
+                    EnrollmentStatus = e.Status.ToString(),
+                    EnrolledAt = e.EnrolledAt,
+                    ProgressPercentage = progress,
+                    FinalScore = avgScore,
+                    InstructorName = course.Instructor != null ? $"{course.Instructor.FirstName} {course.Instructor.LastName}".Trim() : "TBA"
+                };
+            }).ToList();
+
+        var detailDto = new AdminStudentDetailDto
+        {
+            Id = student.Id,
+            RegistrationNumber = student.RegistrationNumber,
+            FirstName = student.FirstName,
+            LastName = student.LastName,
+            Email = student.Email,
+            PhoneNumber = student.PhoneNumber ?? student.User?.PhoneNumber,
+            Department = student.Department ?? "General Studies",
+            Bio = student.Bio ?? student.User?.Bio,
+            EnrollmentDate = student.EnrollmentDate,
+            Gpa = student.Gpa,
+            Status = !string.IsNullOrWhiteSpace(student.Status) ? student.Status : "Active",
+            Avatar = !string.IsNullOrEmpty(student.ProfilePictureUrl)
+                ? student.ProfilePictureUrl
+                : (!string.IsNullOrEmpty(student.User?.ProfilePictureUrl)
+                    ? student.User.ProfilePictureUrl
+                    : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80"),
+            EnrolledCourses = enrolledCourses
+        };
+
+        return Ok(detailDto);
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/suspend")]
+    public async Task<IActionResult> SuspendStudent(int id, CancellationToken cancellationToken)
+    {
+        var student = await _context.Students.SingleOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken);
+        if (student == null) return NotFound(new { message = $"Student with ID {id} not found." });
+
+        student.Status = "Suspended";
+
+        if (!string.IsNullOrEmpty(student.UserId))
+        {
+            var user = await _userManager.FindByIdAsync(student.UserId);
+            if (user != null)
+            {
+                await _userManager.SetLockoutEnabledAsync(user, true);
+                await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Student account suspended successfully." });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/probation")]
+    public async Task<IActionResult> PlaceOnProbation(int id, CancellationToken cancellationToken)
+    {
+        var student = await _context.Students.SingleOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken);
+        if (student == null) return NotFound(new { message = $"Student with ID {id} not found." });
+
+        student.Status = "Probation";
+
+        if (!string.IsNullOrEmpty(student.UserId))
+        {
+            var user = await _userManager.FindByIdAsync(student.UserId);
+            if (user != null)
+            {
+                await _userManager.SetLockoutEndDateAsync(user, null);
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Student placed on probation successfully." });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id:int}/activate")]
+    public async Task<IActionResult> ActivateStudent(int id, CancellationToken cancellationToken)
+    {
+        var student = await _context.Students.SingleOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken);
+        if (student == null) return NotFound(new { message = $"Student with ID {id} not found." });
+
+        student.Status = "Active";
+
+        if (!string.IsNullOrEmpty(student.UserId))
+        {
+            var user = await _userManager.FindByIdAsync(student.UserId);
+            if (user != null)
+            {
+                await _userManager.SetLockoutEndDateAsync(user, null);
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Student account reactivated successfully." });
     }
 }
