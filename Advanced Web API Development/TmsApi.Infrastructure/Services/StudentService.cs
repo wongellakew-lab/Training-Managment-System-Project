@@ -41,10 +41,17 @@ public class StudentService : IStudentService
 
         filteredQuery = request.SortBy?.ToLower() switch
         {
+            "name" or "fullname" => request.SortDescending
+                ? filteredQuery.OrderByDescending(s => s.FirstName).ThenByDescending(s => s.LastName)
+                : filteredQuery.OrderBy(s => s.FirstName).ThenBy(s => s.LastName),
             "firstname" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.FirstName) : filteredQuery.OrderBy(s => s.FirstName),
             "lastname" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.LastName) : filteredQuery.OrderBy(s => s.LastName),
+            "studentid" or "registrationnumber" or "regnumber" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.RegistrationNumber) : filteredQuery.OrderBy(s => s.RegistrationNumber),
+            "email" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.Email) : filteredQuery.OrderBy(s => s.Email),
+            "courses" or "coursesenrolled" or "enrolledcourses" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.Enrollments.Count) : filteredQuery.OrderBy(s => s.Enrollments.Count),
+            "date" or "enrollmentdate" or "registrationdate" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.EnrollmentDate) : filteredQuery.OrderBy(s => s.EnrollmentDate),
             "gpa" => request.SortDescending ? filteredQuery.OrderByDescending(s => s.Gpa) : filteredQuery.OrderBy(s => s.Gpa),
-            _ => filteredQuery.OrderBy(s => s.Id)
+            _ => request.SortDescending ? filteredQuery.OrderByDescending(s => s.Id) : filteredQuery.OrderBy(s => s.Id)
         };
 
         var items = await filteredQuery
@@ -56,7 +63,7 @@ public class StudentService : IStudentService
         {
             var dto = _mapper.Map<StudentDto>(s);
             dto.CoursesEnrolled = s.Enrollments.Count;
-            dto.Status = s.Enrollments.Any(e => e.Status == EnrollmentStatus.Active) ? "Active" : (s.Enrollments.Any() ? "Enrolled" : "Inactive");
+            dto.Status = !string.IsNullOrWhiteSpace(s.Status) ? s.Status : "Active";
             dto.Avatar = !string.IsNullOrEmpty(s.User?.ProfilePictureUrl)
                 ? s.User.ProfilePictureUrl
                 : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80";

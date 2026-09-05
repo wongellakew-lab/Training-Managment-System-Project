@@ -13,6 +13,7 @@ public class Student
     public string? Bio { get; set; }
     public DateTime EnrollmentDate { get; set; } = DateTime.UtcNow;
     public decimal Gpa { get; set; } = 0.0m;
+    public string Status { get; set; } = "Active";
     public bool IsDeleted { get; set; } = false;
     public string? UserId { get; set; }
     public virtual TmsUser? User { get; set; }
