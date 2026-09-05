@@ -36,7 +36,17 @@ public class SchedulesController : ControllerBase
         [FromQuery] int? year,
         CancellationToken cancellationToken)
     {
-        var schedules = await _scheduleService.GetSchedulesAsync(category, month, year, cancellationToken);
+        var isAdmin = User.IsInRole("Admin");
+        int? studentId = null;
+        int? instructorId = null;
+
+        if (!isAdmin && User.Identity?.IsAuthenticated == true)
+        {
+            studentId = await User.ResolveStudentIdAsync(_context);
+            instructorId = await User.ResolveInstructorIdAsync(_context);
+        }
+
+        var schedules = await _scheduleService.GetSchedulesAsync(category, month, year, studentId, instructorId, isAdmin, cancellationToken);
         return Ok(schedules);
     }
 

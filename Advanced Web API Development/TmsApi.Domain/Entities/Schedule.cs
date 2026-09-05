@@ -16,6 +16,10 @@ public class Schedule
     public int? CourseId { get; set; }
     public Course? Course { get; set; }
     public string ScheduleType { get; set; } = "Lecture"; // Lecture, Lab, Workshop, Exam
+    public string TargetAudience { get; set; } = "All"; // All, AllStudents, AllInstructors, CourseStudents, DepartmentInstructors
+    public int? TargetCourseId { get; set; }
+    public Course? TargetCourse { get; set; }
+    public string? TargetDepartment { get; set; }
     public bool IsDeleted { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

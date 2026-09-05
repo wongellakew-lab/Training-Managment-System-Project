@@ -18,27 +18,195 @@ public class ScheduleService : IScheduleService
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<ScheduleDto>> GetSchedulesAsync(string? category = null, int? month = null, int? year = null, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ScheduleDto>> GetSchedulesAsync(
+        string? category = null,
+        int? month = null,
+        int? year = null,
+        int? studentId = null,
+        int? instructorId = null,
+        bool isAdmin = false,
+        CancellationToken cancellationToken = default)
     {
-        var query = _context.Schedules.AsNoTracking().Where(s => !s.IsDeleted);
+        var targetYear = year ?? DateTime.UtcNow.Year;
+        var targetMonth = month ?? DateTime.UtcNow.Month;
+        var daysInMonth = DateTime.DaysInMonth(targetYear, targetMonth);
+        var monthStart = new DateTime(targetYear, targetMonth, 1, 0, 0, 0, DateTimeKind.Utc);
+        var monthEnd = new DateTime(targetYear, targetMonth, daysInMonth, 23, 59, 59, DateTimeKind.Utc);
 
-        if (!string.IsNullOrWhiteSpace(category) && category != "All")
+        var resultList = new List<ScheduleDto>();
+
+        HashSet<int>? studentEnrolledCourseIds = null;
+        if (studentId.HasValue)
         {
-            query = query.Where(s => s.Category.ToLower() == category.ToLower());
+            studentEnrolledCourseIds = (await _context.Enrollments
+                .Where(e => e.StudentId == studentId.Value && !e.IsDeleted && e.Status == EnrollmentStatus.Active)
+                .Select(e => e.CourseId)
+                .ToListAsync(cancellationToken)).ToHashSet();
         }
 
-        if (year.HasValue)
+        string? instructorDepartment = null;
+        if (instructorId.HasValue)
         {
-            query = query.Where(s => s.Date.Year == year.Value);
+            instructorDepartment = await _context.Instructors
+                .Where(i => i.Id == instructorId.Value && !i.IsDeleted)
+                .Select(i => i.Department)
+                .FirstOrDefaultAsync(cancellationToken);
         }
 
-        if (month.HasValue)
+        // 1. One-off explicit schedules in the Schedule table
+        var oneOffQuery = _context.Schedules
+            .AsNoTracking()
+            .Include(s => s.Course)
+                .ThenInclude(c => c!.Instructor)
+                    .ThenInclude(i => i!.User)
+            .Where(s => !s.IsDeleted);
+
+        if (year.HasValue && month.HasValue)
         {
-            query = query.Where(s => s.Date.Month == month.Value);
+            oneOffQuery = oneOffQuery.Where(s => s.Date.Year == targetYear && s.Date.Month == targetMonth);
         }
 
-        var schedules = await query.OrderBy(s => s.Date).ThenBy(s => s.StartTime).ToListAsync(cancellationToken);
-        return _mapper.Map<IEnumerable<ScheduleDto>>(schedules);
+        var explicitSchedules = await oneOffQuery.ToListAsync(cancellationToken);
+        foreach (var es in explicitSchedules)
+        {
+            bool isVisible = false;
+            var audience = string.IsNullOrWhiteSpace(es.TargetAudience) ? "All" : es.TargetAudience;
+
+            if (isAdmin)
+            {
+                isVisible = true;
+            }
+            else if (string.Equals(audience, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                isVisible = true;
+            }
+            else if (studentId.HasValue)
+            {
+                if (string.Equals(audience, "AllStudents", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(audience, "Students", StringComparison.OrdinalIgnoreCase))
+                {
+                    isVisible = true;
+                }
+                else if (string.Equals(audience, "CourseStudents", StringComparison.OrdinalIgnoreCase))
+                {
+                    isVisible = es.TargetCourseId.HasValue &&
+                                studentEnrolledCourseIds != null &&
+                                studentEnrolledCourseIds.Contains(es.TargetCourseId.Value);
+                }
+            }
+            else if (instructorId.HasValue)
+            {
+                if (string.Equals(audience, "AllInstructors", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(audience, "Instructors", StringComparison.OrdinalIgnoreCase))
+                {
+                    isVisible = true;
+                }
+                else if (string.Equals(audience, "DepartmentInstructors", StringComparison.OrdinalIgnoreCase))
+                {
+                    isVisible = !string.IsNullOrEmpty(es.TargetDepartment) &&
+                                !string.IsNullOrEmpty(instructorDepartment) &&
+                                string.Equals(es.TargetDepartment, instructorDepartment, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            if (!isVisible) continue;
+
+            var instructor = es.Course?.Instructor;
+            var instructorName = instructor != null ? $"{instructor.FirstName} {instructor.LastName}" : (!string.IsNullOrEmpty(es.PicName) ? es.PicName : "Instructor");
+            var instructorAvatar = instructor?.User?.ProfilePictureUrl ?? es.PicAvatar;
+
+            resultList.Add(new ScheduleDto
+            {
+                Id = es.Id,
+                CourseId = es.CourseId,
+                CourseTitle = es.Course?.Title ?? es.Title,
+                CourseCode = es.Course?.Code ?? "TMS",
+                Title = es.Title,
+                Category = es.Category,
+                Date = es.Date,
+                StartTime = es.StartTime,
+                EndTime = es.EndTime,
+                Location = !string.IsNullOrWhiteSpace(es.Location) ? es.Location : "Main Campus",
+                Room = !string.IsNullOrWhiteSpace(es.Location) ? es.Location : "Room 101",
+                ScheduleType = es.ScheduleType,
+                TargetAudience = es.TargetAudience,
+                TargetCourseId = es.TargetCourseId,
+                TargetDepartment = es.TargetDepartment,
+                InstructorName = instructorName,
+                InstructorAvatar = instructorAvatar,
+                PicName = instructorName,
+                PicAvatar = instructorAvatar,
+                Notes = es.Notes,
+                AttendeesCount = es.Course != null ? es.Course.EnrolledStudentsCount : es.AttendeesCount,
+                CreatedAt = es.CreatedAt
+            });
+        }
+
+        // 2. Recurring CourseSchedules bounded strictly by Course [StartDate, EndDate]
+        var courses = await _context.Courses
+            .AsNoTracking()
+            .Include(c => c.Instructor)
+                .ThenInclude(i => i!.User)
+            .Include(c => c.Schedules)
+            .Include(c => c.Enrollments)
+            .Where(c => !c.IsDeleted && c.StartDate <= monthEnd && c.EndDate >= monthStart)
+            .ToListAsync(cancellationToken);
+
+        foreach (var course in courses)
+        {
+            if (course.Schedules == null || !course.Schedules.Any()) continue;
+            var enrolledCount = course.Enrollments.Count(e => (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && !e.IsDeleted);
+            var instructorName = course.Instructor != null ? $"{course.Instructor.FirstName} {course.Instructor.LastName}" : "Faculty Instructor";
+            var instructorAvatar = course.Instructor?.User?.ProfilePictureUrl ?? "";
+
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                var sessionDate = new DateTime(targetYear, targetMonth, day, 0, 0, 0, DateTimeKind.Utc);
+                if (sessionDate.Date < course.StartDate.Date || sessionDate.Date > course.EndDate.Date)
+                    continue;
+
+                foreach (var cs in course.Schedules.Where(s => !s.IsDeleted && s.DayOfWeek == sessionDate.DayOfWeek))
+                {
+                    // Avoid duplicate if explicit one-off already exists for this course on this day and start time
+                    if (resultList.Any(r => r.CourseId == course.Id && r.Date.Date == sessionDate.Date && r.StartTime == cs.StartTime))
+                        continue;
+
+                    resultList.Add(new ScheduleDto
+                    {
+                        Id = Math.Abs(HashCode.Combine(cs.Id, targetYear, targetMonth, day)),
+                        CourseId = course.Id,
+                        CourseTitle = course.Title,
+                        CourseCode = course.Code,
+                        Title = course.Title,
+                        Category = course.Category,
+                        Date = sessionDate,
+                        StartTime = cs.StartTime,
+                        EndTime = cs.EndTime,
+                        Location = string.IsNullOrWhiteSpace(cs.Location) ? "Main Training Center" : cs.Location,
+                        Room = string.IsNullOrWhiteSpace(cs.Room) ? "Room 204" : cs.Room,
+                        ScheduleType = string.IsNullOrWhiteSpace(cs.ScheduleType) ? "Lecture" : cs.ScheduleType,
+                        InstructorName = instructorName,
+                        InstructorAvatar = instructorAvatar,
+                        PicName = instructorName,
+                        PicAvatar = instructorAvatar,
+                        Notes = $"Scheduled academic session for {course.Code}. {cs.Room} ({cs.Location}).",
+                        AttendeesCount = enrolledCount > 0 ? enrolledCount : course.EnrolledStudentsCount,
+                        CreatedAt = course.StartDate,
+                        CourseStatus = course.Status
+                    });
+                }
+            }
+        }
+
+        var finalQuery = resultList.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            finalQuery = finalQuery.Where(s => s.Category.Equals(category, StringComparison.OrdinalIgnoreCase) ||
+                                               s.ScheduleType.Equals(category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return finalQuery.OrderBy(s => s.Date).ThenBy(s => s.StartTime).ToList();
     }
 
     public async Task<IEnumerable<ScheduleDto>> GetStudentSchedulesAsync(int studentId, string? view = null, DateTime? date = null, CancellationToken cancellationToken = default)
@@ -449,10 +617,18 @@ public class ScheduleService : IScheduleService
             schedule.Date = DateTime.UtcNow;
         }
 
+        schedule.TargetAudience = !string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience : "All";
+        schedule.TargetCourseId = dto.TargetCourseId;
+        schedule.TargetDepartment = dto.TargetDepartment;
+
         await _context.Schedules.AddAsync(schedule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<ScheduleDto>(schedule);
+        var res = _mapper.Map<ScheduleDto>(schedule);
+        res.TargetAudience = schedule.TargetAudience;
+        res.TargetCourseId = schedule.TargetCourseId;
+        res.TargetDepartment = schedule.TargetDepartment;
+        return res;
     }
 
     public async Task<bool> UpdateScheduleAsync(int id, UpdateScheduleDto dto, CancellationToken cancellationToken = default)
@@ -461,6 +637,10 @@ public class ScheduleService : IScheduleService
         if (schedule == null) return false;
 
         _mapper.Map(dto, schedule);
+        schedule.TargetAudience = !string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience : "All";
+        schedule.TargetCourseId = dto.TargetCourseId;
+        schedule.TargetDepartment = dto.TargetDepartment;
+
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }

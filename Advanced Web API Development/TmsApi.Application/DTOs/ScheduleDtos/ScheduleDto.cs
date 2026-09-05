@@ -20,6 +20,9 @@ public class ScheduleDto
     public string? InstructorName { get; set; }
     public string? InstructorAvatar { get; set; }
     public string ScheduleType { get; set; } = "Lecture";
+    public string TargetAudience { get; set; } = "All"; // All, AllStudents, AllInstructors, CourseStudents, DepartmentInstructors
+    public int? TargetCourseId { get; set; }
+    public string? TargetDepartment { get; set; }
     public string? CourseStatus { get; set; }
     public string? EnrollmentStatus { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -54,6 +57,9 @@ public class CreateScheduleDto
     public string Location { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public int AttendeesCount { get; set; } = 0;
+    public string TargetAudience { get; set; } = "All";
+    public int? TargetCourseId { get; set; }
+    public string? TargetDepartment { get; set; }
 }
 
 public class UpdateScheduleDto
@@ -68,4 +74,7 @@ public class UpdateScheduleDto
     public string Location { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public int AttendeesCount { get; set; } = 0;
+    public string TargetAudience { get; set; } = "All";
+    public int? TargetCourseId { get; set; }
+    public string? TargetDepartment { get; set; }
 }

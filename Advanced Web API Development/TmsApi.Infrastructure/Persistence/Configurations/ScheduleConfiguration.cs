@@ -18,10 +18,17 @@ public class ScheduleConfiguration : IEntityTypeConfiguration<Schedule>
         builder.Property(s => s.Location).HasMaxLength(200);
         builder.Property(s => s.Notes).HasMaxLength(1000);
         builder.Property(s => s.ScheduleType).HasMaxLength(50).HasDefaultValue("Lecture");
+        builder.Property(s => s.TargetAudience).HasMaxLength(50).HasDefaultValue("All");
+        builder.Property(s => s.TargetDepartment).HasMaxLength(100);
 
         builder.HasOne(s => s.Course)
             .WithMany()
             .HasForeignKey(s => s.CourseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(s => s.TargetCourse)
+            .WithMany()
+            .HasForeignKey(s => s.TargetCourseId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }
