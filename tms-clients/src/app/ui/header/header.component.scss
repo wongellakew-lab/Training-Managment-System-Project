@@ -72,6 +72,36 @@
 
 .notif-btn {
   position: relative;
+
+  &.has-unread {
+    background: var(--eduva-blue-light, rgba(2, 132, 199, 0.12)) !important;
+    border-color: var(--eduva-blue, #0284c7) !important;
+    color: var(--eduva-blue, #0284c7) !important;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.35);
+
+    mat-icon {
+      color: var(--eduva-blue, #0284c7) !important;
+      animation: bell-subtle-ring 4s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes bell-subtle-ring {
+  0%, 85%, 100% {
+    transform: rotate(0deg);
+  }
+  88% {
+    transform: rotate(14deg);
+  }
+  91% {
+    transform: rotate(-12deg);
+  }
+  94% {
+    transform: rotate(8deg);
+  }
+  97% {
+    transform: rotate(-4deg);
+  }
 }
 
 // ─── Notification Menu ───────────────────────────────────────────────────────
