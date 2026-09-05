@@ -69,9 +69,15 @@ export interface Course {
   resources?: CourseResource[];
   rejectionReason?: string;
   expectedAssignmentCount?: number;
+  assignmentMaxPoints?: number;
+  hasMidterm?: boolean;
+  midtermMaxPoints?: number;
   expectedMidtermCount?: number;
+  hasFinal?: boolean;
+  finalMaxPoints?: number;
   expectedFinalCount?: number;
   totalAssessments?: number;
+  totalCoursePoints?: number;
   createdAssignmentsCount?: number;
 }
 
@@ -114,7 +120,12 @@ export interface CreateCourseDto {
   startDate?: string;
   endDate?: string;
   expectedAssignmentCount?: number;
+  assignmentMaxPoints?: number;
+  hasMidterm?: boolean;
+  midtermMaxPoints?: number;
   expectedMidtermCount?: number;
+  hasFinal?: boolean;
+  finalMaxPoints?: number;
   expectedFinalCount?: number;
   schedules?: CreateCourseScheduleDto[];
 }
@@ -139,7 +150,12 @@ export interface UpdateCourseDto {
   endDate?: string;
   rejectionReason?: string;
   expectedAssignmentCount?: number;
+  assignmentMaxPoints?: number;
+  hasMidterm?: boolean;
+  midtermMaxPoints?: number;
   expectedMidtermCount?: number;
+  hasFinal?: boolean;
+  finalMaxPoints?: number;
   expectedFinalCount?: number;
   schedules?: CreateCourseScheduleDto[];
 }

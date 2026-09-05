@@ -340,11 +340,41 @@ public class CoursesController : ControllerBase
             }
         }
 
+        // Protection check: Once a course is approved, protect assessment structure if grades already exist
+        if (existing.Status == "Active" || existing.Status == "Completed")
+        {
+            var hasGradedAssessments = await _context.Assessments
+                .AnyAsync(a => a.CourseId == id && a.ScoredPoints.HasValue, cancellationToken);
+
+            if (hasGradedAssessments)
+            {
+                bool assessmentConfigChanged =
+                    dto.ExpectedAssignmentCount != existing.ExpectedAssignmentCount ||
+                    dto.AssignmentMaxPoints != existing.AssignmentMaxPoints ||
+                    dto.HasMidterm != existing.HasMidterm ||
+                    dto.MidtermMaxPoints != existing.MidtermMaxPoints ||
+                    dto.HasFinal != existing.HasFinal ||
+                    dto.FinalMaxPoints != existing.FinalMaxPoints;
+
+                if (assessmentConfigChanged)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Assessment structure cannot be modified because student grades have already been recorded for this course.",
+                        errors = new Dictionary<string, string[]>
+                        {
+                            ["assessmentStructure"] = new[] { "Assessment structure is locked because student grades have already been recorded for this course." }
+                        }
+                    });
+                }
+            }
+        }
+
         // Integrity check: Cannot reduce expected assignment count below already-created assignments
         var createdAssignmentsCount = await _context.Assignments
             .CountAsync(a => a.CourseId == id && !a.IsDeleted, cancellationToken);
 
-        if (dto.ExpectedAssignmentCount < createdAssignmentsCount)
+        if (createdAssignmentsCount > 0 && dto.ExpectedAssignmentCount < createdAssignmentsCount)
         {
             return BadRequest(new
             {

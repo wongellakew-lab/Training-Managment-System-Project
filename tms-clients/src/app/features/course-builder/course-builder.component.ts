@@ -63,12 +63,23 @@ const BACKEND_TO_FRONTEND_FIELD_MAP: Record<string, string> = {
   expectedassignmentcount: 'expectedAssignmentCount',
   'course.expectedassignmentcount': 'expectedAssignmentCount',
   'dto.expectedassignmentcount': 'expectedAssignmentCount',
+  assignmentmaxpoints: 'assignmentMaxPoints',
+  'course.assignmentmaxpoints': 'assignmentMaxPoints',
+  'dto.assignmentmaxpoints': 'assignmentMaxPoints',
+  hasmidterm: 'hasMidterm',
   expectedmidtermcount: 'expectedMidtermCount',
   'course.expectedmidtermcount': 'expectedMidtermCount',
   'dto.expectedmidtermcount': 'expectedMidtermCount',
+  midtermmaxpoints: 'midtermMaxPoints',
+  'course.midtermmaxpoints': 'midtermMaxPoints',
+  'dto.midtermmaxpoints': 'midtermMaxPoints',
+  hasfinal: 'hasFinal',
   expectedfinalcount: 'expectedFinalCount',
   'course.expectedfinalcount': 'expectedFinalCount',
-  'dto.expectedfinalcount': 'expectedFinalCount'
+  'dto.expectedfinalcount': 'expectedFinalCount',
+  finalmaxpoints: 'finalMaxPoints',
+  'course.finalmaxpoints': 'finalMaxPoints',
+  'dto.finalmaxpoints': 'finalMaxPoints'
 };
 
 @Component({
@@ -137,9 +148,15 @@ export class CourseBuilderComponent implements OnInit {
     ],
     rejectionReason: '',
     expectedAssignmentCount: 5,
+    assignmentMaxPoints: 10,
+    hasMidterm: true,
+    midtermMaxPoints: 20,
     expectedMidtermCount: 1,
+    hasFinal: true,
+    finalMaxPoints: 30,
     expectedFinalCount: 1,
     totalAssessments: 7,
+    totalCoursePoints: 100,
     createdAssignmentsCount: 0,
     modules: [],
     resources: []
@@ -294,29 +311,52 @@ export class CourseBuilderComponent implements OnInit {
     if (name === 'expectedAssignmentCount') {
       const val = Number(c.expectedAssignmentCount);
       if (isNaN(val) || val < 0) {
-        errors.set('expectedAssignmentCount', 'Expected assignments cannot be negative.');
+        errors.set('expectedAssignmentCount', 'Assignment count cannot be negative.');
       } else if (c.createdAssignmentsCount && val < c.createdAssignmentsCount) {
         errors.set('expectedAssignmentCount', `Cannot reduce below ${c.createdAssignmentsCount} (already created assignments).`);
       } else {
         errors.delete('expectedAssignmentCount');
       }
-    }
-
-    if (name === 'expectedMidtermCount') {
-      const val = Number(c.expectedMidtermCount);
-      if (isNaN(val) || val < 0) {
-        errors.set('expectedMidtermCount', 'Expected midterms cannot be negative.');
-      } else {
-        errors.delete('expectedMidtermCount');
+      if (val > 0 && (!c.assignmentMaxPoints || c.assignmentMaxPoints <= 0)) {
+        errors.set('assignmentMaxPoints', 'Assignment maximum points must be greater than 0.');
+      } else if (val === 0) {
+        errors.delete('assignmentMaxPoints');
       }
     }
 
-    if (name === 'expectedFinalCount') {
-      const val = Number(c.expectedFinalCount);
-      if (isNaN(val) || val < 0) {
-        errors.set('expectedFinalCount', 'Expected finals cannot be negative.');
+    if (name === 'assignmentMaxPoints') {
+      const pts = Number(c.assignmentMaxPoints);
+      if (Number(c.expectedAssignmentCount) > 0 && (isNaN(pts) || pts <= 0)) {
+        errors.set('assignmentMaxPoints', 'Assignment maximum points must be greater than 0.');
       } else {
-        errors.delete('expectedFinalCount');
+        errors.delete('assignmentMaxPoints');
+      }
+    }
+
+    if (name === 'expectedMidtermCount' || name === 'midtermMaxPoints') {
+      const pts = Number(c.midtermMaxPoints);
+      if (c.hasMidterm && (isNaN(pts) || pts <= 0)) {
+        errors.set('midtermMaxPoints', 'Midterm maximum points must be greater than 0.');
+      } else {
+        errors.delete('midtermMaxPoints');
+      }
+    }
+
+    if (name === 'expectedFinalCount' || name === 'finalMaxPoints') {
+      const pts = Number(c.finalMaxPoints);
+      if (c.hasFinal && (isNaN(pts) || pts <= 0)) {
+        errors.set('finalMaxPoints', 'Final exam maximum points must be greater than 0.');
+      } else {
+        errors.delete('finalMaxPoints');
+      }
+    }
+
+    if (name === 'assessmentStructure') {
+      const totalCount = Number(c.expectedAssignmentCount || 0) + (c.hasMidterm ? 1 : 0) + (c.hasFinal ? 1 : 0);
+      if ((status === 'Active' || status === 'Under Review') && totalCount < 1) {
+        errors.set('assessmentStructure', 'At least one assessable item (Assignment, Midterm, or Final Exam) is required for course completion.');
+      } else {
+        errors.delete('assessmentStructure');
       }
     }
 
@@ -326,6 +366,50 @@ export class CourseBuilderComponent implements OnInit {
     }
 
     this.fieldErrors.set(errors);
+  }
+
+  isAssessmentConfigLocked(): boolean {
+    return this.course().status === 'Active' && (this.course().id ?? 0) > 0;
+  }
+
+  getTotalAssessmentsCount(): number {
+    const c = this.course();
+    return Number(c.expectedAssignmentCount || 0) + (c.hasMidterm ? 1 : 0) + (c.hasFinal ? 1 : 0);
+  }
+
+  getTotalAssessmentPoints(): number {
+    const c = this.course();
+    const asgnPts = (Number(c.expectedAssignmentCount) || 0) * (Number(c.assignmentMaxPoints) || 0);
+    const midPts = c.hasMidterm ? (Number(c.midtermMaxPoints) || 0) : 0;
+    const finPts = c.hasFinal ? (Number(c.finalMaxPoints) || 0) : 0;
+    return asgnPts + midPts + finPts;
+  }
+
+  onMidtermToggle(): void {
+    const c = this.course();
+    c.expectedMidtermCount = c.hasMidterm ? 1 : 0;
+    if (c.hasMidterm && (!c.midtermMaxPoints || c.midtermMaxPoints <= 0)) {
+      c.midtermMaxPoints = 20;
+    }
+    this.touchField('midtermMaxPoints');
+    this.validateField('midtermMaxPoints');
+    this.validateField('assessmentStructure');
+  }
+
+  onFinalToggle(): void {
+    const c = this.course();
+    c.expectedFinalCount = c.hasFinal ? 1 : 0;
+    if (c.hasFinal && (!c.finalMaxPoints || c.finalMaxPoints <= 0)) {
+      c.finalMaxPoints = 30;
+    }
+    this.touchField('finalMaxPoints');
+    this.validateField('finalMaxPoints');
+    this.validateField('assessmentStructure');
+  }
+
+  onAssessmentConfigChange(fieldName: string): void {
+    this.validateField(fieldName);
+    this.validateField('assessmentStructure');
   }
 
   // ─── Schedule Management & Validation ────────────────────────────────────
@@ -511,26 +595,34 @@ export class CourseBuilderComponent implements OnInit {
     }
 
     // Assessment Structure Validation
-    const assignCount = Number(c.expectedAssignmentCount ?? 5);
-    const midCount = Number(c.expectedMidtermCount ?? 1);
-    const finCount = Number(c.expectedFinalCount ?? 1);
+    const assignCount = Number(c.expectedAssignmentCount ?? 0);
+    const assignMaxPts = Number(c.assignmentMaxPoints ?? 10);
+    const hasMid = !!c.hasMidterm;
+    const midMaxPts = Number(c.midtermMaxPoints ?? 20);
+    const hasFin = !!c.hasFinal;
+    const finMaxPts = Number(c.finalMaxPoints ?? 30);
 
     if (isNaN(assignCount) || assignCount < 0) {
-      errors.set('expectedAssignmentCount', 'Expected assignments cannot be negative.');
+      errors.set('expectedAssignmentCount', 'Assignment count cannot be negative.');
     } else if (c.createdAssignmentsCount && assignCount < c.createdAssignmentsCount) {
       errors.set('expectedAssignmentCount', `Cannot reduce below ${c.createdAssignmentsCount} (already created assignments).`);
     }
 
-    if (isNaN(midCount) || midCount < 0) {
-      errors.set('expectedMidtermCount', 'Expected midterms cannot be negative.');
+    if (assignCount > 0 && (isNaN(assignMaxPts) || assignMaxPts <= 0)) {
+      errors.set('assignmentMaxPoints', 'Assignment maximum points must be greater than 0.');
     }
 
-    if (isNaN(finCount) || finCount < 0) {
-      errors.set('expectedFinalCount', 'Expected finals cannot be negative.');
+    if (hasMid && (isNaN(midMaxPts) || midMaxPts <= 0)) {
+      errors.set('midtermMaxPoints', 'Midterm maximum points must be greater than 0.');
     }
 
-    if ((status === 'Active' || status === 'Under Review') && (assignCount + midCount + finCount) < 1) {
-      errors.set('assessmentStructure', 'At least one assessment (assignment, midterm, or final) is required to submit for review.');
+    if (hasFin && (isNaN(finMaxPts) || finMaxPts <= 0)) {
+      errors.set('finalMaxPoints', 'Final exam maximum points must be greater than 0.');
+    }
+
+    const totalAssessableCount = assignCount + (hasMid ? 1 : 0) + (hasFin ? 1 : 0);
+    if ((status === 'Active' || status === 'Under Review') && totalAssessableCount < 1) {
+      errors.set('assessmentStructure', 'At least one assessable item (Assignment, Midterm, or Final Exam) is required for course completion.');
     }
 
     this.fieldErrors.set(errors);
@@ -620,8 +712,13 @@ export class CourseBuilderComponent implements OnInit {
           ];
         }
         detail.expectedAssignmentCount = detail.expectedAssignmentCount ?? 5;
-        detail.expectedMidtermCount = detail.expectedMidtermCount ?? 1;
-        detail.expectedFinalCount = detail.expectedFinalCount ?? 1;
+        detail.assignmentMaxPoints = detail.assignmentMaxPoints ?? 10;
+        detail.hasMidterm = detail.hasMidterm ?? ((detail.expectedMidtermCount ?? 1) > 0);
+        detail.midtermMaxPoints = detail.midtermMaxPoints ?? 20;
+        detail.expectedMidtermCount = detail.hasMidterm ? 1 : 0;
+        detail.hasFinal = detail.hasFinal ?? ((detail.expectedFinalCount ?? 1) > 0);
+        detail.finalMaxPoints = detail.finalMaxPoints ?? 30;
+        detail.expectedFinalCount = detail.hasFinal ? 1 : 0;
         this.course.set(detail);
         this.isLoading.set(false);
       },
@@ -906,7 +1003,7 @@ export class CourseBuilderComponent implements OnInit {
 
     const isValid = this.validateAll(status);
     if (!isValid) {
-      const firstInvalid = ['title', 'code', 'durationHours', 'maxCapacity', 'startDate', 'endDate', 'expectedAssignmentCount', 'expectedMidtermCount', 'expectedFinalCount', 'assessmentStructure', 'schedules', 'category', 'level', 'about', 'courseContent']
+      const firstInvalid = ['title', 'code', 'durationHours', 'maxCapacity', 'startDate', 'endDate', 'expectedAssignmentCount', 'assignmentMaxPoints', 'midtermMaxPoints', 'finalMaxPoints', 'assessmentStructure', 'schedules', 'category', 'level', 'about', 'courseContent']
         .find(f => this.fieldErrors().has(f));
       if (firstInvalid) {
         this.scrollToField(firstInvalid);
@@ -934,9 +1031,14 @@ export class CourseBuilderComponent implements OnInit {
       startDate: c.startDate ? new Date(c.startDate).toISOString() : undefined,
       endDate: c.endDate ? new Date(c.endDate).toISOString() : undefined,
       maxCapacity: c.maxCapacity,
-      expectedAssignmentCount: Number(c.expectedAssignmentCount ?? 5),
-      expectedMidtermCount: Number(c.expectedMidtermCount ?? 1),
-      expectedFinalCount: Number(c.expectedFinalCount ?? 1),
+      expectedAssignmentCount: Number(c.expectedAssignmentCount ?? 0),
+      assignmentMaxPoints: Number(c.assignmentMaxPoints ?? 10),
+      hasMidterm: !!c.hasMidterm,
+      midtermMaxPoints: Number(c.midtermMaxPoints ?? 20),
+      expectedMidtermCount: c.hasMidterm ? 1 : 0,
+      hasFinal: !!c.hasFinal,
+      finalMaxPoints: Number(c.finalMaxPoints ?? 30),
+      expectedFinalCount: c.hasFinal ? 1 : 0,
       schedules: (c.schedules || []).map(s => ({
         dayOfWeek: Number(s.dayOfWeek),
         startTime: s.startTime,

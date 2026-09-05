@@ -30,7 +30,12 @@ public class Course
     public string? RejectionReason { get; set; }
 
     public int ExpectedAssignmentCount { get; set; } = 5;
+    public decimal AssignmentMaxPoints { get; set; } = 10m;
+    public bool HasMidterm { get; set; } = true;
+    public decimal MidtermMaxPoints { get; set; } = 20m;
     public int ExpectedMidtermCount { get; set; } = 1;
+    public bool HasFinal { get; set; } = true;
+    public decimal FinalMaxPoints { get; set; } = 30m;
     public int ExpectedFinalCount { get; set; } = 1;
 
     public int? InstructorId { get; set; }

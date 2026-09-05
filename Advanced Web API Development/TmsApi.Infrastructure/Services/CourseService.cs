@@ -134,6 +134,8 @@ public class CourseService : ICourseService
     public async Task<CourseDto> CreateCourseAsync(CreateCourseDto dto, CancellationToken cancellationToken = default)
     {
         var course = _mapper.Map<Course>(dto);
+        course.ExpectedMidtermCount = dto.HasMidterm ? 1 : 0;
+        course.ExpectedFinalCount = dto.HasFinal ? 1 : 0;
         if (dto.Schedules != null && dto.Schedules.Count > 0)
         {
             course.Schedules = dto.Schedules.Select(s => new CourseSchedule
@@ -187,6 +189,8 @@ public class CourseService : ICourseService
         var originalCode = course.Code;
 
         _mapper.Map(dto, course);
+        course.ExpectedMidtermCount = dto.HasMidterm ? 1 : 0;
+        course.ExpectedFinalCount = dto.HasFinal ? 1 : 0;
 
         if (string.IsNullOrWhiteSpace(course.Code))
         {

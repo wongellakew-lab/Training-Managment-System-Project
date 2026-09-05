@@ -24,11 +24,23 @@ public class CreateCourseDtoValidator : AbstractValidator<CreateCourseDto>
         RuleFor(x => x.ExpectedAssignmentCount)
             .GreaterThanOrEqualTo(0).WithMessage("Assignment count cannot be negative.");
 
+        RuleFor(x => x.AssignmentMaxPoints)
+            .GreaterThan(0).WithMessage("Assignment maximum points must be greater than 0.")
+            .When(x => x.ExpectedAssignmentCount > 0);
+
         RuleFor(x => x.ExpectedMidtermCount)
             .GreaterThanOrEqualTo(0).WithMessage("Midterm exam count cannot be negative.");
 
+        RuleFor(x => x.MidtermMaxPoints)
+            .GreaterThan(0).WithMessage("Midterm maximum points must be greater than 0 when midterm is enabled.")
+            .When(x => x.HasMidterm || x.ExpectedMidtermCount > 0);
+
         RuleFor(x => x.ExpectedFinalCount)
             .GreaterThanOrEqualTo(0).WithMessage("Final exam count cannot be negative.");
+
+        RuleFor(x => x.FinalMaxPoints)
+            .GreaterThan(0).WithMessage("Final exam maximum points must be greater than 0 when final exam is enabled.")
+            .When(x => x.HasFinal || x.ExpectedFinalCount > 0);
 
         When(x => x.StartDate.HasValue && x.EndDate.HasValue, () =>
         {
@@ -80,7 +92,7 @@ public class CreateCourseDtoValidator : AbstractValidator<CreateCourseDto>
                 .When(x => x.Schedules != null && x.Schedules.Count > 1);
 
             RuleFor(x => x)
-                .Must(x => (x.ExpectedAssignmentCount + x.ExpectedMidtermCount + x.ExpectedFinalCount) >= 1)
+                .Must(x => (x.ExpectedAssignmentCount + (x.HasMidterm ? 1 : x.ExpectedMidtermCount) + (x.HasFinal ? 1 : x.ExpectedFinalCount)) >= 1)
                 .WithMessage("At least one assessable item (Assignment, Midterm, or Final Exam) is required for course completion.")
                 .WithName("assessmentStructure");
         });
@@ -137,11 +149,23 @@ public class UpdateCourseDtoValidator : AbstractValidator<UpdateCourseDto>
         RuleFor(x => x.ExpectedAssignmentCount)
             .GreaterThanOrEqualTo(0).WithMessage("Assignment count cannot be negative.");
 
+        RuleFor(x => x.AssignmentMaxPoints)
+            .GreaterThan(0).WithMessage("Assignment maximum points must be greater than 0.")
+            .When(x => x.ExpectedAssignmentCount > 0);
+
         RuleFor(x => x.ExpectedMidtermCount)
             .GreaterThanOrEqualTo(0).WithMessage("Midterm exam count cannot be negative.");
 
+        RuleFor(x => x.MidtermMaxPoints)
+            .GreaterThan(0).WithMessage("Midterm maximum points must be greater than 0 when midterm is enabled.")
+            .When(x => x.HasMidterm || x.ExpectedMidtermCount > 0);
+
         RuleFor(x => x.ExpectedFinalCount)
             .GreaterThanOrEqualTo(0).WithMessage("Final exam count cannot be negative.");
+
+        RuleFor(x => x.FinalMaxPoints)
+            .GreaterThan(0).WithMessage("Final exam maximum points must be greater than 0 when final exam is enabled.")
+            .When(x => x.HasFinal || x.ExpectedFinalCount > 0);
 
         When(x => x.StartDate.HasValue && x.EndDate.HasValue, () =>
         {
@@ -195,7 +219,7 @@ public class UpdateCourseDtoValidator : AbstractValidator<UpdateCourseDto>
                 .When(x => x.Schedules != null && x.Schedules.Count > 1);
 
             RuleFor(x => x)
-                .Must(x => (x.ExpectedAssignmentCount + x.ExpectedMidtermCount + x.ExpectedFinalCount) >= 1)
+                .Must(x => (x.ExpectedAssignmentCount + (x.HasMidterm ? 1 : x.ExpectedMidtermCount) + (x.HasFinal ? 1 : x.ExpectedFinalCount)) >= 1)
                 .WithMessage("At least one assessable item (Assignment, Midterm, or Final Exam) is required for course completion.")
                 .WithName("assessmentStructure");
         });

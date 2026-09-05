@@ -155,9 +155,15 @@ export interface CourseBuilderDetail {
   schedules?: CourseSchedule[];
   rejectionReason?: string;
   expectedAssignmentCount?: number;
+  assignmentMaxPoints?: number;
+  hasMidterm?: boolean;
+  midtermMaxPoints?: number;
   expectedMidtermCount?: number;
+  hasFinal?: boolean;
+  finalMaxPoints?: number;
   expectedFinalCount?: number;
   totalAssessments?: number;
+  totalCoursePoints?: number;
   createdAssignmentsCount?: number;
   modules: BuilderModule[];
   resources: CourseResourceItem[];
@@ -183,8 +189,14 @@ export interface InstructorCourseSummary {
   rejectionReason?: string;
   schedulesCount?: number;
   expectedAssignmentCount?: number;
+  assignmentMaxPoints?: number;
+  hasMidterm?: boolean;
+  midtermMaxPoints?: number;
   expectedMidtermCount?: number;
+  hasFinal?: boolean;
+  finalMaxPoints?: number;
   expectedFinalCount?: number;
+  totalCoursePoints?: number;
 }
 
 export interface CourseAssessmentConfig {

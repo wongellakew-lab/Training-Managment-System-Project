@@ -62,6 +62,11 @@ public static class DataSeeder
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""FeaturesJson"" text NOT NULL DEFAULT '[]';
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""ResourcesJson"" text NOT NULL DEFAULT '[]';
                     ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""EnrolledStudentsCount"" integer NOT NULL DEFAULT 0;
+                    ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""AssignmentMaxPoints"" numeric NOT NULL DEFAULT 10;
+                    ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""HasMidterm"" boolean NOT NULL DEFAULT true;
+                    ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""MidtermMaxPoints"" numeric NOT NULL DEFAULT 20;
+                    ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""HasFinal"" boolean NOT NULL DEFAULT true;
+                    ALTER TABLE ""Courses"" ADD COLUMN IF NOT EXISTS ""FinalMaxPoints"" numeric NOT NULL DEFAULT 30;
 
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""PhoneNumber"" character varying(50);
                     ALTER TABLE ""Enrollments"" ADD COLUMN IF NOT EXISTS ""Category"" character varying(100);

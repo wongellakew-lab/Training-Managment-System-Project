@@ -42,9 +42,15 @@ public class CourseDto
     public decimal? StudentProgress { get; set; }
     public string? RejectionReason { get; set; }
     public int ExpectedAssignmentCount { get; set; } = 5;
+    public decimal AssignmentMaxPoints { get; set; } = 10m;
+    public bool HasMidterm { get; set; } = true;
+    public decimal MidtermMaxPoints { get; set; } = 20m;
     public int ExpectedMidtermCount { get; set; } = 1;
+    public bool HasFinal { get; set; } = true;
+    public decimal FinalMaxPoints { get; set; } = 30m;
     public int ExpectedFinalCount { get; set; } = 1;
-    public int TotalAssessments => ExpectedAssignmentCount + ExpectedMidtermCount + ExpectedFinalCount;
+    public int TotalAssessments => ExpectedAssignmentCount + (HasMidterm ? 1 : ExpectedMidtermCount) + (HasFinal ? 1 : ExpectedFinalCount);
+    public decimal TotalCoursePoints => (ExpectedAssignmentCount * AssignmentMaxPoints) + ((HasMidterm || ExpectedMidtermCount > 0) ? MidtermMaxPoints : 0m) + ((HasFinal || ExpectedFinalCount > 0) ? FinalMaxPoints : 0m);
     public int CreatedAssignmentsCount { get; set; }
     public List<CourseScheduleDto> Schedules { get; set; } = new();
     public List<CourseModuleDto> Modules { get; set; } = new();
@@ -128,7 +134,12 @@ public class CreateCourseDto
     public DateTime? EndDate { get; set; }
     public int DurationWeeks { get; set; } = 6;
     public int ExpectedAssignmentCount { get; set; } = 5;
+    public decimal AssignmentMaxPoints { get; set; } = 10m;
+    public bool HasMidterm { get; set; } = true;
+    public decimal MidtermMaxPoints { get; set; } = 20m;
     public int ExpectedMidtermCount { get; set; } = 1;
+    public bool HasFinal { get; set; } = true;
+    public decimal FinalMaxPoints { get; set; } = 30m;
     public int ExpectedFinalCount { get; set; } = 1;
     public List<CreateCourseScheduleDto> Schedules { get; set; } = new();
     public List<CourseModuleDto> Modules { get; set; } = new();
@@ -158,7 +169,12 @@ public class UpdateCourseDto
     public DateTime? EndDate { get; set; }
     public int DurationWeeks { get; set; } = 6;
     public int ExpectedAssignmentCount { get; set; } = 5;
+    public decimal AssignmentMaxPoints { get; set; } = 10m;
+    public bool HasMidterm { get; set; } = true;
+    public decimal MidtermMaxPoints { get; set; } = 20m;
     public int ExpectedMidtermCount { get; set; } = 1;
+    public bool HasFinal { get; set; } = true;
+    public decimal FinalMaxPoints { get; set; } = 30m;
     public int ExpectedFinalCount { get; set; } = 1;
     public List<CreateCourseScheduleDto> Schedules { get; set; } = new();
     public List<CourseModuleDto> Modules { get; set; } = new();

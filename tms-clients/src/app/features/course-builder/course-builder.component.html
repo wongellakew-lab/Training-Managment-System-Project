@@ -220,131 +220,6 @@
             </div>
           </div>
 
-          <!-- Weekly Class Schedule Section -->
-          <div id="field-schedules" class="schedule-section-card" [class.has-error]="isFieldInvalid('schedules')">
-            <div class="schedule-section-header">
-              <div>
-                <label class="form-label schedule-title">
-                  <mat-icon class="schedule-title-icon">calendar_month</mat-icon>
-                  Weekly Class Schedule <span class="required-star">*</span>
-                </label>
-                <p class="schedule-subtitle">Configure days, times, and rooms for lectures and lab sessions.</p>
-              </div>
-              <button type="button" mat-stroked-button (click)="addScheduleRow()" class="add-slot-header-btn">
-                <mat-icon>add</mat-icon>
-                <span>Add Slot</span>
-              </button>
-            </div>
-
-            @if (getFieldError('schedules'); as schedErrMsg) {
-              <div class="schedule-error-alert">
-                <mat-icon>error_outline</mat-icon>
-                <span>{{ schedErrMsg }}</span>
-              </div>
-            }
-
-            <div class="schedule-slots-stack">
-              <div *ngFor="let slot of course().schedules; let sIdx = index" class="schedule-slot-box" [class.has-row-error]="scheduleRowErrors().has(sIdx)">
-                <div class="slot-header-row">
-                  <span class="slot-index-pill font-mono">Session #{{ sIdx + 1 }}</span>
-                  <button
-                    type="button"
-                    mat-icon-button
-                    color="warn"
-                    (click)="removeScheduleRow(sIdx)"
-                    [disabled]="(course().schedules?.length ?? 0) <= 1"
-                    title="Remove session slot"
-                    class="remove-slot-icon-btn"
-                  >
-                    <mat-icon>delete_outline</mat-icon>
-                  </button>
-                </div>
-
-                <div class="slot-inputs-grid">
-                  <!-- Day of Week -->
-                  <div class="slot-field">
-                    <label class="slot-input-label">Day of Week <span class="required-star">*</span></label>
-                    <select
-                      class="form-control slot-select"
-                      [(ngModel)]="slot.dayOfWeek"
-                      (change)="onScheduleDayChange(slot)"
-                    >
-                      <option *ngFor="let d of daysOfWeek" [value]="d.value">{{ d.label }}</option>
-                    </select>
-                  </div>
-
-                  <!-- Start Time -->
-                  <div class="slot-field">
-                    <label class="slot-input-label">Start Time <span class="required-star">*</span></label>
-                    <input
-                      type="time"
-                      class="form-control slot-input font-mono"
-                      [(ngModel)]="slot.startTime"
-                      (change)="validateSchedules()"
-                    />
-                  </div>
-
-                  <!-- End Time -->
-                  <div class="slot-field">
-                    <label class="slot-input-label">End Time <span class="required-star">*</span></label>
-                    <input
-                      type="time"
-                      class="form-control slot-input font-mono"
-                      [(ngModel)]="slot.endTime"
-                      (change)="validateSchedules()"
-                    />
-                  </div>
-
-                  <!-- Class Type -->
-                  <div class="slot-field">
-                    <label class="slot-input-label">Class Type</label>
-                    <select
-                      class="form-control slot-select"
-                      [(ngModel)]="slot.scheduleType"
-                    >
-                      <option *ngFor="let st of scheduleTypes" [value]="st">{{ st }}</option>
-                    </select>
-                  </div>
-
-                  <!-- Room -->
-                  <div class="slot-field">
-                    <label class="slot-input-label">Room</label>
-                    <input
-                      type="text"
-                      class="form-control slot-input"
-                      [(ngModel)]="slot.room"
-                      placeholder="e.g. Room 101 / Lab 3"
-                    />
-                  </div>
-
-                  <!-- Location -->
-                  <div class="slot-field">
-                    <label class="slot-input-label">Location</label>
-                    <input
-                      type="text"
-                      class="form-control slot-input"
-                      [(ngModel)]="slot.location"
-                      placeholder="e.g. Main Campus / Virtual"
-                    />
-                  </div>
-                </div>
-
-                <!-- Row error if any -->
-                @if (scheduleRowErrors().get(sIdx); as rowErr) {
-                  <div class="slot-row-error">
-                    <mat-icon>error_outline</mat-icon>
-                    <span>{{ rowErr }}</span>
-                  </div>
-                }
-              </div>
-            </div>
-
-            <button type="button" class="add-another-slot-action" (click)="addScheduleRow()">
-              <mat-icon>add_circle_outline</mat-icon>
-              <span>Add Another Class Schedule Slot</span>
-            </button>
-          </div>
-
           <!-- Category -->
           <div class="form-group" [class.has-error]="isFieldInvalid('category')">
             <label class="form-label" for="field-category">
@@ -486,15 +361,28 @@
             <div class="header-icon-title">
               <mat-icon class="assessment-header-icon">checklist</mat-icon>
               <div>
-                <h3 class="assessment-card-title">Assessment Structure</h3>
-                <p class="assessment-card-subtitle">These values determine the assessments required to complete the course.</p>
+                <h3 class="assessment-card-title">Assessment Configuration</h3>
+                <p class="assessment-card-subtitle">Define the assessments for this course. Columns will be generated automatically upon Admin approval.</p>
               </div>
             </div>
-            <div class="total-assessments-badge">
-              <span class="total-count">{{ (course().expectedAssignmentCount || 0) + (course().expectedMidtermCount || 0) + (course().expectedFinalCount || 0) }}</span>
-              <span class="total-label">Total Required</span>
+            <div class="assessment-summary-badges">
+              <div class="total-assessments-badge">
+                <span class="total-count">{{ getTotalAssessmentsCount() }}</span>
+                <span class="total-label">Assessments</span>
+              </div>
+              <div class="total-points-badge">
+                <span class="total-count">{{ getTotalAssessmentPoints() }}</span>
+                <span class="total-label">Total Points</span>
+              </div>
             </div>
           </div>
+
+          @if (isAssessmentConfigLocked()) {
+            <div class="assessment-locked-banner">
+              <mat-icon>lock</mat-icon>
+              <span>This course is approved and active. Assessment structure is locked to protect grade integrity.</span>
+            </div>
+          }
 
           @if (getFieldError('assessmentStructure'); as structError) {
             <div class="assessment-error-banner">
@@ -503,78 +391,162 @@
             </div>
           }
 
-          <div class="form-row-3 assessment-inputs-grid">
-            <!-- Number of Assignments -->
-            <div id="field-expectedAssignmentCount" class="form-group" [class.has-error]="isFieldInvalid('expectedAssignmentCount')">
-              <label class="form-label" for="field-expectedAssignments">
-                Assignments <span class="required-star">*</span>
-              </label>
-              <input
-                id="field-expectedAssignments"
-                type="number"
-                class="form-control"
-                [class.is-invalid]="isFieldInvalid('expectedAssignmentCount')"
-                [(ngModel)]="course().expectedAssignmentCount"
-                (blur)="touchField('expectedAssignmentCount')"
-                (input)="validateField('expectedAssignmentCount')"
-                [min]="course().createdAssignmentsCount || 0"
-                placeholder="5"
-              />
-              @if (getFieldError('expectedAssignmentCount'); as errorMsg) {
-                <span class="validation-error-msg">
-                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+          <div class="assessment-config-stack">
+            <!-- 1. Assignments Configuration -->
+            <div class="assessment-block">
+              <div class="assessment-block-header">
+                <div class="block-title">
+                  <mat-icon class="block-icon">assignment</mat-icon>
+                  <span>Regular Assignments</span>
+                </div>
+                <span class="block-pts-summary" *ngIf="(course().expectedAssignmentCount || 0) > 0">
+                  {{ course().expectedAssignmentCount }} × {{ course().assignmentMaxPoints || 0 }} pts = <strong>{{ (course().expectedAssignmentCount || 0) * (course().assignmentMaxPoints || 0) }} pts</strong>
                 </span>
-              } @else if (course().createdAssignmentsCount && course().createdAssignmentsCount! > 0) {
-                <span class="assessment-count-hint">
-                  <mat-icon>info</mat-icon> {{ course().createdAssignmentsCount }} created
-                </span>
-              }
+              </div>
+
+              <div class="form-row-2">
+                <!-- Number of Assignments -->
+                <div id="field-expectedAssignmentCount" class="form-group" [class.has-error]="isFieldInvalid('expectedAssignmentCount')">
+                  <label class="form-label" for="field-expectedAssignments">
+                    Number of Assignments <span class="required-star">*</span>
+                  </label>
+                  <input
+                    id="field-expectedAssignments"
+                    type="number"
+                    class="form-control"
+                    [class.is-invalid]="isFieldInvalid('expectedAssignmentCount')"
+                    [(ngModel)]="course().expectedAssignmentCount"
+                    [disabled]="isAssessmentConfigLocked()"
+                    (blur)="touchField('expectedAssignmentCount')"
+                    (input)="onAssessmentConfigChange('expectedAssignmentCount')"
+                    [min]="course().createdAssignmentsCount || 0"
+                    placeholder="5"
+                  />
+                  @if (getFieldError('expectedAssignmentCount'); as errorMsg) {
+                    <span class="validation-error-msg">
+                      <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                    </span>
+                  }
+                </div>
+
+                <!-- Assignment Max Points -->
+                <div id="field-assignmentMaxPoints" class="form-group" [class.has-error]="isFieldInvalid('assignmentMaxPoints')">
+                  <label class="form-label" for="field-assignmentMaxPts">
+                    Max Points Each <span class="required-star">*</span>
+                  </label>
+                  <input
+                    id="field-assignmentMaxPts"
+                    type="number"
+                    class="form-control"
+                    [class.is-invalid]="isFieldInvalid('assignmentMaxPoints')"
+                    [(ngModel)]="course().assignmentMaxPoints"
+                    [disabled]="isAssessmentConfigLocked() || (course().expectedAssignmentCount || 0) <= 0"
+                    (blur)="touchField('assignmentMaxPoints')"
+                    (input)="onAssessmentConfigChange('assignmentMaxPoints')"
+                    min="1"
+                    placeholder="10"
+                  />
+                  @if (getFieldError('assignmentMaxPoints'); as errorMsg) {
+                    <span class="validation-error-msg">
+                      <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                    </span>
+                  }
+                </div>
+              </div>
             </div>
 
-            <!-- Midterm Exam -->
-            <div id="field-expectedMidtermCount" class="form-group" [class.has-error]="isFieldInvalid('expectedMidtermCount')">
-              <label class="form-label" for="field-expectedMidterm">
-                Midterm Exam <span class="required-star">*</span>
-              </label>
-              <input
-                id="field-expectedMidterm"
-                type="number"
-                class="form-control"
-                [class.is-invalid]="isFieldInvalid('expectedMidtermCount')"
-                [(ngModel)]="course().expectedMidtermCount"
-                (blur)="touchField('expectedMidtermCount')"
-                (input)="validateField('expectedMidtermCount')"
-                min="0"
-                placeholder="1"
-              />
-              @if (getFieldError('expectedMidtermCount'); as errorMsg) {
-                <span class="validation-error-msg">
-                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+            <!-- 2. Midterm Exam Configuration -->
+            <div class="assessment-block" [class.block-disabled]="!course().hasMidterm">
+              <div class="assessment-block-header">
+                <label class="block-toggle-label">
+                  <input
+                    type="checkbox"
+                    class="toggle-checkbox"
+                    [disabled]="isAssessmentConfigLocked()"
+                    [(ngModel)]="course().hasMidterm"
+                    (change)="onMidtermToggle()"
+                  />
+                  <div class="block-title">
+                    <mat-icon class="block-icon">rate_review</mat-icon>
+                    <span>Midterm Examination</span>
+                  </div>
+                </label>
+                <span class="block-pts-summary" *ngIf="course().hasMidterm">
+                  <strong>{{ course().midtermMaxPoints || 0 }} pts</strong>
                 </span>
-              }
+              </div>
+
+              <div class="form-row-1" *ngIf="course().hasMidterm">
+                <div id="field-midtermMaxPoints" class="form-group" [class.has-error]="isFieldInvalid('midtermMaxPoints')">
+                  <label class="form-label" for="field-midtermMaxPts">
+                    Midterm Max Points <span class="required-star">*</span>
+                  </label>
+                  <input
+                    id="field-midtermMaxPts"
+                    type="number"
+                    class="form-control"
+                    [class.is-invalid]="isFieldInvalid('midtermMaxPoints')"
+                    [(ngModel)]="course().midtermMaxPoints"
+                    [disabled]="isAssessmentConfigLocked()"
+                    (blur)="touchField('midtermMaxPoints')"
+                    (input)="onAssessmentConfigChange('midtermMaxPoints')"
+                    min="1"
+                    placeholder="20"
+                  />
+                  @if (getFieldError('midtermMaxPoints'); as errorMsg) {
+                    <span class="validation-error-msg">
+                      <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                    </span>
+                  }
+                </div>
+              </div>
             </div>
 
-            <!-- Final Exam -->
-            <div id="field-expectedFinalCount" class="form-group" [class.has-error]="isFieldInvalid('expectedFinalCount')">
-              <label class="form-label" for="field-expectedFinal">
-                Final Exam <span class="required-star">*</span>
-              </label>
-              <input
-                id="field-expectedFinal"
-                type="number"
-                class="form-control"
-                [class.is-invalid]="isFieldInvalid('expectedFinalCount')"
-                [(ngModel)]="course().expectedFinalCount"
-                (blur)="touchField('expectedFinalCount')"
-                (input)="validateField('expectedFinalCount')"
-                min="0"
-                placeholder="1"
-              />
-              @if (getFieldError('expectedFinalCount'); as errorMsg) {
-                <span class="validation-error-msg">
-                  <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+            <!-- 3. Final Exam Configuration -->
+            <div class="assessment-block" [class.block-disabled]="!course().hasFinal">
+              <div class="assessment-block-header">
+                <label class="block-toggle-label">
+                  <input
+                    type="checkbox"
+                    class="toggle-checkbox"
+                    [disabled]="isAssessmentConfigLocked()"
+                    [(ngModel)]="course().hasFinal"
+                    (change)="onFinalToggle()"
+                  />
+                  <div class="block-title">
+                    <mat-icon class="block-icon">grade</mat-icon>
+                    <span>Final Examination</span>
+                  </div>
+                </label>
+                <span class="block-pts-summary" *ngIf="course().hasFinal">
+                  <strong>{{ course().finalMaxPoints || 0 }} pts</strong>
                 </span>
-              }
+              </div>
+
+              <div class="form-row-1" *ngIf="course().hasFinal">
+                <div id="field-finalMaxPoints" class="form-group" [class.has-error]="isFieldInvalid('finalMaxPoints')">
+                  <label class="form-label" for="field-finalMaxPts">
+                    Final Exam Max Points <span class="required-star">*</span>
+                  </label>
+                  <input
+                    id="field-finalMaxPts"
+                    type="number"
+                    class="form-control"
+                    [class.is-invalid]="isFieldInvalid('finalMaxPoints')"
+                    [(ngModel)]="course().finalMaxPoints"
+                    [disabled]="isAssessmentConfigLocked()"
+                    (blur)="touchField('finalMaxPoints')"
+                    (input)="onAssessmentConfigChange('finalMaxPoints')"
+                    min="1"
+                    placeholder="30"
+                  />
+                  @if (getFieldError('finalMaxPoints'); as errorMsg) {
+                    <span class="validation-error-msg">
+                      <mat-icon>error_outline</mat-icon> {{ errorMsg }}
+                    </span>
+                  }
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -696,6 +668,131 @@
               <span>Add More Course Content</span>
             </button>
           </div>
+        </div>
+
+        <!-- Weekly Class Schedule Section -->
+        <div id="field-schedules" class="form-card schedule-section-card" [class.has-error]="isFieldInvalid('schedules')">
+          <div class="schedule-section-header">
+            <div>
+              <label class="form-label schedule-title">
+                <mat-icon class="schedule-title-icon">calendar_month</mat-icon>
+                Weekly Class Schedule <span class="required-star">*</span>
+              </label>
+              <p class="schedule-subtitle">Configure days, times, and rooms for lectures and lab sessions.</p>
+            </div>
+            <button type="button" mat-stroked-button (click)="addScheduleRow()" class="add-slot-header-btn">
+              <mat-icon>add</mat-icon>
+              <span>Add Slot</span>
+            </button>
+          </div>
+
+          @if (getFieldError('schedules'); as schedErrMsg) {
+            <div class="schedule-error-alert">
+              <mat-icon>error_outline</mat-icon>
+              <span>{{ schedErrMsg }}</span>
+            </div>
+          }
+
+          <div class="schedule-slots-stack">
+            <div *ngFor="let slot of course().schedules; let sIdx = index" class="schedule-slot-box" [class.has-row-error]="scheduleRowErrors().has(sIdx)">
+              <div class="slot-header-row">
+                <span class="slot-index-pill font-mono">Session #{{ sIdx + 1 }}</span>
+                <button
+                  type="button"
+                  mat-icon-button
+                  color="warn"
+                  (click)="removeScheduleRow(sIdx)"
+                  [disabled]="(course().schedules?.length ?? 0) <= 1"
+                  title="Remove session slot"
+                  class="remove-slot-icon-btn"
+                >
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </div>
+
+              <div class="slot-inputs-grid">
+                <!-- Day of Week -->
+                <div class="slot-field">
+                  <label class="slot-input-label">Day of Week <span class="required-star">*</span></label>
+                  <select
+                    class="form-control slot-select"
+                    [(ngModel)]="slot.dayOfWeek"
+                    (change)="onScheduleDayChange(slot)"
+                  >
+                    <option *ngFor="let d of daysOfWeek" [value]="d.value">{{ d.label }}</option>
+                  </select>
+                </div>
+
+                <!-- Start Time -->
+                <div class="slot-field">
+                  <label class="slot-input-label">Start Time <span class="required-star">*</span></label>
+                  <input
+                    type="time"
+                    class="form-control slot-input font-mono"
+                    [(ngModel)]="slot.startTime"
+                    (change)="validateSchedules()"
+                  />
+                </div>
+
+                <!-- End Time -->
+                <div class="slot-field">
+                  <label class="slot-input-label">End Time <span class="required-star">*</span></label>
+                  <input
+                    type="time"
+                    class="form-control slot-input font-mono"
+                    [(ngModel)]="slot.endTime"
+                    (change)="validateSchedules()"
+                  />
+                </div>
+
+                <!-- Class Type -->
+                <div class="slot-field">
+                  <label class="slot-input-label">Class Type</label>
+                  <select
+                    class="form-control slot-select"
+                    [(ngModel)]="slot.scheduleType"
+                  >
+                    <option *ngFor="let st of scheduleTypes" [value]="st">{{ st }}</option>
+                  </select>
+                </div>
+
+                <!-- Room -->
+                <div class="slot-field">
+                  <label class="slot-input-label">Room</label>
+                  <input
+                    type="text"
+                    class="form-control slot-input"
+                    [(ngModel)]="slot.room"
+                    placeholder="e.g. Room 101 / Lab 3"
+                  />
+                </div>
+
+                <!-- Location -->
+                <div class="slot-field">
+                  <label class="slot-input-label">Location</label>
+                  <input
+                    type="text"
+                    class="form-control slot-input"
+                    [(ngModel)]="slot.location"
+                    placeholder="e.g. Main Campus / Virtual"
+                  />
+                </div>
+              </div>
+
+              <!-- Row error if any -->
+              @if (scheduleRowErrors().get(sIdx); as rowErr) {
+                <div class="slot-row-error">
+                  <mat-icon>error_outline</mat-icon>
+                  <span>{{ rowErr }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <button type="button" class="add-another-slot-action" (click)="addScheduleRow()">
+            <mat-icon>add_circle_outline</mat-icon>
+            <span>Add Another Class Schedule Slot</span>
+          </button>
         </div>
 
         <!-- Course PDF Resources Section -->
