@@ -17,6 +17,9 @@ export interface Schedule {
   instructorName?: string;
   instructorAvatar?: string;
   scheduleType?: string;
+  targetAudience?: string;
+  targetCourseId?: number;
+  targetDepartment?: string;
   courseStatus?: string;
   enrollmentStatus?: string;
   createdAt?: string;
@@ -48,6 +51,9 @@ export interface CreateScheduleDto {
   location: string;
   notes: string;
   attendeesCount?: number;
+  targetAudience?: string;
+  targetCourseId?: number | null;
+  targetDepartment?: string | null;
 }
 
 export interface UpdateScheduleDto {
@@ -61,4 +67,7 @@ export interface UpdateScheduleDto {
   location: string;
   notes: string;
   attendeesCount?: number;
+  targetAudience?: string;
+  targetCourseId?: number;
+  targetDepartment?: string;
 }

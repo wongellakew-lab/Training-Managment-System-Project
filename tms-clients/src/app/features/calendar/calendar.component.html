@@ -6,7 +6,7 @@
       <div class="summary-icon icon-navy">
         <mat-icon>calendar_today</mat-icon>
       </div>
-      <span class="summary-label">Total Schedules</span>
+      <span class="summary-label">Total Scheduled</span>
       <span class="summary-value">{{ totalSchedules }}</span>
     </div>
 
@@ -33,7 +33,7 @@
       <div class="summary-icon icon-steel">
         <mat-icon>event</mat-icon>
       </div>
-      <span class="summary-label">Events</span>
+      <span class="summary-label">Events & Other</span>
       <span class="summary-value">{{ totalEvents }}</span>
     </div>
   </div>
@@ -46,11 +46,14 @@
       <div class="calendar-toolbar">
         <div class="toolbar-left">
           <div class="month-selector">
-            <span class="month-title">May 2030</span>
-            <div class="month-arrows">
-              <mat-icon>keyboard_arrow_down</mat-icon>
-              <mat-icon>keyboard_arrow_up</mat-icon>
-            </div>
+            <button class="nav-arrow-btn" (click)="prevMonth()" aria-label="Previous Month" title="Previous Month">
+              <mat-icon>chevron_left</mat-icon>
+            </button>
+            <span class="month-title font-mono">{{ monthTitle() }}</span>
+            <button class="nav-arrow-btn" (click)="nextMonth()" aria-label="Next Month" title="Next Month">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+            <button class="today-btn" (click)="goToToday()">Today</button>
           </div>
         </div>
 
@@ -88,24 +91,6 @@
         </div>
 
         <div class="toolbar-right">
-          <!-- View mode dropdown -->
-          <button class="tool-btn" [matMenuTriggerFor]="viewMenu">
-            <span>Month</span>
-            <mat-icon>keyboard_arrow_down</mat-icon>
-          </button>
-          <mat-menu #viewMenu="matMenu">
-            <button mat-menu-item>Month</button>
-            <button mat-menu-item>Week</button>
-            <button mat-menu-item>Day</button>
-          </mat-menu>
-
-          <!-- Filter button -->
-          <button class="tool-btn">
-            <mat-icon>filter_list</mat-icon>
-            <span>Filter</span>
-            <mat-icon>keyboard_arrow_down</mat-icon>
-          </button>
-
           <!-- + New Agenda Action -->
           <button class="new-agenda-btn" (click)="openNewAgendaModal()">
             <mat-icon>add</mat-icon>
@@ -130,8 +115,14 @@
         <!-- Days Grid -->
         <div class="calendar-days-matrix">
           @for (cell of calendarDays; track $index) {
-            <div class="cal-matrix-cell" [class.other-month]="!cell.isCurrentMonth">
-              <div class="cell-day-num">{{ cell.day }}</div>
+            <div
+              class="cal-matrix-cell"
+              [class.other-month]="!cell.isCurrentMonth"
+              [class.today-cell]="cell.isToday"
+              [class.selected-cell]="cell.isSelected"
+              (click)="selectDate(cell)"
+            >
+              <div class="cell-day-num" [class.today-num]="cell.isToday">{{ cell.day }}</div>
 
               <!-- Schedules in Cell -->
               <div class="cell-events-list">
@@ -140,18 +131,16 @@
                     class="agenda-card-pill"
                     [class.pill-meetings]="sch.category.toLowerCase() === 'meetings'"
                     [class.pill-workshops]="sch.category.toLowerCase() === 'workshops'"
-                    [class.pill-events]="sch.category.toLowerCase() === 'events'"
+                    [class.pill-events]="sch.category.toLowerCase() === 'events' || sch.category.toLowerCase() === 'lecture'"
                     [class.is-selected]="selectedSchedule()?.id === sch.id"
-                    (click)="selectSchedule(sch)"
+                    (click)="selectSchedule(sch, $event)"
+                    [title]="sch.title + ' (' + sch.startTime + ' - ' + sch.endTime + ')'"
                   >
                     <div class="agenda-pill-time">{{ sch.startTime }} - {{ sch.endTime }}</div>
-                    <div class="agenda-pill-title">{{ sch.title }}</div>
+                    <div class="agenda-pill-title">{{ sch.courseCode ? sch.courseCode + ': ' : '' }}{{ sch.title }}</div>
                     <div class="agenda-pill-footer">
                       <mat-icon class="footer-icon">event</mat-icon>
-                      <div class="pic-mini-avatars">
-                        <span class="mini-pic"></span>
-                        <span class="mini-pic"></span>
-                      </div>
+                      <span class="pill-category-badge">{{ sch.category }}</span>
                     </div>
                   </div>
                 }
@@ -166,99 +155,90 @@
     <div class="calendar-sidebar-pane">
       <div class="eduva-card right-schedules-card">
         <div class="card-header-flex">
-          <h3 class="card-title">Schedules</h3>
-          <button mat-icon-button class="more-menu-btn" aria-label="Schedule options">
-            <mat-icon>more_horiz</mat-icon>
-          </button>
-        </div>
-
-        <div class="detailed-schedules-list">
-          <!-- Schedule Card 1: Creative Portfolio Review Session -->
-          <div class="detailed-schedule-card">
-            <div class="detail-card-header">
-              <div class="date-tag-row">
-                <span class="date-pill">May 15</span>
-                <span class="category-pill-cyan">Workshops</span>
-              </div>
-              <div class="schedule-icon-box cyan-bg">
-                <mat-icon>laptop_mac</mat-icon>
-              </div>
-            </div>
-
-            <div class="schedule-time-label">09:30 AM - 12:00 PM</div>
-            <h4 class="detail-schedule-title">Creative Portfolio Review Session</h4>
-
-            <div class="pic-section">
-              <div class="pic-label">PIC</div>
-              <div class="pic-row">
-                <span class="pic-name">James Ocampo</span>
-                <div class="pic-avatars-group">
-                  <span class="pic-av av1"></span>
-                  <span class="pic-av av2"></span>
-                  <span class="attendee-plus">+11</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="location-row">
-              <mat-icon>location_on</mat-icon>
-              <span>Eduva Creative Studio Room</span>
-            </div>
-
-            <div class="notes-box">
-              <div class="notes-header">
-                <span>Notes</span>
-                <mat-icon>sticky_note_2</mat-icon>
-              </div>
-              <p class="notes-text">
-                Participants are encouraged to bring their latest portfolio projects for live feedback and discussion.
-              </p>
-            </div>
-          </div>
-
-          <!-- Schedule Card 2: Eduva Community Networking Night -->
-          <div class="detailed-schedule-card">
-            <div class="detail-card-header">
-              <div class="date-tag-row">
-                <span class="date-pill">May 15</span>
-                <span class="category-pill-steel">Events</span>
-              </div>
-              <div class="schedule-icon-box steel-bg">
-                <mat-icon>event</mat-icon>
-              </div>
-            </div>
-
-            <div class="schedule-time-label">06:30 - 08:30 PM</div>
-            <h4 class="detail-schedule-title">Eduva Community Networking Night</h4>
-
-            <div class="pic-section">
-              <div class="pic-label">PIC</div>
-              <div class="pic-row">
-                <span class="pic-name">Marcus Delgado</span>
-                <div class="pic-avatars-group">
-                  <span class="pic-av av1"></span>
-                  <span class="pic-av av2"></span>
-                  <span class="attendee-plus">+8</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="location-row">
-              <mat-icon>location_on</mat-icon>
-              <span>Eduva Main Hall &amp; Lounge Area</span>
-            </div>
-
-            <div class="notes-box">
-              <div class="notes-header">
-                <span>Notes</span>
-                <mat-icon>sticky_note_2</mat-icon>
-              </div>
-              <p class="notes-text">
-                Casual networking session with mentors, students, and guest speakers. Snacks and refreshments provided.
-              </p>
-            </div>
+          <div>
+            <h3 class="card-title">Schedule Details</h3>
+            <span class="selected-date-label font-mono">{{ selectedDateFormatted() }}</span>
           </div>
         </div>
+
+        @if (selectedDateSchedules().length === 0) {
+          <div class="empty-schedule-box">
+            <mat-icon>event_busy</mat-icon>
+            <h4>No Events Scheduled</h4>
+            <p>There are no classes or events scheduled for {{ selectedDateFormatted() }}.</p>
+          </div>
+        } @else {
+          <div class="detailed-schedules-list">
+            @for (item of selectedDateSchedules(); track item.id) {
+              <div
+                class="detailed-schedule-card"
+                [class.active-card]="selectedSchedule()?.id === item.id"
+                (click)="selectSchedule(item)"
+              >
+                <div class="detail-card-header">
+                  <div class="date-tag-row">
+                    <span class="date-pill font-mono">{{ item.date | date:'MMM dd' }}</span>
+                    <span
+                      class="category-pill"
+                      [class.category-pill-cyan]="item.category.toLowerCase() === 'workshops' || item.category.toLowerCase() === 'lecture'"
+                      [class.category-pill-steel]="item.category.toLowerCase() === 'events' || item.category.toLowerCase() === 'meetings'"
+                    >
+                      {{ item.category }}
+                    </span>
+                  </div>
+                  <div class="schedule-icon-box" [class.cyan-bg]="item.category.toLowerCase() === 'workshops'" [class.steel-bg]="item.category.toLowerCase() !== 'workshops'">
+                    <mat-icon>{{ item.courseId ? 'school' : 'event' }}</mat-icon>
+                  </div>
+                </div>
+
+                <div class="schedule-time-label font-mono">
+                  <mat-icon class="icon-inline">schedule</mat-icon>
+                  {{ item.startTime }} - {{ item.endTime }}
+                </div>
+
+                <h4 class="detail-schedule-title">
+                  {{ item.courseCode ? item.courseCode + ': ' : '' }}{{ item.title }}
+                </h4>
+
+                @if (item.courseTitle && item.courseTitle !== item.title) {
+                  <div class="course-meta-tag">
+                    <mat-icon class="icon-inline">menu_book</mat-icon>
+                    <span>{{ item.courseTitle }}</span>
+                  </div>
+                }
+
+                @if (item.instructorName || item.picName) {
+                  <div class="pic-section">
+                    <div class="pic-label">Instructor / PIC</div>
+                    <div class="pic-row">
+                      <span class="pic-name">{{ item.instructorName || item.picName }}</span>
+                      @if (item.attendeesCount > 0) {
+                        <span class="attendee-plus font-mono">{{ item.attendeesCount }} Enrolled</span>
+                      }
+                    </div>
+                  </div>
+                }
+
+                @if (item.location || item.room) {
+                  <div class="location-row">
+                    <mat-icon>location_on</mat-icon>
+                    <span>{{ item.room ? item.room + ' - ' : '' }}{{ item.location || 'Main Campus' }}</span>
+                  </div>
+                }
+
+                @if (item.notes) {
+                  <div class="notes-box">
+                    <div class="notes-header">
+                      <span>Notes</span>
+                      <mat-icon>sticky_note_2</mat-icon>
+                    </div>
+                    <p class="notes-text">{{ item.notes }}</p>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   </div>
@@ -288,9 +268,44 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Date</label>
-              <input type="date" [(ngModel)]="newAgenda.date" name="date" class="modal-input" />
+              <label>Target Audience</label>
+              <select [(ngModel)]="newAgenda.targetAudience" name="targetAudience" class="modal-input">
+                <option value="All">All (Everyone)</option>
+                <option value="AllStudents">All Students</option>
+                <option value="AllInstructors">All Instructors</option>
+                <option value="CourseStudents">Students in Selected Course</option>
+                <option value="DepartmentInstructors">Instructors in Selected Department</option>
+              </select>
             </div>
+          </div>
+
+          @if (newAgenda.targetAudience === 'CourseStudents') {
+            <div class="form-group">
+              <label>Target Course</label>
+              <select [(ngModel)]="newAgenda.targetCourseId" name="targetCourseId" class="modal-input" required>
+                <option [ngValue]="null" disabled>Select Course...</option>
+                @for (c of courses(); track c.id) {
+                  <option [ngValue]="c.id">{{ c.code ? c.code + ' - ' : '' }}{{ c.title }}</option>
+                }
+              </select>
+            </div>
+          }
+
+          @if (newAgenda.targetAudience === 'DepartmentInstructors') {
+            <div class="form-group">
+              <label>Target Department</label>
+              <select [(ngModel)]="newAgenda.targetDepartment" name="targetDepartment" class="modal-input" required>
+                <option [ngValue]="null" disabled>Select Department...</option>
+                @for (d of departments(); track d) {
+                  <option [value]="d">{{ d }}</option>
+                }
+              </select>
+            </div>
+          }
+
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" [(ngModel)]="newAgenda.date" name="date" class="modal-input" />
           </div>
 
           <div class="form-row-2">
@@ -306,12 +321,12 @@
 
           <div class="form-group">
             <label>Person In Charge (PIC)</label>
-            <input type="text" [(ngModel)]="newAgenda.picName" name="picName" placeholder="e.g. James Ocampo" class="modal-input" />
+            <input type="text" [(ngModel)]="newAgenda.picName" name="picName" placeholder="e.g. Instructor Name" class="modal-input" />
           </div>
 
           <div class="form-group">
             <label>Location</label>
-            <input type="text" [(ngModel)]="newAgenda.location" name="location" placeholder="e.g. Eduva Creative Studio Room" class="modal-input" />
+            <input type="text" [(ngModel)]="newAgenda.location" name="location" placeholder="e.g. Room 204, Main Campus" class="modal-input" />
           </div>
 
           <div class="form-group">
