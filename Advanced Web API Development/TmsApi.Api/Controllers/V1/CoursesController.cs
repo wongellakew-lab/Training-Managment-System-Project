@@ -593,6 +593,9 @@ public class CoursesController : ControllerBase
         course.RejectionReason = null;
         await _context.SaveChangesAsync(cancellationToken);
 
+        // Finalize assessment structure and generate configured assignments for this course
+        await _courseService.EnsureCourseAssessmentsGeneratedAsync(id, cancellationToken);
+
         await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseApproved", courseId = id });
 
         if (course.Instructor != null && !string.IsNullOrEmpty(course.Instructor.UserId))

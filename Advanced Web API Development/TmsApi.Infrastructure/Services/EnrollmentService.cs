@@ -167,6 +167,32 @@ public class EnrollmentService : IEnrollmentService
         await _context.Enrollments.AddAsync(enrollment, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (enrollment.Status == EnrollmentStatus.Active)
+        {
+            var publishedAssignments = await _context.Assignments
+                .Where(a => a.CourseId == dto.CourseId && !a.IsDeleted && a.IsPublished)
+                .ToListAsync(cancellationToken);
+
+            if (publishedAssignments.Count > 0)
+            {
+                foreach (var asgn in publishedAssignments)
+                {
+                    _context.Assessments.Add(new Assessment
+                    {
+                        StudentId = dto.StudentId,
+                        CourseId = dto.CourseId,
+                        AssignmentId = asgn.Id,
+                        Title = asgn.Title,
+                        MaxScore = asgn.MaxPoints,
+                        DueDate = asgn.DueDate,
+                        Status = "Pending",
+                        IsPublished = true
+                    });
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         return await GetEnrollmentByIdAsync(enrollment.Id, cancellationToken)
                ?? _mapper.Map<EnrollmentDto>(enrollment);
     }
@@ -177,6 +203,36 @@ public class EnrollmentService : IEnrollmentService
         if (enrollment == null) return false;
 
         enrollment.Status = status;
+
+        if (status == EnrollmentStatus.Active)
+        {
+            var publishedAssignments = await _context.Assignments
+                .Where(a => a.CourseId == enrollment.CourseId && !a.IsDeleted && a.IsPublished)
+                .ToListAsync(cancellationToken);
+
+            var existingAssignmentIds = await _context.Assessments
+                .Where(a => a.CourseId == enrollment.CourseId && a.StudentId == enrollment.StudentId && a.AssignmentId.HasValue)
+                .Select(a => a.AssignmentId!.Value)
+                .ToListAsync(cancellationToken);
+
+            foreach (var asgn in publishedAssignments)
+            {
+                if (!existingAssignmentIds.Contains(asgn.Id))
+                {
+                    _context.Assessments.Add(new Assessment
+                    {
+                        StudentId = enrollment.StudentId,
+                        CourseId = enrollment.CourseId,
+                        AssignmentId = asgn.Id,
+                        Title = asgn.Title,
+                        MaxScore = asgn.MaxPoints,
+                        DueDate = asgn.DueDate,
+                        Status = "Pending",
+                        IsPublished = true
+                    });
+                }
+            }
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;

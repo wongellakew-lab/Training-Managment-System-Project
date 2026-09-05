@@ -520,4 +520,137 @@ public class CourseService : ICourseService
             UpcomingClassesCount = upcomingClasses
         };
     }
+
+    public async Task EnsureCourseAssessmentsGeneratedAsync(int courseId, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses
+            .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted, cancellationToken);
+
+        if (course == null || (course.Status != "Active" && course.Status != "Completed"))
+        {
+            return;
+        }
+
+        var existingAssignments = await _context.Assignments
+            .Where(a => a.CourseId == courseId && !a.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var newAssignments = new List<Assignment>();
+
+        // 1. Generate regular assignments 1..N
+        for (int i = 1; i <= course.ExpectedAssignmentCount; i++)
+        {
+            var match = existingAssignments.FirstOrDefault(a => a.AssignmentNumber == i || a.Title == $"Assignment {i}");
+            if (match == null)
+            {
+                var totalAssessableDays = Math.Max(7, (course.EndDate - course.StartDate).TotalDays);
+                var totalDivisions = Math.Max(2, course.ExpectedAssignmentCount + (course.HasFinal ? 1 : 0) + 1);
+                var dueDate = course.StartDate.AddDays(totalAssessableDays * i / totalDivisions);
+
+                var asgn = new Assignment
+                {
+                    CourseId = course.Id,
+                    AssignmentNumber = i,
+                    Title = $"Assignment {i}",
+                    Instructions = $"Complete Assignment {i} for {course.Title}.",
+                    MaxPoints = course.AssignmentMaxPoints > 0 ? course.AssignmentMaxPoints : 10m,
+                    DueDate = dueDate,
+                    IsPublished = true,
+                    CreatedByInstructorId = course.InstructorId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _context.Assignments.AddAsync(asgn, cancellationToken);
+                newAssignments.Add(asgn);
+            }
+        }
+
+        // 2. Generate Midterm (if enabled)
+        if (course.HasMidterm || course.ExpectedMidtermCount > 0)
+        {
+            var match = existingAssignments.FirstOrDefault(a =>
+                string.Equals(a.Title, "Midterm", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a.Title, "Midterm Exam", StringComparison.OrdinalIgnoreCase));
+
+            if (match == null)
+            {
+                var totalDays = Math.Max(7, (course.EndDate - course.StartDate).TotalDays);
+                var midterm = new Assignment
+                {
+                    CourseId = course.Id,
+                    AssignmentNumber = course.ExpectedAssignmentCount + 1,
+                    Title = "Midterm",
+                    Instructions = $"Midterm Examination for {course.Title}.",
+                    MaxPoints = course.MidtermMaxPoints > 0 ? course.MidtermMaxPoints : 20m,
+                    DueDate = course.StartDate.AddDays(totalDays / 2),
+                    IsPublished = true,
+                    CreatedByInstructorId = course.InstructorId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _context.Assignments.AddAsync(midterm, cancellationToken);
+                newAssignments.Add(midterm);
+            }
+        }
+
+        // 3. Generate Final Exam (if enabled)
+        if (course.HasFinal || course.ExpectedFinalCount > 0)
+        {
+            var match = existingAssignments.FirstOrDefault(a =>
+                string.Equals(a.Title, "Final Exam", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a.Title, "Final", StringComparison.OrdinalIgnoreCase));
+
+            if (match == null)
+            {
+                var finalExam = new Assignment
+                {
+                    CourseId = course.Id,
+                    AssignmentNumber = course.ExpectedAssignmentCount + ((course.HasMidterm || course.ExpectedMidtermCount > 0) ? 2 : 1),
+                    Title = "Final Exam",
+                    Instructions = $"Final Examination for {course.Title}.",
+                    MaxPoints = course.FinalMaxPoints > 0 ? course.FinalMaxPoints : 30m,
+                    DueDate = course.EndDate,
+                    IsPublished = true,
+                    CreatedByInstructorId = course.InstructorId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _context.Assignments.AddAsync(finalExam, cancellationToken);
+                newAssignments.Add(finalExam);
+            }
+        }
+
+        if (newAssignments.Count > 0)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var enrollments = await _context.Enrollments
+                .Where(e => e.CourseId == courseId && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && !e.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            if (enrollments.Count > 0)
+            {
+                foreach (var asgn in newAssignments)
+                {
+                    foreach (var en in enrollments)
+                    {
+                        bool exists = await _context.Assessments
+                            .AnyAsync(a => a.CourseId == courseId && a.StudentId == en.StudentId && a.AssignmentId == asgn.Id, cancellationToken);
+                        if (!exists)
+                        {
+                            _context.Assessments.Add(new Assessment
+                            {
+                                StudentId = en.StudentId,
+                                CourseId = courseId,
+                                AssignmentId = asgn.Id,
+                                Title = asgn.Title,
+                                MaxScore = asgn.MaxPoints,
+                                DueDate = asgn.DueDate,
+                                Status = "Pending",
+                                IsPublished = true
+                            });
+                        }
+                    }
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+        }
+    }
 }

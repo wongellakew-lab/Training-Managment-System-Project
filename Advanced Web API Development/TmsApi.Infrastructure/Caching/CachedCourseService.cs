@@ -79,4 +79,9 @@ public class CachedCourseService : ICachedCourseService
     {
         return await _innerService.GetStudentCoursesStatisticsAsync(studentId, cancellationToken);
     }
+
+    public async Task EnsureCourseAssessmentsGeneratedAsync(int courseId, CancellationToken cancellationToken = default)
+    {
+        await _innerService.EnsureCourseAssessmentsGeneratedAsync(courseId, cancellationToken);
+    }
 }
