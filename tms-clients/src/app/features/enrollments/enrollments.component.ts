@@ -86,8 +86,30 @@ export class EnrollmentsComponent implements OnInit {
     this.loadData();
   }
 
+  get totalPages(): number {
+    return Math.ceil(this.totalCount / this.pageSize) || 1;
+  }
+
+  get pageNumbers(): number[] {
+    const total = this.totalPages;
+    const current = this.currentPage;
+    const pages: number[] = [];
+    const maxButtons = 5;
+
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, start + maxButtons - 1);
+    if (end - start < maxButtons - 1) {
+      start = Math.max(1, end - maxButtons + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
   setPage(p: number): void {
-    if (p < 1) return;
+    if (p < 1 || p > this.totalPages) return;
     this.currentPage = p;
     this.loadData();
   }

@@ -1,5 +1,5 @@
 <app-layout pageTitle="Enrollments">
-  <!-- Top Row: 4 KPI Cards + Payment Status Breakdown -->
+  <!-- Top Row: 4 KPI Cards + Enrollment Summary Breakdown -->
   <div class="enrollments-top-grid">
     <!-- 4 KPI Cards (Left 2x2 grid) -->
     <div class="kpi-cards-grid">
@@ -11,7 +11,7 @@
           </div>
         </div>
         <div class="kpi-body">
-          <span class="kpi-label">Total Students</span>
+          <span class="kpi-label">Total Registered</span>
           <div class="kpi-value">{{ totalCount | number }}</div>
         </div>
       </div>
@@ -24,7 +24,7 @@
           </div>
         </div>
         <div class="kpi-body">
-          <span class="kpi-label">Enrolled</span>
+          <span class="kpi-label">Active Enrolled</span>
           <div class="kpi-value">{{ activeCount() | number }}</div>
         </div>
       </div>
@@ -37,7 +37,7 @@
           </div>
         </div>
         <div class="kpi-body">
-          <span class="kpi-label">Applied</span>
+          <span class="kpi-label">Applied / Pending</span>
           <div class="kpi-value">{{ pendingCount() | number }}</div>
         </div>
       </div>
@@ -55,58 +55,24 @@
         </div>
       </div>
     </div>
-
-    <!-- Enrollment Status Summary (Right) -->
-    <div class="eduva-card payment-breakdown-card">
-      <div class="card-header-flex">
-        <h3 class="card-title">Enrollment Summary</h3>
-      </div>
-      <div class="payment-content-flex">
-        <div class="payment-stats-metrics" style="width: 100%; display: flex; justify-content: space-around;">
-          <div class="stat-metric-block">
-            <span class="stat-metric-label">Active Enrolled</span>
-            <div class="stat-metric-val">{{ activeCount() | number }}</div>
-          </div>
-          <div class="stat-metric-block">
-            <span class="stat-metric-label">Pending</span>
-            <div class="stat-metric-val">{{ pendingCount() | number }}</div>
-          </div>
-          <div class="stat-metric-block">
-            <span class="stat-metric-label">Waitlisted</span>
-            <div class="stat-metric-val">{{ waitlistedCount() | number }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Enrollment List Table Card -->
   <div class="eduva-card enrollment-table-card">
     <div class="table-header-toolbar">
-      <h3 class="table-title">Enrollment List</h3>
+      <h3 class="table-title">Enrollment Directory</h3>
 
       <div class="table-filters-group">
         <!-- Search -->
         <div class="eduva-input-group table-search-box">
           <input
             type="text"
-            placeholder="Search enrollment"
+            placeholder="Search student or course..."
             [(ngModel)]="searchTerm"
             (keyup.enter)="onSearch()"
           />
           <mat-icon (click)="onSearch()">search</mat-icon>
         </div>
-
-        <!-- Time Filter -->
-        <button class="filter-dropdown-btn" [matMenuTriggerFor]="timeFilterMenu">
-          <span>{{ selectedTime }}</span>
-          <mat-icon>keyboard_arrow_down</mat-icon>
-        </button>
-        <mat-menu #timeFilterMenu="matMenu">
-          <button mat-menu-item (click)="selectedTime = 'All Time'">All Time</button>
-          <button mat-menu-item (click)="selectedTime = 'This Year'">This Year</button>
-          <button mat-menu-item (click)="selectedTime = 'This Month'">This Month</button>
-        </mat-menu>
 
         <!-- Status Filter -->
         <button class="filter-dropdown-btn" [matMenuTriggerFor]="statusFilterMenu">
@@ -115,105 +81,119 @@
         </button>
         <mat-menu #statusFilterMenu="matMenu">
           <button mat-menu-item (click)="onStatusChange('Any Status')">Any Status</button>
-          <button mat-menu-item (click)="onStatusChange('Enrolled')">Enrolled</button>
-          <button mat-menu-item (click)="onStatusChange('Applied')">Applied</button>
+          <button mat-menu-item (click)="onStatusChange('Active')">Active (Enrolled)</button>
+          <button mat-menu-item (click)="onStatusChange('Pending')">Pending (Applied)</button>
           <button mat-menu-item (click)="onStatusChange('Waitlisted')">Waitlisted</button>
+          <button mat-menu-item (click)="onStatusChange('Completed')">Completed</button>
         </mat-menu>
       </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="table-responsive-wrapper">
-      <table class="eduva-data-table">
-        <thead>
-          <tr>
-            <th>Applied Date <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-            <th>Name <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-            <th>Phone Number <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-            <th>Course <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-            <th>Category <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-            <th>Batch <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-            <th>Status <mat-icon class="sort-icon">unfold_more</mat-icon></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of enrollments(); track item.id) {
+    @if (isLoading()) {
+      <div class="loading-state-box">
+        <mat-icon class="spin-icon">sync</mat-icon>
+        <span>Loading enrollments...</span>
+      </div>
+    } @else if (enrollments().length === 0) {
+      <div class="empty-state-box">
+        <mat-icon>people_outline</mat-icon>
+        <h4>No Enrollments Found</h4>
+        <p>No enrollment records matching the specified filters were found in the database.</p>
+      </div>
+    } @else {
+      <!-- Data Table -->
+      <div class="table-responsive-wrapper">
+        <table class="eduva-data-table">
+          <thead>
             <tr>
-              <!-- Applied Date -->
-              <td class="date-cell">
-                {{ item.enrolledAt ? (item.enrolledAt | date:'mediumDate') : 'May 18, 2030' }}
-              </td>
-
-              <!-- Name + Avatar + Email -->
-              <td>
-                <div class="student-profile-cell">
-                  <img
-                    [src]="item.studentAvatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'"
-                    alt="Student Avatar"
-                    class="student-av"
-                  />
-                  <div class="student-info-col">
-                    <span class="student-name">{{ item.studentName || 'Grasiella Lopez' }}</span>
-                    <span class="student-email">{{ item.studentEmail || (item.studentName ? item.studentName.toLowerCase().replace(' ', '.') + '@eduva.com' : 'grasiella.lopez@eduva.com') }}</span>
-                  </div>
-                </div>
-              </td>
-
-              <!-- Phone Number -->
-              <td class="phone-cell">
-                {{ item.phoneNumber || '+1 202-555-0142' }}
-              </td>
-
-              <!-- Course Title -->
-              <td class="course-cell">
-                <strong>{{ item.courseTitle || 'UX/UI Design Fundamentals' }}</strong>
-              </td>
-
-              <!-- Category -->
-              <td>
-                <span class="pill-badge" [ngClass]="getCategoryClass(item.courseCategory)">
-                  {{ item.courseCategory || 'Design' }}
-                </span>
-              </td>
-
-              <!-- Batch -->
-              <td class="batch-cell">
-                {{ item.batch || 'Batch 12' }}
-              </td>
-
-              <!-- Status -->
-              <td>
-                <span class="pill-badge" [ngClass]="getStatusClass(item.status)">
-                  {{ getStatusLabel(item.status) }}
-                </span>
-              </td>
+              <th>Applied Date</th>
+              <th>Student</th>
+              <th>Phone</th>
+              <th>Course</th>
+              <th>Category</th>
+              <th>Batch</th>
+              <th>Status</th>
             </tr>
+          </thead>
+          <tbody>
+            @for (item of enrollments(); track item.id) {
+              <tr>
+                <!-- Applied Date -->
+                <td class="date-cell font-mono">
+                  {{ item.enrolledAt ? (item.enrolledAt | date:'mediumDate') : '-' }}
+                </td>
+
+                <!-- Name + Avatar + Email -->
+                <td>
+                  <div class="student-profile-cell">
+                    <img
+                      [src]="item.studentAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
+                      alt="Student Avatar"
+                      class="student-av"
+                    />
+                    <div class="student-info-col">
+                      <span class="student-name">{{ item.studentName || 'Enrolled Student' }}</span>
+                      <span class="student-email">{{ item.studentEmail || '-' }}</span>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Phone Number -->
+                <td class="phone-cell font-mono">
+                  {{ item.phoneNumber || '-' }}
+                </td>
+
+                <!-- Course Title -->
+                <td class="course-cell">
+                  <strong>{{ item.courseTitle || '-' }}</strong>
+                </td>
+
+                <!-- Category -->
+                <td>
+                  <span class="pill-badge" [ngClass]="getCategoryClass(item.courseCategory)">
+                    {{ item.courseCategory || 'General' }}
+                  </span>
+                </td>
+
+                <!-- Batch -->
+                <td class="batch-cell font-mono">
+                  {{ item.batch || 'Batch 1' }}
+                </td>
+
+                <!-- Status -->
+                <td>
+                  <span class="pill-badge" [ngClass]="getStatusClass(item.status)">
+                    &bull; {{ getStatusLabel(item.status) }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table Footer & Pagination -->
+      <div class="table-footer-pagination">
+        <div class="page-size-selector">
+          <span>Show</span>
+          <select [(ngModel)]="pageSize" (change)="loadData()" class="size-dropdown">
+            <option [value]="8">8</option>
+            <option [value]="15">15</option>
+            <option [value]="25">25</option>
+          </select>
+          <span>of {{ totalCount.toLocaleString() }} results</span>
+        </div>
+
+        <div class="pagination-controls">
+          <button class="pg-arrow" (click)="setPage(currentPage - 1)" [disabled]="currentPage === 1">&lt;</button>
+          @for (p of pageNumbers; track p) {
+            <button class="pg-num" [class.active]="currentPage === p" (click)="setPage(p)">
+              {{ p }}
+            </button>
           }
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Table Footer & Pagination -->
-    <div class="table-footer-pagination">
-      <div class="page-size-selector">
-        <span>Show</span>
-        <select [(ngModel)]="pageSize" (change)="loadData()" class="size-dropdown">
-          <option [value]="8">8</option>
-          <option [value]="15">15</option>
-          <option [value]="25">25</option>
-        </select>
-        <span>of {{ totalCount.toLocaleString() }} results</span>
+          <button class="pg-arrow" (click)="setPage(currentPage + 1)" [disabled]="currentPage === totalPages">&gt;</button>
+        </div>
       </div>
-
-      <div class="pagination-controls">
-        <button class="pg-arrow" (click)="setPage(currentPage - 1)" [disabled]="currentPage === 1">&lt;</button>
-        <button class="pg-num" [class.active]="currentPage === 1" (click)="setPage(1)">1</button>
-        <button class="pg-num" [class.active]="currentPage === 2" (click)="setPage(2)">2</button>
-        <button class="pg-num" [class.active]="currentPage === 3" (click)="setPage(3)">3</button>
-        <span class="pg-ellipsis">...</span>
-        <button class="pg-num" (click)="setPage(2317)">2,317</button>
-        <button class="pg-arrow" (click)="setPage(currentPage + 1)">&gt;</button>
-      </div>
-    </div>
+    }
   </div>
 </app-layout>
