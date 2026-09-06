@@ -104,7 +104,7 @@ public class TranscriptServiceTests
         result.Should().NotBeNull();
         result!.Summary.TotalCoursesCompleted.Should().Be(0);
         result.Summary.TotalCreditsEarned.Should().Be(0);
-        result.Summary.CumulativeGpa.Should().Be(0.0m);
+        result.Summary.CumulativeGpa.Should().BeNull();
         result.CourseRecords.Should().BeEmpty();
     }
 

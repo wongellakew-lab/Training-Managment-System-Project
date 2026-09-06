@@ -104,7 +104,7 @@ public class FinancialAndDashboardAuditTests
         var service = new ScheduleService(context, mapperMock.Object);
 
         // Get schedules for September 2026
-        var schedules = (await service.GetSchedulesAsync(null, 9, 2026, CancellationToken.None)).ToList();
+        var schedules = (await service.GetSchedulesAsync(null, 9, 2026, cancellationToken: CancellationToken.None)).ToList();
 
         schedules.Should().NotBeEmpty();
         // In Sep 2026: Sep 7 is Monday, Sep 14 is Monday, Sep 21 is Monday. Sep 28 is beyond EndDate.

@@ -2,11 +2,13 @@ using System.Security.Claims;
 using AutoMapper;
 using FluentAssertions;
 using FluentValidation.TestHelper;
+using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using TmsApi.Api.Controllers.V1;
 using TmsApi.Application.Courses.Validators;
@@ -40,6 +42,14 @@ public class CourseApprovalWorkflowTests
             cfg.AddProfile<MappingProfile>();
         });
         return config.CreateMapper();
+    }
+
+    private IMediator CreateMediator(Action<IServiceCollection>? configureServices = null)
+    {
+        var services = new ServiceCollection();
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(TmsApi.Application.Courses.Queries.GetCoursesQuery).Assembly));
+        configureServices?.Invoke(services);
+        return services.BuildServiceProvider().GetRequiredService<IMediator>();
     }
 
     [Fact]
@@ -155,7 +165,9 @@ public class CourseApprovalWorkflowTests
             new Claim(ClaimTypes.Role, "Admin")
         }, "TestAuth"));
 
-        var controller = new CoursesController(courseService, context, hubContext.Object, envMock.Object, createValidator, updateValidator, notificationService.Object)
+        var courseService = new CourseService(context, mapper, dataShaper, envMock.Object, hubContext.Object, notificationService.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<ICourseService>(courseService));
+        var controller = new CoursesController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = adminUser } }
         };
@@ -227,7 +239,6 @@ public class CourseApprovalWorkflowTests
         using var context = CreateInMemoryDbContext();
         var mapper = CreateMapper();
         var dataShaper = new DataShaper<CourseDto>();
-        var courseService = new CourseService(context, mapper, dataShaper);
 
         var hubContext = new Mock<IHubContext<TmsHub, ITmsClient>>();
         var clientsMock = new Mock<IHubClients<ITmsClient>>();
@@ -240,13 +251,16 @@ public class CourseApprovalWorkflowTests
         var updateValidator = new UpdateCourseDtoValidator();
         var notificationService = new Mock<INotificationService>();
 
+        var courseService = new CourseService(context, mapper, dataShaper, envMock.Object, hubContext.Object, notificationService.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<ICourseService>(courseService));
+
         var adminUser = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, "admin-1"),
             new Claim(ClaimTypes.Role, "Admin")
         }, "TestAuth"));
 
-        var controller = new CoursesController(courseService, context, hubContext.Object, envMock.Object, createValidator, updateValidator, notificationService.Object)
+        var controller = new CoursesController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = adminUser } }
         };
@@ -308,13 +322,15 @@ public class CourseApprovalWorkflowTests
         var updateValidator = new UpdateCourseDtoValidator();
         var notificationService = new Mock<INotificationService>();
 
+        var mediator = CreateMediator(s => s.AddSingleton<ICourseService>(courseService));
+
         var studentUser = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, "student-1"),
             new Claim(ClaimTypes.Role, "Student")
         }, "TestAuth"));
 
-        var controller = new CoursesController(courseService, context, hubContext.Object, envMock.Object, createValidator, updateValidator, notificationService.Object)
+        var controller = new CoursesController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = studentUser } }
         };

@@ -1,19 +1,27 @@
 using FluentAssertions;
 using FluentValidation.TestHelper;
+using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using System.Security.Claims;
 using TmsApi.Api.Controllers.V1;
 using TmsApi.Application.Courses.Validators;
+using TmsApi.Application.DTOs.AttendanceDtos;
 using TmsApi.Application.DTOs.CourseDtos;
+using TmsApi.Application.DTOs.GradeDtos;
+using TmsApi.Application.DTOs.InstructorDtos;
 using TmsApi.Application.Grading;
+using TmsApi.Application.Instructors.Commands;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Hubs;
 using TmsApi.Infrastructure.Persistence;
+using TmsApi.Infrastructure.Services;
 using Xunit;
 
 namespace TmsApi.Tests.Unit;
@@ -26,6 +34,14 @@ public class InstructorFeatureTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         return new TmsDbContext(options);
+    }
+
+    private IMediator CreateMediator(Action<IServiceCollection>? configureServices = null)
+    {
+        var services = new ServiceCollection();
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(TmsApi.Application.Courses.Queries.GetCoursesQuery).Assembly));
+        configureServices?.Invoke(services);
+        return services.BuildServiceProvider().GetRequiredService<IMediator>();
     }
 
     [Fact]
@@ -134,7 +150,10 @@ public class InstructorFeatureTests
             new Claim(ClaimTypes.Role, "Admin")
         }, "TestAuth"));
 
-        var controller = new GradesController(context, gradingService, notificationService.Object, hubContext.Object)
+        var gradeService = new GradeService(context, gradingService, notificationService.Object, hubContext.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<IGradeService>(gradeService));
+
+        var controller = new GradesController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = adminUser } }
         };
@@ -147,27 +166,27 @@ public class InstructorFeatureTests
         await context.SaveChangesAsync();
 
         // 1. Negative score
-        var negativeRequest = new GradesController.BulkGradebookRequest(101, new List<GradesController.BulkGradebookItem>
+        var negativeRequest = new BulkGradebookRequest(101, new List<BulkGradebookItem>
         {
-            new GradesController.BulkGradebookItem(1, 501, -10m, null)
+            new BulkGradebookItem(1, 501, -10m, null)
         });
 
         var negResult = await controller.SubmitBulkGradebook(negativeRequest, CancellationToken.None);
         negResult.Should().BeOfType<BadRequestObjectResult>();
 
         // 2. Score > max points
-        var overMaxRequest = new GradesController.BulkGradebookRequest(101, new List<GradesController.BulkGradebookItem>
+        var overMaxRequest = new BulkGradebookRequest(101, new List<BulkGradebookItem>
         {
-            new GradesController.BulkGradebookItem(1, 501, 120m, null)
+            new BulkGradebookItem(1, 501, 120m, null)
         });
 
         var overResult = await controller.SubmitBulkGradebook(overMaxRequest, CancellationToken.None);
         overResult.Should().BeOfType<BadRequestObjectResult>();
 
         // 3. Valid score
-        var validRequest = new GradesController.BulkGradebookRequest(101, new List<GradesController.BulkGradebookItem>
+        var validRequest = new BulkGradebookRequest(101, new List<BulkGradebookItem>
         {
-            new GradesController.BulkGradebookItem(1, 501, 95m, "Excellent work")
+            new BulkGradebookItem(1, 501, 95m, "Excellent work")
         });
 
         var validResult = await controller.SubmitBulkGradebook(validRequest, CancellationToken.None);
@@ -192,7 +211,10 @@ public class InstructorFeatureTests
             new Claim(ClaimTypes.Role, "Admin")
         }, "TestAuth"));
 
-        var controller = new AttendanceController(context, hubContext.Object)
+        var attendanceService = new AttendanceService(context, hubContext.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<IAttendanceService>(attendanceService));
+
+        var controller = new AttendanceController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = adminUser } }
         };
@@ -298,7 +320,10 @@ public class InstructorFeatureTests
             new Claim(ClaimTypes.Role, "Admin")
         }, "TestAuth"));
 
-        var controller = new GradesController(context, gradingService, notificationService.Object, hubContext.Object)
+        var gradeService = new GradeService(context, gradingService, notificationService.Object, hubContext.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<IGradeService>(gradeService));
+
+        var controller = new GradesController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = adminUser } }
         };
@@ -315,10 +340,10 @@ public class InstructorFeatureTests
         context.Enrollments.Add(enrollment);
         await context.SaveChangesAsync();
 
-        var request = new GradesController.BulkGradebookRequest(303, new List<GradesController.BulkGradebookItem>
+        var request = new BulkGradebookRequest(303, new List<BulkGradebookItem>
         {
-            new GradesController.BulkGradebookItem(10, 601, 90m, null),
-            new GradesController.BulkGradebookItem(10, 602, 80m, null)
+            new BulkGradebookItem(10, 601, 90m, null),
+            new BulkGradebookItem(10, 602, 80m, null)
         });
 
         var res = await controller.SubmitBulkGradebook(request, CancellationToken.None);
@@ -346,7 +371,10 @@ public class InstructorFeatureTests
             new Claim(ClaimTypes.Role, "Admin")
         }, "TestAuth"));
 
-        var controller = new AttendanceController(context, hubContext.Object)
+        var attendanceService = new AttendanceService(context, hubContext.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<IAttendanceService>(attendanceService));
+
+        var controller = new AttendanceController(mediator, context)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = adminUser } }
         };
@@ -363,9 +391,9 @@ public class InstructorFeatureTests
         var sessionDate = new DateTime(2026, 9, 10, 9, 0, 0);
 
         // First save: Present (1)
-        var firstSave = new AttendanceController.BulkAttendanceRequest(404, null, sessionDate, new List<AttendanceController.BulkAttendanceItem>
+        var firstSave = new BulkAttendanceRequest(404, null, sessionDate, new List<BulkAttendanceItem>
         {
-            new AttendanceController.BulkAttendanceItem(20, (int)AttendanceStatus.Present, "On time")
+            new BulkAttendanceItem(20, (int)AttendanceStatus.Present, "On time")
         });
 
         var firstRes = await controller.SaveBulkAttendance(firstSave, CancellationToken.None);
@@ -377,9 +405,9 @@ public class InstructorFeatureTests
         record1.Status.Should().Be(AttendanceStatus.Present);
 
         // Second save for same student & date: Late (2)
-        var secondSave = new AttendanceController.BulkAttendanceRequest(404, null, sessionDate, new List<AttendanceController.BulkAttendanceItem>
+        var secondSave = new BulkAttendanceRequest(404, null, sessionDate, new List<BulkAttendanceItem>
         {
-            new AttendanceController.BulkAttendanceItem(20, (int)AttendanceStatus.Late, "Arrived 15m late")
+            new BulkAttendanceItem(20, (int)AttendanceStatus.Late, "Arrived 15m late")
         });
 
         var secondRes = await controller.SaveBulkAttendance(secondSave, CancellationToken.None);
@@ -619,7 +647,10 @@ public class InstructorFeatureTests
         await context.Courses.AddAsync(course);
         await context.SaveChangesAsync();
 
-        var controller = new InstructorsController(context, mapper, scheduleServiceMock.Object);
+        var instructorService = new InstructorService(context, mapper, scheduleServiceMock.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<IInstructorService>(instructorService));
+
+        var controller = new InstructorsController(mediator);
 
         var actionResult = await controller.GetInstructorById(101, CancellationToken.None);
         var okResult = actionResult as OkObjectResult;
@@ -650,13 +681,325 @@ public class InstructorFeatureTests
         var mapper = mapperConfig.CreateMapper();
         var scheduleServiceMock = new Mock<IScheduleService>();
 
-        var controller = new InstructorsController(context, mapper, scheduleServiceMock.Object);
+        var instructorService = new InstructorService(context, mapper, scheduleServiceMock.Object);
+        var mediator = CreateMediator(s => s.AddSingleton<IInstructorService>(instructorService));
+
+        var controller = new InstructorsController(mediator);
 
         var actionResult = await controller.GetInstructorById(99999, CancellationToken.None);
         var notFoundResult = actionResult as NotFoundObjectResult;
 
         notFoundResult.Should().NotBeNull();
         notFoundResult!.StatusCode.Should().Be(404);
+    }
+
+    [Theory]
+    [InlineData("{\"startDate\":\"\", \"title\":\"Course 1\"}")]
+    [InlineData("{\"startDate\":\"   \", \"title\":\"Course 1\"}")]
+    [InlineData("{\"startDate\":null, \"title\":\"Course 1\"}")]
+    [InlineData("{\"startDate\":\"null\", \"title\":\"Course 1\"}")]
+    [InlineData("{\"startDate\":\"undefined\", \"title\":\"Course 1\"}")]
+    [InlineData("{\"startDate\":\"invalid-format\", \"title\":\"Course 1\"}")]
+    public void NullableDateTimeJsonConverter_HandlesEmptyOrInvalidStringsGracefullyAsNull(string json)
+    {
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        options.Converters.Add(new TmsApi.Api.Converters.NullableDateTimeJsonConverter());
+        options.Converters.Add(new TmsApi.Api.Converters.CustomDateTimeJsonConverter());
+
+        var result = System.Text.Json.JsonSerializer.Deserialize<UpdateCourseDto>(json, options);
+
+        result.Should().NotBeNull();
+        result!.StartDate.Should().BeNull();
+        result.Title.Should().Be("Course 1");
+    }
+
+    [Theory]
+    [InlineData("{\"startDate\":\"2026-09-05T00:00:00Z\", \"endDate\":\"2026-10-05T00:00:00Z\"}")]
+    [InlineData("{\"startDate\":\"2026-09-05\", \"endDate\":\"2026-10-05\"}")]
+    public void NullableDateTimeJsonConverter_ParsesValidDateStrings(string json)
+    {
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        options.Converters.Add(new TmsApi.Api.Converters.NullableDateTimeJsonConverter());
+        options.Converters.Add(new TmsApi.Api.Converters.CustomDateTimeJsonConverter());
+
+        var result = System.Text.Json.JsonSerializer.Deserialize<UpdateCourseDto>(json, options);
+
+        result.Should().NotBeNull();
+        result!.StartDate.Should().HaveValue();
+        result.StartDate!.Value.Year.Should().Be(2026);
+        result.StartDate.Value.Month.Should().Be(9);
+        result.StartDate.Value.Day.Should().Be(5);
+        result.EndDate.Should().HaveValue();
+        result.EndDate!.Value.Month.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task CreateInstructor_ProvisionsTmsUser_AssignsInstructorRole_AndLinksEntities()
+    {
+        using var context = CreateInMemoryDbContext();
+        var mapperConfig = new AutoMapper.MapperConfiguration(cfg => cfg.AddProfile<TmsApi.Application.Mappings.MappingProfile>());
+        var mapper = mapperConfig.CreateMapper();
+        var scheduleServiceMock = new Mock<IScheduleService>();
+
+        var userStoreMock = new Mock<IUserStore<TmsUser>>();
+        var userManagerMock = new Mock<UserManager<TmsUser>>(
+            userStoreMock.Object, null!, null!, null!, null!, null!, null!, null!, null!);
+
+        TmsUser? capturedUser = null;
+        string? capturedPassword = null;
+        string? capturedRole = null;
+
+        userManagerMock
+            .Setup(u => u.FindByEmailAsync(It.IsAny<string>()))
+            .ReturnsAsync((TmsUser?)null);
+
+        userManagerMock
+            .Setup(u => u.CreateAsync(It.IsAny<TmsUser>(), It.IsAny<string>()))
+            .Callback<TmsUser, string>((u, p) =>
+            {
+                u.Id = "user-guid-" + Guid.NewGuid().ToString("N")[..8];
+                capturedUser = u;
+                capturedPassword = p;
+            })
+            .ReturnsAsync(IdentityResult.Success);
+
+        userManagerMock
+            .Setup(u => u.AddToRoleAsync(It.IsAny<TmsUser>(), It.IsAny<string>()))
+            .Callback<TmsUser, string>((u, r) => capturedRole = r)
+            .ReturnsAsync(IdentityResult.Success);
+
+        userManagerMock
+            .Setup(u => u.UpdateAsync(It.IsAny<TmsUser>()))
+            .ReturnsAsync(IdentityResult.Success);
+
+        var service = new InstructorService(context, mapper, scheduleServiceMock.Object, userManagerMock.Object);
+
+        var dto = new CreateInstructorDto
+        {
+            FirstName = "Ada",
+            LastName = "Lovelace",
+            Email = "ada.lovelace@example.com",
+            Department = "Computer Science",
+            EmployeeNumber = "EMP-ADA-001"
+        };
+
+        var created = await service.CreateInstructorAsync(dto, CancellationToken.None);
+
+        created.Should().NotBeNull();
+        created.FirstName.Should().Be("Ada");
+        created.LastName.Should().Be("Lovelace");
+        created.Email.Should().Be("ada.lovelace@example.com");
+        created.Department.Should().Be("Computer Science");
+        created.EmployeeNumber.Should().Be("EMP-ADA-001");
+
+        // Verify Identity user provisioning
+        capturedUser.Should().NotBeNull();
+        capturedUser!.Email.Should().Be("ada.lovelace@example.com");
+        capturedPassword.Should().Be("Instructor@123");
+        capturedRole.Should().Be("Instructor");
+
+        // Verify database entity and linking
+        var instructor = await context.Instructors.FindAsync(created.Id);
+        instructor.Should().NotBeNull();
+        instructor!.UserId.Should().Be(capturedUser.Id);
+        capturedUser.InstructorId.Should().Be(instructor.Id);
+    }
+
+    [Fact]
+    public async Task CreateInstructor_ThrowsException_WhenEmailAlreadyExistsInIdentity()
+    {
+        using var context = CreateInMemoryDbContext();
+        var mapperConfig = new AutoMapper.MapperConfiguration(cfg => cfg.AddProfile<TmsApi.Application.Mappings.MappingProfile>());
+        var mapper = mapperConfig.CreateMapper();
+        var scheduleServiceMock = new Mock<IScheduleService>();
+
+        var userStoreMock = new Mock<IUserStore<TmsUser>>();
+        var userManagerMock = new Mock<UserManager<TmsUser>>(
+            userStoreMock.Object, null!, null!, null!, null!, null!, null!, null!, null!);
+
+        userManagerMock
+            .Setup(u => u.FindByEmailAsync("existing@example.com"))
+            .ReturnsAsync(new TmsUser { Id = "existing-id", Email = "existing@example.com" });
+
+        var service = new InstructorService(context, mapper, scheduleServiceMock.Object, userManagerMock.Object);
+
+        var dto = new CreateInstructorDto
+        {
+            FirstName = "Duplicate",
+            LastName = "User",
+            Email = "existing@example.com"
+        };
+
+        var act = async () => await service.CreateInstructorAsync(dto, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already exists*");
+    }
+
+    [Fact]
+    public void CreateInstructorCommandValidator_EnforcesRequiredFieldsAndValidEmail()
+    {
+        var validator = new CreateInstructorCommandValidator();
+
+        // Null DTO
+        var nullResult = validator.TestValidate(new CreateInstructorCommand(null!));
+        nullResult.ShouldHaveValidationErrorFor(x => x.Dto);
+
+        // Missing required fields
+        var emptyDto = new CreateInstructorDto
+        {
+            FirstName = "",
+            LastName = "",
+            Email = "invalid-email"
+        };
+        var emptyResult = validator.TestValidate(new CreateInstructorCommand(emptyDto));
+        emptyResult.ShouldHaveValidationErrorFor(x => x.Dto.FirstName);
+        emptyResult.ShouldHaveValidationErrorFor(x => x.Dto.LastName);
+        emptyResult.ShouldHaveValidationErrorFor(x => x.Dto.Email);
+
+        // Valid
+        var validDto = new CreateInstructorDto
+        {
+            FirstName = "Grace",
+            LastName = "Hopper",
+            Email = "grace.hopper@example.com",
+            Department = "Computer Science",
+            EmployeeNumber = "EMP-007"
+        };
+        var validResult = validator.TestValidate(new CreateInstructorCommand(validDto));
+        validResult.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task InstructorService_GetProfileAsync_ShouldReturnAccurateInstructorStatistics()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var user = new TmsUser
+        {
+            Id = "inst-user-stats-1",
+            UserName = "inst.stats@tms.com",
+            Email = "inst.stats@tms.com",
+            FirstName = "Donald",
+            LastName = "Knuth",
+            Department = "Computer Science",
+            PhoneNumber = "555-4321",
+            Bio = "Author and computer scientist",
+            CreatedAt = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc)
+        };
+        context.Users.Add(user);
+
+        var instructor = new Instructor
+        {
+            Id = 301,
+            UserId = user.Id,
+            EmployeeNumber = "EMP-KNUTH",
+            FirstName = "Donald",
+            LastName = "Knuth",
+            Email = "inst.stats@tms.com",
+            Department = "Computer Science",
+            HireDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+            Status = "Active"
+        };
+        context.Instructors.Add(instructor);
+
+        // Add 2 courses assigned to this instructor, and 1 to another instructor
+        var course1 = new Course { Id = 401, InstructorId = instructor.Id, Code = "CS401", Title = "Advanced Algorithms", Status = "Active" };
+        var course2 = new Course { Id = 402, InstructorId = instructor.Id, Code = "CS402", Title = "Compilers", Status = "Active" };
+        var courseOther = new Course { Id = 403, InstructorId = 999, Code = "CS403", Title = "Other Course", Status = "Active" };
+        context.Courses.AddRange(course1, course2, courseOther);
+
+        // Add Enrollments for Instructor courses:
+        // Course 1 has Student 10 (Active), Student 20 (Completed), Student 30 (Dropped)
+        // Course 2 has Student 10 (Active), Student 40 (Active)
+        // Distinct active/completed students = 10, 20, 40 -> 3 students
+        context.Enrollments.AddRange(
+            new Enrollment { Id = 1, StudentId = 10, CourseId = course1.Id, Status = EnrollmentStatus.Active },
+            new Enrollment { Id = 2, StudentId = 20, CourseId = course1.Id, Status = EnrollmentStatus.Completed },
+            new Enrollment { Id = 3, StudentId = 30, CourseId = course1.Id, Status = EnrollmentStatus.Dropped },
+            new Enrollment { Id = 4, StudentId = 10, CourseId = course2.Id, Status = EnrollmentStatus.Active },
+            new Enrollment { Id = 5, StudentId = 40, CourseId = course2.Id, Status = EnrollmentStatus.Active },
+            new Enrollment { Id = 6, StudentId = 50, CourseId = courseOther.Id, Status = EnrollmentStatus.Active }
+        );
+
+        // Certificates: 2 for course1, 1 for courseOther
+        context.Certificates.AddRange(
+            new Certificate { Id = 1, StudentId = 20, CourseId = course1.Id, CertificateNumber = "CERT-1", IssueDate = DateTime.UtcNow },
+            new Certificate { Id = 2, StudentId = 21, CourseId = course1.Id, CertificateNumber = "CERT-2", IssueDate = DateTime.UtcNow },
+            new Certificate { Id = 3, StudentId = 50, CourseId = courseOther.Id, CertificateNumber = "CERT-3", IssueDate = DateTime.UtcNow }
+        );
+
+        // Attendances: 3 Present, 1 Late, 1 Absent for Instructor's courses -> (3 + 1) / 5 = 80.0%
+        context.Attendances.AddRange(
+            new Attendance { Id = 1, CourseId = course1.Id, StudentId = 10, Status = AttendanceStatus.Present, SessionDate = DateTime.UtcNow },
+            new Attendance { Id = 2, CourseId = course1.Id, StudentId = 20, Status = AttendanceStatus.Present, SessionDate = DateTime.UtcNow },
+            new Attendance { Id = 3, CourseId = course2.Id, StudentId = 10, Status = AttendanceStatus.Late, SessionDate = DateTime.UtcNow },
+            new Attendance { Id = 4, CourseId = course2.Id, StudentId = 40, Status = AttendanceStatus.Present, SessionDate = DateTime.UtcNow },
+            new Attendance { Id = 5, CourseId = course2.Id, StudentId = 40, Status = AttendanceStatus.Absent, SessionDate = DateTime.UtcNow },
+            new Attendance { Id = 6, CourseId = courseOther.Id, StudentId = 50, Status = AttendanceStatus.Absent, SessionDate = DateTime.UtcNow }
+        );
+
+        await context.SaveChangesAsync();
+
+        var mapperMock = new Mock<AutoMapper.IMapper>();
+        var scheduleServiceMock = new Mock<IScheduleService>();
+        var service = new InstructorService(context, mapperMock.Object, scheduleServiceMock.Object);
+
+        var profile = await service.GetProfileAsync(user.Id);
+
+        profile.Should().NotBeNull();
+        profile!.Id.Should().Be(301);
+        profile.EmployeeNumber.Should().Be("EMP-KNUTH");
+        profile.TotalCourses.Should().Be(2);
+        profile.ActiveStudents.Should().Be(3);
+        profile.TotalCertificates.Should().Be(2);
+        profile.AttendanceRate.Should().Be(80.0m);
+    }
+
+    [Fact]
+    public async Task DashboardService_GetInstructorDashboardAsync_WhenNoAttendances_ShouldReturnZeroAttendanceRate()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var instructor = new Instructor
+        {
+            Id = 701,
+            FirstName = "Ada",
+            LastName = "Lovelace",
+            Email = "ada@tms.com",
+            Department = "Mathematics",
+            Status = "Active"
+        };
+        context.Instructors.Add(instructor);
+
+        var course = new Course
+        {
+            Id = 801,
+            InstructorId = instructor.Id,
+            Code = "MATH801",
+            Title = "Applied Mathematics",
+            Status = "Active",
+            StartDate = DateTime.UtcNow.AddDays(-10),
+            EndDate = DateTime.UtcNow.AddDays(20)
+        };
+        context.Courses.Add(course);
+
+        await context.SaveChangesAsync();
+
+        var mapperMock = new Mock<AutoMapper.IMapper>();
+        var dashboardService = new DashboardService(context, mapperMock.Object);
+
+        var dashboard = await dashboardService.GetInstructorDashboardAsync(instructor.Id);
+
+        dashboard.Should().NotBeNull();
+        dashboard.AssignedCoursesCount.Should().Be(1);
+        dashboard.AttendanceRate.Should().Be(0.0m); // Confirms hardcoded fallback 92.5m is removed
     }
 }
 

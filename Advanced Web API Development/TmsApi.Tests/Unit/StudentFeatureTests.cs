@@ -181,6 +181,195 @@ public class StudentFeatureTests
     }
 
     [Fact]
+    public async Task EnrollmentService_ShouldReactivateEnrollment_WhenPreviouslyDropped()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var config = new AutoMapper.MapperConfiguration(cfg => cfg.AddProfile<Application.Mappings.MappingProfile>());
+        var mapper = config.CreateMapper();
+
+        var course = new Course
+        {
+            Id = 103,
+            Code = "CS103",
+            Title = "Database Systems",
+            Status = "Active",
+            MaxCapacity = 10,
+            Prerequisites = "None"
+        };
+        var student = new Student
+        {
+            Id = 12,
+            FirstName = "Charlie",
+            LastName = "Brown",
+            Email = "charlie@eduva.com",
+            RegistrationNumber = "REG-CHARLIE"
+        };
+        // Pre-existing dropped enrollment
+        var droppedEnrollment = new Enrollment
+        {
+            Id = 99,
+            CourseId = 103,
+            StudentId = 12,
+            Status = EnrollmentStatus.Dropped,
+            Grade = 3.5m,
+            EnrolledAt = DateTime.UtcNow.AddMonths(-2),
+            Batch = "Old Batch",
+            PhoneNumber = "111",
+            Country = "Old Country"
+        };
+
+        context.Courses.Add(course);
+        context.Students.Add(student);
+        context.Enrollments.Add(droppedEnrollment);
+        await context.SaveChangesAsync();
+
+        var service = new EnrollmentService(context, mapper);
+
+        var result = await service.CreateEnrollmentAsync(new Application.DTOs.EnrollmentDtos.CreateEnrollmentDto
+        {
+            CourseId = 103,
+            StudentId = 12,
+            Batch = "New Batch",
+            PhoneNumber = "+1 555-9999",
+            Country = "Canada"
+        });
+
+        result.Should().NotBeNull();
+        result.Id.Should().Be(99); // Reused same record!
+        result.Status.Should().Be(EnrollmentStatus.Active);
+        result.Batch.Should().Be("New Batch");
+        result.PhoneNumber.Should().Be("+1 555-9999");
+        result.Country.Should().Be("Canada");
+
+        var dbEnrollments = await context.Enrollments.IgnoreQueryFilters().Where(e => e.StudentId == 12 && e.CourseId == 103).ToListAsync();
+        dbEnrollments.Should().HaveCount(1);
+        dbEnrollments[0].Status.Should().Be(EnrollmentStatus.Active);
+        dbEnrollments[0].Grade.Should().BeNull();
+        dbEnrollments[0].IsDeleted.Should().BeFalse();
+
+        var dbCourse = await context.Courses.FindAsync(103);
+        dbCourse!.EnrolledStudentsCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EnrollmentService_ShouldReject_WhenAlreadyActiveOrPending()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var config = new AutoMapper.MapperConfiguration(cfg => cfg.AddProfile<Application.Mappings.MappingProfile>());
+        var mapper = config.CreateMapper();
+
+        var course = new Course
+        {
+            Id = 104,
+            Code = "CS104",
+            Title = "Algorithms",
+            Status = "Active",
+            MaxCapacity = 10,
+            Prerequisites = "None"
+        };
+        var student = new Student
+        {
+            Id = 13,
+            FirstName = "David",
+            LastName = "Miller",
+            Email = "david@eduva.com",
+            RegistrationNumber = "REG-DAVID"
+        };
+        var activeEnrollment = new Enrollment
+        {
+            Id = 100,
+            CourseId = 104,
+            StudentId = 13,
+            Status = EnrollmentStatus.Active
+        };
+
+        context.Courses.Add(course);
+        context.Students.Add(student);
+        context.Enrollments.Add(activeEnrollment);
+        await context.SaveChangesAsync();
+
+        var service = new EnrollmentService(context, mapper);
+
+        Func<Task> act = async () => await service.CreateEnrollmentAsync(new Application.DTOs.EnrollmentDtos.CreateEnrollmentDto
+        {
+            CourseId = 104,
+            StudentId = 13
+        });
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already enrolled*");
+    }
+
+    [Fact]
+    public async Task EnrollmentService_ShouldRejectReactivation_WhenCourseIsFull()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var config = new AutoMapper.MapperConfiguration(cfg => cfg.AddProfile<Application.Mappings.MappingProfile>());
+        var mapper = config.CreateMapper();
+
+        var course = new Course
+        {
+            Id = 105,
+            Code = "CS105",
+            Title = "Networks",
+            Status = "Active",
+            MaxCapacity = 1,
+            Prerequisites = "None"
+        };
+        var student1 = new Student
+        {
+            Id = 14,
+            FirstName = "Eve",
+            LastName = "Adams",
+            Email = "eve@eduva.com",
+            RegistrationNumber = "REG-EVE"
+        };
+        var student2 = new Student
+        {
+            Id = 15,
+            FirstName = "Frank",
+            LastName = "Wright",
+            Email = "frank@eduva.com",
+            RegistrationNumber = "REG-FRANK"
+        };
+        // Student 1 is active (filling capacity)
+        var activeEnrollment = new Enrollment
+        {
+            Id = 101,
+            CourseId = 105,
+            StudentId = 14,
+            Status = EnrollmentStatus.Active
+        };
+        // Student 2 was dropped
+        var droppedEnrollment = new Enrollment
+        {
+            Id = 102,
+            CourseId = 105,
+            StudentId = 15,
+            Status = EnrollmentStatus.Dropped
+        };
+
+        context.Courses.Add(course);
+        context.Students.AddRange(student1, student2);
+        context.Enrollments.AddRange(activeEnrollment, droppedEnrollment);
+        await context.SaveChangesAsync();
+
+        var service = new EnrollmentService(context, mapper);
+
+        Func<Task> act = async () => await service.CreateEnrollmentAsync(new Application.DTOs.EnrollmentDtos.CreateEnrollmentDto
+        {
+            CourseId = 105,
+            StudentId = 15
+        });
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Course is full*");
+    }
+
+    [Fact]
     public async Task CourseService_ShouldFilter_BySkillLevel_SubjectMatter_AndAvailability()
     {
         using var context = CreateInMemoryDbContext();
@@ -894,7 +1083,10 @@ public class StudentFeatureTests
             Title = $"Progress Course {totalAssignments}",
             Status = "Active",
             StartDate = DateTime.UtcNow.AddDays(-10),
-            EndDate = DateTime.UtcNow.AddDays(20)
+            EndDate = DateTime.UtcNow.AddDays(20),
+            ExpectedAssignmentCount = totalAssignments,
+            ExpectedMidtermCount = 0,
+            ExpectedFinalCount = 0
         };
         context.Courses.Add(course);
 
@@ -937,8 +1129,10 @@ public class StudentFeatureTests
                 Title = assignments[i].Title,
                 MaxScore = 100m,
                 DueDate = assignments[i].DueDate,
-                Status = "Submitted",
-                SubmittedAt = DateTime.UtcNow.AddHours(-i)
+                Status = "Graded",
+                ScoredPoints = 90m,
+                SubmittedAt = DateTime.UtcNow.AddHours(-i),
+                GradedAt = DateTime.UtcNow.AddHours(-i)
             });
         }
 
@@ -950,5 +1144,77 @@ public class StudentFeatureTests
         studentCourses.Should().HaveCount(1);
         var enrolledCourse = studentCourses.First();
         enrolledCourse.ProgressPercentage.Should().Be(expectedPercentage);
+    }
+
+    [Fact]
+    public async Task StudentService_GetProfileAsync_ShouldReturnAccurateAcademicStatistics()
+    {
+        using var context = CreateInMemoryDbContext();
+
+        var user = new TmsUser
+        {
+            Id = "user-profile-test-1",
+            UserName = "student.stats@tms.com",
+            Email = "student.stats@tms.com",
+            FirstName = "Alice",
+            LastName = "Johnson",
+            PhoneNumber = "555-1234",
+            Department = "Computer Science",
+            CreatedAt = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        context.Users.Add(user);
+
+        var student = new Student
+        {
+            Id = 501,
+            UserId = user.Id,
+            RegistrationNumber = "STU-00501",
+            FirstName = "Alice",
+            LastName = "Johnson",
+            Email = "student.stats@tms.com",
+            EnrollmentDate = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        context.Students.Add(student);
+
+        // Add 3 courses
+        var course1 = new Course { Id = 101, Code = "CS101", Title = "Intro to CS", Credits = 3, Status = "Active" };
+        var course2 = new Course { Id = 102, Code = "CS102", Title = "Data Structures", Credits = 4, Status = "Active" };
+        var course3 = new Course { Id = 103, Code = "CS103", Title = "Algorithms", Credits = 3, Status = "Active" };
+        context.Courses.AddRange(course1, course2, course3);
+
+        // Add Enrollments: 1 Completed with Grade 95 (4.0 GP, 3 cr), 1 Active with Grade 85 (3.0 GP, 4 cr), 1 Dropped
+        context.Enrollments.AddRange(
+            new Enrollment { Id = 1, StudentId = student.Id, CourseId = course1.Id, Status = EnrollmentStatus.Completed, Grade = 95m },
+            new Enrollment { Id = 2, StudentId = student.Id, CourseId = course2.Id, Status = EnrollmentStatus.Active, Grade = 85m },
+            new Enrollment { Id = 3, StudentId = student.Id, CourseId = course3.Id, Status = EnrollmentStatus.Dropped }
+        );
+
+        // Add 1 Certificate
+        context.Certificates.Add(new Certificate
+        {
+            Id = 1,
+            StudentId = student.Id,
+            CourseId = course1.Id,
+            CertificateNumber = "CERT-501-101",
+            IssueDate = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        var mapperMock = new Mock<AutoMapper.IMapper>();
+        var gradingService = new Application.Grading.GradingService();
+        var studentService = new StudentService(context, mapperMock.Object, null, gradingService);
+
+        var profile = await studentService.GetProfileAsync(user.Id);
+
+        profile.Should().NotBeNull();
+        profile!.Id.Should().Be(501);
+        profile.RegistrationNumber.Should().Be("STU-00501");
+        profile.TotalEnrollments.Should().Be(2); // Excludes Dropped
+        profile.ActiveCourses.Should().Be(1);
+        profile.CompletedCourses.Should().Be(1);
+        profile.EarnedCertificates.Should().Be(1);
+        // GPA calculation: (4.0 * 3 + 3.0 * 4) / 7 = 24.0 / 7 = 3.43
+        profile.Gpa.Should().Be(3.43m);
     }
 }
