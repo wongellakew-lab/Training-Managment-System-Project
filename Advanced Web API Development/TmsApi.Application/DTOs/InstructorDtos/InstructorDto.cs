@@ -67,3 +67,43 @@ public class SuspendInstructorRequestDto
     public List<CourseReassignmentItemDto> CourseReassignments { get; set; } = new();
     public string? Reason { get; set; }
 }
+
+public class UpdateInstructorDto
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? Bio { get; set; }
+}
+
+public class InstructorProfileDto
+{
+    public int Id { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string EmployeeNumber { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string Department { get; set; } = string.Empty;
+    public DateTime HireDate { get; set; }
+    public string? Bio { get; set; }
+    public string? AvatarUrl { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+    public int TotalCourses { get; set; }
+    public int TotalStudents { get; set; }
+    public int ActiveStudents { get; set; }
+    public int TotalCertificates { get; set; }
+    public decimal AttendanceRate { get; set; }
+    public decimal AverageRating { get; set; }
+}
+
+public class UpdateInstructorProfileDto
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? Department { get; set; }
+    public string? Bio { get; set; }
+}

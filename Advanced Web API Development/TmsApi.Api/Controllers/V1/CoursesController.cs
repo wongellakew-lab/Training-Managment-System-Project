@@ -1,14 +1,17 @@
 using Asp.Versioning;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TmsApi.Application.DTOs;
-using TmsApi.Application.DTOs.CourseDtos;
-using TmsApi.Application.Interfaces;
-
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Api.Extensions;
-using Microsoft.AspNetCore.SignalR;
+using TmsApi.Application.Courses.Commands;
+using TmsApi.Application.Courses.Queries;
+using TmsApi.Application.DTOs;
+using TmsApi.Application.DTOs.CourseDtos;
+using TmsApi.Application.DTOs.InstructorDtos;
+using TmsApi.Application.Interfaces;
 using TmsApi.Infrastructure.Hubs;
 using TmsApi.Infrastructure.Persistence;
 
@@ -17,35 +20,21 @@ namespace TmsApi.Api.Controllers.V1;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public class CoursesController : ControllerBase
+[Tags("Courses")]
+public class CoursesController(
+    IMediator _mediator,
+    TmsDbContext? _context = null)
+    : ControllerBase
 {
-    private readonly ICourseService _courseService;
-    private readonly TmsDbContext _context;
-    private readonly IHubContext<TmsHub, ITmsClient> _hubContext;
-    private readonly IWebHostEnvironment _env;
-    private readonly IValidator<CreateCourseDto> _createValidator;
-    private readonly IValidator<UpdateCourseDto> _updateValidator;
-    private readonly INotificationService _notificationService;
-
-    public CoursesController(
-        ICourseService courseService,
-        TmsDbContext context,
-        IHubContext<TmsHub, ITmsClient> hubContext,
-        IWebHostEnvironment env,
-        IValidator<CreateCourseDto> createValidator,
-        IValidator<UpdateCourseDto> updateValidator,
-        INotificationService notificationService)
-    {
-        _courseService = courseService;
-        _context = context;
-        _hubContext = hubContext;
-        _env = env;
-        _createValidator = createValidator;
-        _updateValidator = updateValidator;
-        _notificationService = notificationService;
-    }
 
     [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<CourseDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List courses with search, filters, and field shaping")]
+    [EndpointDescription(
+        "Returns a paged list of courses for any authenticated caller. Students are restricted to " +
+        "active courses only. When the Fields query parameter is supplied, the response is shaped " +
+        "to contain only the requested fields and is returned as a paged set of shaped objects."
+    )]
     public async Task<IActionResult> GetCourses([FromQuery] PagedRequest request, CancellationToken cancellationToken)
     {
         if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
@@ -55,614 +44,206 @@ public class CoursesController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(request.Fields))
         {
-            var shapedResponse = await _courseService.GetShapedCoursesAsync(request, cancellationToken);
+            var shapedResponse = await _mediator.Send(new GetShapedCoursesQuery(request), cancellationToken);
             return Ok(shapedResponse);
         }
 
-        var response = await _courseService.GetCoursesAsync(request, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetCourseById(int id, CancellationToken cancellationToken)
-    {
-        var course = await _courseService.GetCourseByIdAsync(id, cancellationToken);
-        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
-
-        var studentId = await User.ResolveStudentIdAsync(_context);
-        if (studentId.HasValue)
-        {
-            var enrollment = await _context.Enrollments
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.CourseId == id && e.StudentId == studentId.Value && e.Status != Domain.Entities.EnrollmentStatus.Dropped && e.Status != Domain.Entities.EnrollmentStatus.Rejected, cancellationToken);
-            if (enrollment != null)
-            {
-                course.IsStudentEnrolled = true;
-                course.StudentEnrollmentStatus = enrollment.Status.ToString();
-
-                int totalExpected = course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount;
-                if (totalExpected == 0)
-                {
-                    int totalAssignments = await _context.Assignments
-                        .CountAsync(a => a.CourseId == id && !a.IsDeleted && a.IsPublished, cancellationToken);
-                    totalExpected = totalAssignments > 0 ? totalAssignments : 1;
-                }
-
-                int evaluatedAssessments = await _context.Assessments
-                    .CountAsync(a => a.CourseId == id && a.StudentId == studentId.Value && a.Status == "Graded" && a.ScoredPoints.HasValue, cancellationToken);
-
-                course.StudentProgress = enrollment.Status == Domain.Entities.EnrollmentStatus.Completed
-                    ? 100m
-                    : totalExpected > 0
-                        ? Math.Min(100m, Math.Round((evaluatedAssessments / (decimal)totalExpected) * 100m, 1))
-                        : 0m;
-            }
-        }
-
-        return Ok(course);
-    }
-
-    [HttpGet("catalog")]
-    public async Task<IActionResult> GetCatalog([FromQuery] PagedRequest request, CancellationToken cancellationToken)
-    {
-        // Enforce strictly that only Admin-approved "Active" courses appear in the student catalog
-        request.Status = "Active";
-        var response = await _courseService.GetCoursesAsync(request, cancellationToken);
-        var studentId = await User.ResolveStudentIdAsync(_context);
-        if (studentId.HasValue && response.Items != null && response.Items.Any())
-        {
-            var courseIds = response.Items.Select(c => c.Id).ToList();
-            var studentEnrollments = await _context.Enrollments
-                .AsNoTracking()
-                .Where(e => e.StudentId == studentId.Value && courseIds.Contains(e.CourseId) && e.Status != Domain.Entities.EnrollmentStatus.Dropped && e.Status != Domain.Entities.EnrollmentStatus.Rejected)
-                .ToDictionaryAsync(e => e.CourseId, cancellationToken);
-
-            var enrolledCourseIds = studentEnrollments.Keys.ToList();
-
-            var completedCounts = await _context.Assessments
-                .Where(a => enrolledCourseIds.Contains(a.CourseId) && a.StudentId == studentId.Value && a.Status == "Graded" && a.ScoredPoints.HasValue)
-                .GroupBy(a => a.CourseId)
-                .Select(g => new { CourseId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CourseId, x => x.Count, cancellationToken);
-
-            foreach (var item in response.Items)
-            {
-                if (studentEnrollments.TryGetValue(item.Id, out var enrollment))
-                {
-                    item.IsStudentEnrolled = true;
-                    item.StudentEnrollmentStatus = enrollment.Status.ToString();
-
-                    int total = item.TotalAssessments > 0 ? item.TotalAssessments : 1;
-                    int evaluated = completedCounts.TryGetValue(item.Id, out var c) ? c : 0;
-
-                    item.StudentProgress = enrollment.Status == Domain.Entities.EnrollmentStatus.Completed
-                        ? 100m
-                        : Math.Min(100m, Math.Round((evaluated / (decimal)total) * 100m, 1));
-                }
-            }
-        }
+        var response = await _mediator.Send(new GetCoursesQuery(request), cancellationToken);
         return Ok(response);
     }
 
     [Authorize(Roles = "Student,Admin")]
     [HttpGet("my-courses")]
-    public async Task<IActionResult> GetMyCourses(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(List<StudentEnrolledCourseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Get the authenticated student's enrolled courses")]
+    [EndpointDescription(
+        "Returns all courses the currently authenticated student is enrolled in with progress and " +
+        "schedule information. Returns 403 Forbidden when the user is not linked to a student profile."
+    )]
+    public async Task<IActionResult> GetStudentMyCourses(CancellationToken cancellationToken)
     {
+        if (_context == null) return BadRequest(new { message = "Database context not available." });
         var studentId = await User.ResolveStudentIdAsync(_context);
-        if (studentId == null) return Forbid("Authenticated user is not linked to a student profile.");
+        if (studentId == null)
+        {
+            return Forbid("Authenticated user is not linked to a student profile.");
+        }
 
-        var courses = await _courseService.GetStudentEnrolledCoursesAsync(studentId.Value, cancellationToken);
+        var courses = await _mediator.Send(new GetStudentEnrolledCoursesQuery(studentId.Value), cancellationToken);
         return Ok(courses);
     }
 
     [Authorize(Roles = "Student,Admin")]
     [HttpGet("my-courses/statistics")]
-    public async Task<IActionResult> GetMyCoursesStatistics(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(StudentCoursesStatisticsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Get the authenticated student's course statistics")]
+    [EndpointDescription(
+        "Returns aggregate enrollment statistics for the currently authenticated student, including " +
+        "total, active, completed, and upcoming course counts, total credits, and overall progress."
+    )]
+    public async Task<IActionResult> GetStudentMyCoursesStatistics(CancellationToken cancellationToken)
     {
+        if (_context == null) return BadRequest(new { message = "Database context not available." });
         var studentId = await User.ResolveStudentIdAsync(_context);
-        if (studentId == null) return Forbid("Authenticated user is not linked to a student profile.");
+        if (studentId == null)
+        {
+            return Forbid("Authenticated user is not linked to a student profile.");
+        }
 
-        var stats = await _courseService.GetStudentCoursesStatisticsAsync(studentId.Value, cancellationToken);
-        return Ok(stats);
+        var statistics = await _mediator.Send(new GetStudentCoursesStatisticsQuery(studentId.Value), cancellationToken);
+        return Ok(statistics);
+    }
+
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(CourseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get a course by ID")]
+    [EndpointDescription(
+        "Returns the complete detail of a single course, including schedules, modules, lessons, " +
+        "resources, and enrollment statistics. Returns 404 Not Found when the course does not exist."
+    )]
+    public async Task<IActionResult> GetCourseById(int id, CancellationToken cancellationToken)
+    {
+        var course = await _mediator.Send(new GetCourseByIdQuery(id), cancellationToken);
+        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
+
+        return Ok(course);
+    }
+
+    [HttpGet("catalog")]
+    [ProducesResponseType(typeof(PagedResponse<CourseDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("Browse the public course catalog")]
+    [EndpointDescription(
+        "Returns a paged list of active courses intended for catalog browsing. The Status filter is " +
+        "always forced to Active regardless of caller, so only currently available courses are returned."
+    )]
+    public async Task<IActionResult> GetCatalog([FromQuery] PagedRequest request, CancellationToken cancellationToken)
+    {
+        request.Status = "Active";
+        var response = await _mediator.Send(new GetCoursesQuery(request), cancellationToken);
+        return Ok(response);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost]
+    [ProducesResponseType(typeof(CourseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Create a new course")]
+    [EndpointDescription(
+        "Creates a new course submitted by an instructor or administrator. The course is initially " +
+        "created with the provided status and becomes available to students only after administrator " +
+        "approval when required. Returns 201 Created with the new course."
+    )]
     public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDto dto, CancellationToken cancellationToken)
     {
-        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
-        {
-            var instructorId = await User.ResolveInstructorIdAsync(_context);
-            if (!instructorId.HasValue) return Forbid("Authenticated user is not linked to an instructor profile.");
-            dto.InstructorId = instructorId.Value;
-
-            if (dto.Status == "Active" || dto.Status == "Published")
-            {
-                dto.Status = "Under Review";
-            }
-        }
-
-        // Auto-generate unique course code if not provided
-        if (string.IsNullOrWhiteSpace(dto.Code))
-        {
-            var rawPrefix = !string.IsNullOrWhiteSpace(dto.Category)
-                ? new string(dto.Category.Where(char.IsLetterOrDigit).ToArray())
-                : "CRS";
-            var prefix = rawPrefix.Length >= 3 ? rawPrefix.Substring(0, 3).ToUpperInvariant() : "CRS";
-
-            string candidateCode;
-            bool exists;
-            int attempts = 0;
-            do
-            {
-                var suffix = attempts < 50
-                    ? Random.Shared.Next(101, 999).ToString()
-                    : $"{Random.Shared.Next(100, 999)}-{attempts}";
-                candidateCode = $"{prefix}-{suffix}";
-                exists = await _context.Courses
-                    .AnyAsync(c => c.Code.ToLower() == candidateCode.ToLower() && !c.IsDeleted, cancellationToken);
-                attempts++;
-            } while (exists && attempts < 100);
-
-            dto.Code = candidateCode;
-        }
-        else
-        {
-            var codeConflict = await _context.Courses
-                .AnyAsync(c => c.Code.ToLower() == dto.Code.Trim().ToLower() && !c.IsDeleted, cancellationToken);
-            if (codeConflict)
-            {
-                return BadRequest(new
-                {
-                    message = "Course code already exists.",
-                    errors = new Dictionary<string, string[]>
-                    {
-                        ["code"] = new[] { "Course code already exists." }
-                    }
-                });
-            }
-        }
-
-        var validationResult = await _createValidator.ValidateAsync(dto, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return BadRequest(new
-            {
-                message = "Course validation failed.",
-                errors = validationResult.Errors.GroupBy(e => e.PropertyName)
-                    .ToDictionary(
-                        g => string.IsNullOrEmpty(g.Key) ? g.Key : char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
-                        g => g.Select(e => e.ErrorMessage).ToArray()
-                    )
-            });
-        }
-
-        var course = await _courseService.CreateCourseAsync(dto, cancellationToken);
-        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseCreated", courseId = course.Id });
-
-        string createMsg = course.Status == "Under Review"
-            ? "Course submitted successfully. Your course is now under review."
-            : (course.Status == "Active" ? "Course published successfully!" : "Course draft saved successfully!");
-
-        return CreatedAtAction(nameof(GetCourseById), new { version = "1.0", id = course.Id }, new
-        {
-            id = course.Id,
-            code = course.Code,
-            title = course.Title,
-            category = course.Category,
-            level = course.Level,
-            status = course.Status,
-            durationHours = course.DurationHours,
-            startDate = course.StartDate,
-            endDate = course.EndDate,
-            expectedAssignmentCount = course.ExpectedAssignmentCount,
-            assignmentMaxPoints = course.AssignmentMaxPoints,
-            hasMidterm = course.HasMidterm,
-            midtermMaxPoints = course.MidtermMaxPoints,
-            hasFinal = course.HasFinal,
-            finalMaxPoints = course.FinalMaxPoints,
-            message = createMsg
-        });
+        var command = new CreateCourseCommand(dto);
+        var created = await _mediator.Send(command, cancellationToken);
+        return CreatedAtAction(nameof(GetCourseById), new { version = "1.0", id = created.Id }, created);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update an existing course")]
+    [EndpointDescription(
+        "Updates the details of the specified course, including schedule, modules, and assessment " +
+        "configuration. Persists changes to the database and returns 204 No Content on success, or " +
+        "404 Not Found when the course does not exist."
+    )]
     public async Task<IActionResult> UpdateCourse(int id, [FromBody] UpdateCourseDto dto, CancellationToken cancellationToken)
     {
-        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
-        {
-            var instructorId = await User.ResolveInstructorIdAsync(_context);
-            if (!instructorId.HasValue) return Forbid("Authenticated user is not linked to an instructor profile.");
-
-            var existingAuth = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-            if (existingAuth == null) return NotFound(new { message = $"Course with ID {id} not found." });
-            if (existingAuth.InstructorId != instructorId.Value) return Forbid("You can only edit courses assigned to you.");
-
-            // Always enforce instructor ownership on update
-            dto.InstructorId = existingAuth.InstructorId ?? instructorId.Value;
-
-            // Instructors cannot directly publish to Active
-            if (dto.Status == "Active" || dto.Status == "Published")
-            {
-                dto.Status = "Under Review";
-            }
-        }
-        else if (!dto.InstructorId.HasValue)
-        {
-            var existingCourse = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-            if (existingCourse != null)
-            {
-                dto.InstructorId = existingCourse.InstructorId;
-            }
-        }
-
-        var existing = await _context.Courses
-            .Include(c => c.Modules)
-                .ThenInclude(m => m.Lessons)
-            .Include(c => c.Enrollments)
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
-
-        if (existing == null) return NotFound(new { message = $"Course with ID {id} not found." });
-
-        if (string.IsNullOrWhiteSpace(dto.Code))
-        {
-            dto.Code = existing.Code;
-        }
-
-        // Code uniqueness check if modified
-        if (!string.IsNullOrWhiteSpace(dto.Code) && !string.Equals(dto.Code.Trim(), existing.Code, StringComparison.OrdinalIgnoreCase))
-        {
-            var codeConflict = await _context.Courses
-                .AnyAsync(c => c.Id != id && c.Code.ToLower() == dto.Code.Trim().ToLower() && !c.IsDeleted, cancellationToken);
-            if (codeConflict)
-            {
-                return BadRequest(new
-                {
-                    message = "Course code already exists.",
-                    errors = new Dictionary<string, string[]>
-                    {
-                        ["code"] = new[] { "Course code already exists." }
-                    }
-                });
-            }
-        }
-
-        // Authoritative Publish/Submit check: Course Content must not be empty
-        if (dto.Status == "Active" || dto.Status == "Published" || dto.Status == "Under Review")
-        {
-            bool hasContent = (dto.Modules != null && dto.Modules.Count > 0 && dto.Modules.Any(m => m.Lessons != null && m.Lessons.Count > 0))
-                || (existing.Modules != null && existing.Modules.Count > 0 && existing.Modules.Any(m => m.Lessons != null && m.Lessons.Count > 0));
-
-            if (!hasContent)
-            {
-                return BadRequest(new
-                {
-                    message = "Course content is required. Add at least one content item before publishing.",
-                    errors = new Dictionary<string, string[]>
-                    {
-                        ["courseContent"] = new[] { "Course content is required. Add at least one content item before publishing." }
-                    }
-                });
-            }
-        }
-
-        // Protection check: Once a course is approved, protect assessment structure if grades already exist
-        if (existing.Status == "Active" || existing.Status == "Completed")
-        {
-            var hasGradedAssessments = await _context.Assessments
-                .AnyAsync(a => a.CourseId == id && a.ScoredPoints.HasValue, cancellationToken);
-
-            if (hasGradedAssessments)
-            {
-                bool assessmentConfigChanged =
-                    dto.ExpectedAssignmentCount != existing.ExpectedAssignmentCount ||
-                    dto.AssignmentMaxPoints != existing.AssignmentMaxPoints ||
-                    dto.HasMidterm != existing.HasMidterm ||
-                    dto.MidtermMaxPoints != existing.MidtermMaxPoints ||
-                    dto.HasFinal != existing.HasFinal ||
-                    dto.FinalMaxPoints != existing.FinalMaxPoints;
-
-                if (assessmentConfigChanged)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Assessment structure cannot be modified because student grades have already been recorded for this course.",
-                        errors = new Dictionary<string, string[]>
-                        {
-                            ["assessmentStructure"] = new[] { "Assessment structure is locked because student grades have already been recorded for this course." }
-                        }
-                    });
-                }
-            }
-        }
-
-        // Integrity check: Cannot reduce expected assignment count below already-created assignments
-        var createdAssignmentsCount = await _context.Assignments
-            .CountAsync(a => a.CourseId == id && !a.IsDeleted, cancellationToken);
-
-        if (createdAssignmentsCount > 0 && dto.ExpectedAssignmentCount < createdAssignmentsCount)
-        {
-            return BadRequest(new
-            {
-                message = $"Cannot reduce configured assignment count to {dto.ExpectedAssignmentCount}. There are already {createdAssignmentsCount} assignments created for this course.",
-                errors = new Dictionary<string, string[]>
-                {
-                    ["expectedAssignmentCount"] = new[] { $"Cannot reduce assignment count below {createdAssignmentsCount}, as {createdAssignmentsCount} assignments have already been created." }
-                }
-            });
-        }
-
-        var validationResult = await _updateValidator.ValidateAsync(dto, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return BadRequest(new
-            {
-                message = "Course validation failed.",
-                errors = validationResult.Errors.GroupBy(e => e.PropertyName)
-                    .ToDictionary(
-                        g => string.IsNullOrEmpty(g.Key) ? g.Key : char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
-                        g => g.Select(e => e.ErrorMessage).ToArray()
-                    )
-            });
-        }
-
-        var updated = await _courseService.UpdateCourseAsync(id, dto, cancellationToken);
+        var updated = await _mediator.Send(new UpdateCourseCommand(id, dto), cancellationToken);
         if (!updated) return NotFound(new { message = $"Course with ID {id} not found." });
 
-        var reloaded = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-
-        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseUpdated", courseId = id });
-
-        string currentStatus = reloaded?.Status ?? dto.Status;
-        string returnMsg = currentStatus == "Under Review"
-            ? "Course submitted successfully. Your course is now under review."
-            : (currentStatus == "Active" || currentStatus == "Published" ? "Course published successfully!" : "Course draft saved successfully!");
-
-        return Ok(new
-        {
-            message = returnMsg,
-            courseId = id,
-            id = id,
-            code = reloaded?.Code ?? dto.Code,
-            title = reloaded?.Title ?? dto.Title,
-            category = reloaded?.Category ?? dto.Category,
-            level = reloaded?.Level ?? dto.Level,
-            status = currentStatus,
-            durationHours = reloaded?.DurationHours ?? dto.DurationHours,
-            startDate = reloaded?.StartDate,
-            endDate = reloaded?.EndDate,
-            expectedAssignmentCount = reloaded?.ExpectedAssignmentCount ?? dto.ExpectedAssignmentCount,
-            assignmentMaxPoints = reloaded?.AssignmentMaxPoints ?? dto.AssignmentMaxPoints,
-            hasMidterm = reloaded?.HasMidterm ?? dto.HasMidterm,
-            midtermMaxPoints = reloaded?.MidtermMaxPoints ?? dto.MidtermMaxPoints,
-            hasFinal = reloaded?.HasFinal ?? dto.HasFinal,
-            finalMaxPoints = reloaded?.FinalMaxPoints ?? dto.FinalMaxPoints
-        });
+        return NoContent();
     }
 
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete a course")]
+    [EndpointDescription(
+        "Permanently deletes the specified course. Administrator-only operation. Returns 204 No " +
+        "Content on success and 404 Not Found when the course does not exist."
+    )]
     public async Task<IActionResult> DeleteCourse(int id, CancellationToken cancellationToken)
     {
-        var deleted = await _courseService.DeleteCourseAsync(id, cancellationToken);
+        var deleted = await _mediator.Send(new DeleteCourseCommand(id), cancellationToken);
         if (!deleted) return NotFound(new { message = $"Course with ID {id} not found." });
 
         return NoContent();
     }
 
-    // ─── Instructor Course Builder Endpoints ─────────────────────────────────
-
-    [Authorize(Roles = "Admin,Instructor")]
-    [HttpGet("instructor-my-courses")]
-    public async Task<IActionResult> GetInstructorMyCourses(CancellationToken cancellationToken)
-    {
-        var instructorId = await User.ResolveInstructorIdAsync(_context);
-        if (!instructorId.HasValue) return Forbid("User is not linked to an instructor profile.");
-
-        var courses = await _context.Courses
-            .AsNoTracking()
-            .Include(c => c.Modules)
-                .ThenInclude(m => m.Lessons)
-            .Include(c => c.Resources)
-            .Include(c => c.Enrollments)
-            .Include(c => c.Schedules)
-            .Where(c => c.InstructorId == instructorId.Value && !c.IsDeleted)
-            .OrderByDescending(c => c.Id)
-            .ToListAsync(cancellationToken);
-
-        var dtos = courses.Select(c => new
-        {
-            id = c.Id,
-            code = c.Code,
-            title = c.Title,
-            category = c.Category,
-            level = c.Level,
-            status = c.Status,
-            rejectionReason = c.RejectionReason,
-            durationHours = c.DurationHours,
-            lessonsCount = c.Modules.SelectMany(m => m.Lessons).Count(),
-            modulesCount = c.Modules.Count,
-            resourcesCount = c.Resources.Count,
-            schedulesCount = c.Schedules.Count(s => !s.IsDeleted),
-            activeStudentsCount = c.Enrollments.Count(e => e.Status == Domain.Entities.EnrollmentStatus.Active || e.Status == Domain.Entities.EnrollmentStatus.Completed),
-            imageUrl = c.ImageUrl,
-            about = c.About,
-            description = c.Description,
-            startDate = c.StartDate,
-            endDate = c.EndDate
-        }).ToList();
-
-        return Ok(dtos);
-    }
-
-    [Authorize(Roles = "Admin,Instructor")]
-    [HttpGet("{id:int}/builder")]
-    public async Task<IActionResult> GetCourseForBuilder(int id, CancellationToken cancellationToken)
-    {
-        var course = await _context.Courses
-            .AsNoTracking()
-            .Include(c => c.Instructor)
-            .Include(c => c.Schedules)
-            .Include(c => c.Modules.OrderBy(m => m.OrderIndex))
-                .ThenInclude(m => m.Lessons.OrderBy(l => l.OrderIndex))
-            .Include(c => c.Resources)
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
-
-        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
-
-        return Ok(new
-        {
-            id = course.Id,
-            code = course.Code,
-            title = course.Title,
-            description = course.Description,
-            about = course.About,
-            category = course.Category,
-            level = course.Level,
-            status = course.Status,
-            rejectionReason = course.RejectionReason,
-            durationHours = course.DurationHours,
-            lessonsCount = course.Modules.SelectMany(m => m.Lessons).Count(),
-            imageUrl = course.ImageUrl,
-            department = course.Department,
-            featuresJson = course.FeaturesJson,
-            instructorId = course.InstructorId,
-            instructorName = course.Instructor != null ? $"{course.Instructor.FirstName} {course.Instructor.LastName}" : "Instructor",
-            startDate = course.StartDate,
-            endDate = course.EndDate,
-            maxCapacity = course.MaxCapacity,
-            expectedAssignmentCount = course.ExpectedAssignmentCount,
-            expectedMidtermCount = course.ExpectedMidtermCount,
-            expectedFinalCount = course.ExpectedFinalCount,
-            totalAssessments = course.ExpectedAssignmentCount + course.ExpectedMidtermCount + course.ExpectedFinalCount,
-            createdAssignmentsCount = _context.Assignments.Count(a => a.CourseId == course.Id && !a.IsDeleted),
-            schedules = course.Schedules.Where(s => !s.IsDeleted).Select(s => new
-            {
-                id = s.Id,
-                dayOfWeek = (int)s.DayOfWeek,
-                dayName = s.DayOfWeek.ToString(),
-                startTime = s.StartTime,
-                endTime = s.EndTime,
-                location = s.Location,
-                room = s.Room,
-                scheduleType = s.ScheduleType
-            }).ToList(),
-            modules = course.Modules.OrderBy(m => m.OrderIndex).Select(m => new
-            {
-                id = m.Id,
-                title = m.Title,
-                description = m.Description,
-                orderIndex = m.OrderIndex,
-                lessons = m.Lessons.OrderBy(l => l.OrderIndex).Select(l => new
-                {
-                    id = l.Id,
-                    title = l.Title,
-                    description = l.Description,
-                    durationMinutes = l.DurationMinutes,
-                    contentText = l.ContentText,
-                    pdfUrl = l.PdfUrl,
-                    pdfFileName = l.PdfFileName,
-                    orderIndex = l.OrderIndex
-                }).ToList()
-            }).ToList(),
-            resources = course.Resources.Select(r => new
-            {
-                id = r.Id,
-                title = r.Title,
-                fileType = r.FileType,
-                fileSize = r.FileSize,
-                url = r.Url
-            }).ToList()
-        });
-    }
-
     [Authorize(Roles = "Admin")]
     [HttpPost("{id:int}/approve")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Approve a course for publication")]
+    [EndpointDescription(
+        "Approves the specified course so it becomes active and available to students. Returns 400 " +
+        "Bad Request when the course cannot be approved from its current state, and 404 Not Found " +
+        "when the course does not exist."
+    )]
     public async Task<IActionResult> ApproveCourse(int id, CancellationToken cancellationToken)
     {
-        var course = await _context.Courses
-            .Include(c => c.Instructor)
-                .ThenInclude(i => i!.User)
-            .Include(c => c.Modules)
-                .ThenInclude(m => m.Lessons)
-            .Include(c => c.Schedules)
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
-
-        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
-
-        bool hasContent = course.Modules.Any(m => m.Lessons.Any());
-        if (!hasContent)
+        try
         {
-            return BadRequest(new { message = "Course cannot be approved because it has no modules or lessons." });
+            var success = await _mediator.Send(new ApproveCourseCommand(id), cancellationToken);
+            if (!success) return NotFound(new { message = $"Course with ID {id} not found." });
+
+            var course = await _mediator.Send(new GetCourseByIdQuery(id), cancellationToken);
+            return Ok(new
+            {
+                message = "Course approved successfully.",
+                courseId = id,
+                status = "Active",
+                course
+            });
         }
-
-        if (!course.Schedules.Any(s => !s.IsDeleted))
+        catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = "Course cannot be approved because it has no scheduled classes." });
+            return BadRequest(new { message = ex.Message });
         }
-
-        course.Status = "Active";
-        course.RejectionReason = null;
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // Finalize assessment structure and generate configured assignments for this course
-        await _courseService.EnsureCourseAssessmentsGeneratedAsync(id, cancellationToken);
-
-        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseApproved", courseId = id });
-
-        if (course.Instructor != null && !string.IsNullOrEmpty(course.Instructor.UserId))
-        {
-            await _notificationService.CreateNotificationAsync(
-                course.Instructor.UserId,
-                "Course Approved",
-                $"Your course '{course.Title}' ({course.Code}) has been approved by administration and is now active in the catalog.",
-                "Course",
-                course.Id,
-                "Course",
-                cancellationToken);
-        }
-
-        return Ok(new
-        {
-            message = "Course approved successfully.",
-            courseId = id,
-            status = "Active",
-            course = await _courseService.GetCourseByIdAsync(id, cancellationToken)
-        });
     }
 
     [Authorize(Roles = "Admin")]
     [HttpPost("{id:int}/reject")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Reject a course with a reason")]
+    [EndpointDescription(
+        "Rejects the specified course and stores a rejection reason visible to the submitting " +
+        "instructor. When no reason is provided, a default catalog-specification message is used. " +
+        "Returns 404 Not Found when the course does not exist."
+    )]
     public async Task<IActionResult> RejectCourse(int id, [FromBody] RejectCourseDto dto, CancellationToken cancellationToken)
     {
-        var course = await _context.Courses
-            .Include(c => c.Instructor)
-                .ThenInclude(i => i!.User)
-            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
-
-        if (course == null) return NotFound(new { message = $"Course with ID {id} not found." });
-
         var reason = !string.IsNullOrWhiteSpace(dto?.Reason)
             ? dto.Reason.Trim()
             : "Course does not meet catalog specifications.";
 
-        course.Status = "Rejected";
-        course.RejectionReason = reason;
-        await _context.SaveChangesAsync(cancellationToken);
-
-        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseRejected", courseId = id });
-
-        if (course.Instructor != null && !string.IsNullOrEmpty(course.Instructor.UserId))
-        {
-            await _notificationService.CreateNotificationAsync(
-                course.Instructor.UserId,
-                "Course Rejected",
-                $"Your course '{course.Title}' ({course.Code}) was rejected. Reason: {reason}",
-                "Course",
-                course.Id,
-                "Course",
-                cancellationToken);
-        }
+        var success = await _mediator.Send(new RejectCourseCommand(id, reason), cancellationToken);
+        if (!success) return NotFound(new { message = $"Course with ID {id} not found." });
 
         return Ok(new
         {
@@ -674,8 +255,40 @@ public class CoursesController : ControllerBase
     }
 
     [Authorize(Roles = "Admin,Instructor")]
+    [HttpGet("{id:int}/builder")]
+    [ProducesResponseType(typeof(CourseBuilderDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get a course's builder workspace")]
+    [EndpointDescription(
+        "Returns the authoring data for the course builder, including modules, lessons, resources, " +
+        "assessment configuration, and schedule details. Intended for instructors and administrators " +
+        "authoring course content. Returns 404 Not Found when the course does not exist."
+    )]
+    public async Task<IActionResult> GetCourseBuilder(int id, CancellationToken cancellationToken)
+    {
+        var builder = await _mediator.Send(new GetCourseForBuilderQuery(id), cancellationToken);
+        if (builder == null) return NotFound(new { message = "Course not found." });
+
+        return Ok(builder);
+    }
+
+    [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("{id:int}/thumbnail")]
-    public async Task<IActionResult> UploadCourseThumbnail(int id, IFormFile file)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Upload a course thumbnail image")]
+    [EndpointDescription(
+        "Uploads a JPEG, PNG, or WebP thumbnail image (max 3MB) for the specified course and stores " +
+        "the resulting image URL. Returns 400 Bad Request when no file is provided, the file exceeds " +
+        "the size limit, or its content type is not allowed, and 404 Not Found when the course does " +
+        "not exist."
+    )]
+    public async Task<IActionResult> UploadCourseThumbnail(int id, IFormFile file, CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0) return BadRequest(new { message = "No file uploaded." });
         if (file.Length > 3 * 1024 * 1024) return BadRequest(new { message = "Image exceeds 3MB limit." });
@@ -684,119 +297,113 @@ public class CoursesController : ControllerBase
         if (!allowed.Contains(file.ContentType.ToLower()))
             return BadRequest(new { message = "Only JPEG, PNG, or WebP images are allowed." });
 
-        var course = await _context.Courses.FindAsync(id);
-        if (course == null) return NotFound(new { message = "Course not found." });
-
-        var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "course_thumbnails");
-        if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-        var ext = Path.GetExtension(file.FileName).ToLower();
-        var uniqueName = $"course_{id}_{DateTime.UtcNow.Ticks}{ext}";
-        var filePath = Path.Combine(uploadsFolder, uniqueName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var url = $"/uploads/course_thumbnails/{uniqueName}";
-        course.ImageUrl = url;
-        await _context.SaveChangesAsync();
+        var url = await _mediator.Send(new UploadCourseThumbnailCommand(id, file), cancellationToken);
+        if (url == null) return NotFound(new { message = "Course not found." });
 
         return Ok(new { imageUrl = url });
     }
 
-    public record ModuleRequest(string Title, string? Description);
-    public record ReorderItem(int Id, int OrderIndex);
-    public record ReorderRequest(List<ReorderItem> Items);
-
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("{id:int}/modules")]
-    public async Task<IActionResult> AddModule(int id, [FromBody] ModuleRequest request)
+    [ProducesResponseType(typeof(CourseModuleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Add a module to a course")]
+    [EndpointDescription(
+        "Creates a new module within the specified course and returns the created module including " +
+        "its auto-assigned order index. Returns 404 Not Found when the course does not exist."
+    )]
+    public async Task<IActionResult> AddModule(int id, [FromBody] ModuleRequest request, CancellationToken cancellationToken)
     {
-        var course = await _context.Courses.Include(c => c.Modules).FirstOrDefaultAsync(c => c.Id == id);
-        if (course == null) return NotFound(new { message = "Course not found." });
-
-        var nextIndex = course.Modules.Any() ? course.Modules.Max(m => m.OrderIndex) + 1 : 1;
-        var mod = new CourseModule
-        {
-            CourseId = id,
-            Title = request.Title,
-            Description = request.Description,
-            OrderIndex = nextIndex
-        };
-
-        await _context.CourseModules.AddAsync(mod);
-        await _context.SaveChangesAsync();
+        var dto = new CreateModuleDto { Title = request.Title, Description = request.Description };
+        var mod = await _mediator.Send(new AddModuleCommand(id, dto), cancellationToken);
+        if (mod == null) return NotFound(new { message = "Course not found." });
 
         return Ok(new { id = mod.Id, title = mod.Title, description = mod.Description, orderIndex = mod.OrderIndex });
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}/modules/{moduleId:int}")]
-    public async Task<IActionResult> UpdateModule(int id, int moduleId, [FromBody] ModuleRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update an existing course module")]
+    [EndpointDescription(
+        "Updates the title and description of the specified module within the course. Returns 404 " +
+        "Not Found when the module does not exist."
+    )]
+    public async Task<IActionResult> UpdateModule(int id, int moduleId, [FromBody] ModuleRequest request, CancellationToken cancellationToken)
     {
-        var mod = await _context.CourseModules.FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == id);
-        if (mod == null) return NotFound(new { message = "Module not found." });
+        var dto = new UpdateModuleDto { Title = request.Title, Description = request.Description };
+        var success = await _mediator.Send(new UpdateModuleCommand(moduleId, dto), cancellationToken);
+        if (!success) return NotFound(new { message = "Module not found." });
 
-        mod.Title = request.Title;
-        mod.Description = request.Description;
-        await _context.SaveChangesAsync();
-
-        return Ok(new { id = mod.Id, title = mod.Title, description = mod.Description, orderIndex = mod.OrderIndex });
+        return Ok(new { id = moduleId, title = request.Title, description = request.Description });
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpDelete("{id:int}/modules/{moduleId:int}")]
-    public async Task<IActionResult> DeleteModule(int id, int moduleId)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete a course module")]
+    [EndpointDescription(
+        "Permanently deletes the specified module and its lessons from the course. Returns 204 No " +
+        "Content on success and 404 Not Found when the module does not exist."
+    )]
+    public async Task<IActionResult> DeleteModule(int id, int moduleId, CancellationToken cancellationToken)
     {
-        var mod = await _context.CourseModules.Include(m => m.Lessons).FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == id);
-        if (mod == null) return NotFound(new { message = "Module not found." });
-
-        _context.CourseModules.Remove(mod);
-        await _context.SaveChangesAsync();
+        var success = await _mediator.Send(new DeleteModuleCommand(moduleId), cancellationToken);
+        if (!success) return NotFound(new { message = "Module not found." });
 
         return NoContent();
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}/modules/reorder")]
-    public async Task<IActionResult> ReorderModules(int id, [FromBody] ReorderRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Reorder modules within a course")]
+    [EndpointDescription(
+        "Updates the display order indices for one or more modules within the specified course. " +
+        "The request body contains the module IDs and their new order indices."
+    )]
+    public async Task<IActionResult> ReorderModules(int id, [FromBody] ReorderRequest request, CancellationToken cancellationToken)
     {
-        var modules = await _context.CourseModules.Where(m => m.CourseId == id).ToListAsync();
-        foreach (var item in request.Items)
-        {
-            var mod = modules.FirstOrDefault(m => m.Id == item.Id);
-            if (mod != null) mod.OrderIndex = item.OrderIndex;
-        }
-        await _context.SaveChangesAsync();
+        var items = request.Items.Select(i => new ReorderItemDto { Id = i.Id, OrderIndex = i.OrderIndex }).ToList();
+        var success = await _mediator.Send(new ReorderModulesCommand(id, items), cancellationToken);
         return Ok(new { message = "Modules reordered successfully." });
     }
 
-    public record LessonRequest(string Title, string? Description, int DurationMinutes, string? ContentText, string? PdfUrl, string? PdfFileName);
-
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("{id:int}/modules/{moduleId:int}/lessons")]
-    public async Task<IActionResult> AddLesson(int id, int moduleId, [FromBody] LessonRequest request)
+    [ProducesResponseType(typeof(CourseLessonDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Add a lesson to a course module")]
+    [EndpointDescription(
+        "Creates a new lesson within the specified module and returns the created lesson with its " +
+        "auto-assigned order index. Returns 404 Not Found when the module does not exist."
+    )]
+    public async Task<IActionResult> AddLesson(int id, int moduleId, [FromBody] LessonRequest request, CancellationToken cancellationToken)
     {
-        var mod = await _context.CourseModules.Include(m => m.Lessons).FirstOrDefaultAsync(m => m.Id == moduleId && m.CourseId == id);
-        if (mod == null) return NotFound(new { message = "Module not found." });
-
-        var nextIndex = mod.Lessons.Any() ? mod.Lessons.Max(l => l.OrderIndex) + 1 : 1;
-        var lesson = new CourseLesson
+        var dto = new CreateLessonDto
         {
-            CourseModuleId = moduleId,
             Title = request.Title,
             Description = request.Description,
-            DurationMinutes = request.DurationMinutes > 0 ? request.DurationMinutes : 45,
+            DurationMinutes = request.DurationMinutes,
             ContentText = request.ContentText,
             PdfUrl = request.PdfUrl,
-            PdfFileName = request.PdfFileName,
-            OrderIndex = nextIndex
+            PdfFileName = request.PdfFileName
         };
 
-        await _context.CourseLessons.AddAsync(lesson);
-        await _context.SaveChangesAsync();
+        var lesson = await _mediator.Send(new AddLessonCommand(moduleId, dto), cancellationToken);
+        if (lesson == null) return NotFound(new { message = "Module not found." });
 
         return Ok(new
         {
@@ -813,124 +420,160 @@ public class CoursesController : ControllerBase
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}/modules/{moduleId:int}/lessons/{lessonId:int}")]
-    public async Task<IActionResult> UpdateLesson(int id, int moduleId, int lessonId, [FromBody] LessonRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update an existing lesson")]
+    [EndpointDescription(
+        "Updates the title, description, duration, content, and associated resources of the " +
+        "specified lesson within the module. Returns 404 Not Found when the lesson does not exist."
+    )]
+    public async Task<IActionResult> UpdateLesson(int id, int moduleId, int lessonId, [FromBody] LessonRequest request, CancellationToken cancellationToken)
     {
-        var lesson = await _context.CourseLessons.FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseModuleId == moduleId);
-        if (lesson == null) return NotFound(new { message = "Lesson not found." });
+        var dto = new UpdateLessonDto
+        {
+            Title = request.Title,
+            Description = request.Description,
+            DurationMinutes = request.DurationMinutes,
+            ContentText = request.ContentText,
+            PdfUrl = request.PdfUrl,
+            PdfFileName = request.PdfFileName
+        };
 
-        lesson.Title = request.Title;
-        lesson.Description = request.Description;
-        lesson.DurationMinutes = request.DurationMinutes > 0 ? request.DurationMinutes : lesson.DurationMinutes;
-        lesson.ContentText = request.ContentText;
-        lesson.PdfUrl = request.PdfUrl;
-        lesson.PdfFileName = request.PdfFileName;
+        var success = await _mediator.Send(new UpdateLessonCommand(lessonId, dto), cancellationToken);
+        if (!success) return NotFound(new { message = "Lesson not found." });
 
-        await _context.SaveChangesAsync();
         return Ok(new
         {
-            id = lesson.Id,
-            title = lesson.Title,
-            description = lesson.Description,
-            durationMinutes = lesson.DurationMinutes,
-            contentText = lesson.ContentText,
-            pdfUrl = lesson.PdfUrl,
-            pdfFileName = lesson.PdfFileName,
-            orderIndex = lesson.OrderIndex
+            id = lessonId,
+            title = request.Title,
+            description = request.Description,
+            durationMinutes = request.DurationMinutes,
+            contentText = request.ContentText,
+            pdfUrl = request.PdfUrl,
+            pdfFileName = request.PdfFileName
         });
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpDelete("{id:int}/modules/{moduleId:int}/lessons/{lessonId:int}")]
-    public async Task<IActionResult> DeleteLesson(int id, int moduleId, int lessonId)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete a lesson from a module")]
+    [EndpointDescription(
+        "Permanently deletes the specified lesson within the module. Returns 204 No Content on " +
+        "success and 404 Not Found when the lesson does not exist."
+    )]
+    public async Task<IActionResult> DeleteLesson(int id, int moduleId, int lessonId, CancellationToken cancellationToken)
     {
-        var lesson = await _context.CourseLessons.FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseModuleId == moduleId);
-        if (lesson == null) return NotFound(new { message = "Lesson not found." });
+        var success = await _mediator.Send(new DeleteLessonCommand(lessonId), cancellationToken);
+        if (!success) return NotFound(new { message = "Lesson not found." });
 
-        _context.CourseLessons.Remove(lesson);
-        await _context.SaveChangesAsync();
         return NoContent();
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}/modules/{moduleId:int}/lessons/reorder")]
-    public async Task<IActionResult> ReorderLessons(int id, int moduleId, [FromBody] ReorderRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Reorder lessons within a module")]
+    [EndpointDescription(
+        "Updates the display order indices for one or more lessons within the specified module. " +
+        "The request body contains the lesson IDs and their new order indices."
+    )]
+    public async Task<IActionResult> ReorderLessons(int id, int moduleId, [FromBody] ReorderRequest request, CancellationToken cancellationToken)
     {
-        var lessons = await _context.CourseLessons.Where(l => l.CourseModuleId == moduleId).ToListAsync();
-        foreach (var item in request.Items)
-        {
-            var l = lessons.FirstOrDefault(x => x.Id == item.Id);
-            if (l != null) l.OrderIndex = item.OrderIndex;
-        }
-        await _context.SaveChangesAsync();
+        var items = request.Items.Select(i => new ReorderItemDto { Id = i.Id, OrderIndex = i.OrderIndex }).ToList();
+        var success = await _mediator.Send(new ReorderLessonsCommand(moduleId, items), cancellationToken);
         return Ok(new { message = "Lessons reordered successfully." });
     }
 
-    // ─── PDF / Course Resource Uploads ────────────────────────────────────────
-
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("{id:int}/resources/upload")]
-    public async Task<IActionResult> UploadResource(int id, IFormFile file, [FromForm] string? title)
+    [ProducesResponseType(typeof(CourseResourceDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Upload a course resource file")]
+    [EndpointDescription(
+        "Uploads a resource file (up to 20MB) for the specified course and stores the file metadata " +
+        "including title, type, and download URL. Returns 400 Bad Request when no file is provided " +
+        "or the file exceeds the size limit, and 404 Not Found when the course does not exist."
+    )]
+    public async Task<IActionResult> UploadResource(int id, IFormFile file, [FromForm] string? title, CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0) return BadRequest(new { message = "No file uploaded." });
         if (file.Length > 20 * 1024 * 1024) return BadRequest(new { message = "File exceeds 20MB limit." });
 
-        var course = await _context.Courses.FindAsync(id);
-        if (course == null) return NotFound(new { message = "Course not found." });
+        var resource = await _mediator.Send(new UploadCourseResourceCommand(id, title ?? file.FileName, file), cancellationToken);
+        if (resource == null) return NotFound(new { message = "Course not found." });
 
-        var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "course_resources");
-        if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-        var ext = Path.GetExtension(file.FileName).ToLower();
-        var uniqueName = $"res_{id}_{DateTime.UtcNow.Ticks}{ext}";
-        var filePath = Path.Combine(uploadsFolder, uniqueName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var sizeMb = file.Length / (1024f * 1024f);
-        var sizeStr = sizeMb >= 1.0f ? $"{sizeMb:F1} MB" : $"{file.Length / 1024f:F0} KB";
-
-        var resource = new CourseResource
-        {
-            CourseId = id,
-            Title = !string.IsNullOrWhiteSpace(title) ? title : file.FileName,
-            FileType = ext.TrimStart('.').ToUpper(),
-            FileSize = sizeStr,
-            Url = $"/uploads/course_resources/{uniqueName}"
-        };
-
-        await _context.CourseResources.AddAsync(resource);
-        await _context.SaveChangesAsync();
-
-        return Ok(new
-        {
-            id = resource.Id,
-            title = resource.Title,
-            fileType = resource.FileType,
-            fileSize = resource.FileSize,
-            url = resource.Url
-        });
+        return Ok(resource);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpDelete("{id:int}/resources/{resourceId:int}")]
-    public async Task<IActionResult> DeleteResource(int id, int resourceId)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete a course resource")]
+    [EndpointDescription(
+        "Permanently deletes the specified resource file from the course. Returns 204 No Content " +
+        "on success and 404 Not Found when the resource does not exist."
+    )]
+    public async Task<IActionResult> DeleteResource(int id, int resourceId, CancellationToken cancellationToken)
     {
-        var resource = await _context.CourseResources.FirstOrDefaultAsync(r => r.Id == resourceId && r.CourseId == id);
-        if (resource == null) return NotFound(new { message = "Resource not found." });
-
-        if (!string.IsNullOrEmpty(resource.Url))
-        {
-            var fileName = Path.GetFileName(resource.Url);
-            var filePath = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "course_resources", fileName);
-            if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-        }
-
-        _context.CourseResources.Remove(resource);
-        await _context.SaveChangesAsync();
+        var success = await _mediator.Send(new DeleteResourceCommand(resourceId), cancellationToken);
+        if (!success) return NotFound(new { message = "Resource not found." });
 
         return NoContent();
     }
+
+    [Authorize(Roles = "Instructor,Admin")]
+    [HttpGet("instructor-my-courses")]
+    [ProducesResponseType(typeof(List<InstructorCourseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Get the authenticated instructor's assigned courses")]
+    [EndpointDescription(
+        "Returns all courses assigned to the currently authenticated instructor, including schedule " +
+        "and enrollment information. Returns 403 Forbidden when the user is not linked to an " +
+        "instructor profile."
+    )]
+    public async Task<IActionResult> GetCurrentInstructorMyCourses(CancellationToken cancellationToken)
+    {
+        if (_context == null) return BadRequest(new { message = "Database context not available." });
+        var instructorId = await User.ResolveInstructorIdAsync(_context);
+        if (instructorId == null)
+        {
+            return Forbid("Authenticated user is not linked to an instructor profile.");
+        }
+
+        var courses = await _mediator.Send(new GetInstructorMyCoursesQuery(instructorId.Value), cancellationToken);
+        return Ok(courses);
+    }
+
+    [Authorize(Roles = "Instructor,Admin")]
+    [HttpGet("instructor/{instructorId:int}/my-courses")]
+    [ProducesResponseType(typeof(List<InstructorCourseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Get a specific instructor's assigned courses")]
+    [EndpointDescription(
+        "Returns all courses assigned to the specified instructor. Accessible only to instructors " +
+        "and administrators."
+    )]
+    public async Task<IActionResult> GetInstructorMyCourses(int instructorId, CancellationToken cancellationToken)
+    {
+        var courses = await _mediator.Send(new GetInstructorMyCoursesQuery(instructorId), cancellationToken);
+        return Ok(courses);
+    }
+
 }

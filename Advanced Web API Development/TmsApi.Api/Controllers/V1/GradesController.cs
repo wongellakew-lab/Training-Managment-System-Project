@@ -1,154 +1,75 @@
 using System.Security.Claims;
 using Asp.Versioning;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs.GradeDtos;
+using TmsApi.Application.Grades.Commands;
+using TmsApi.Application.Grades.Queries;
 using TmsApi.Application.Grading;
 using TmsApi.Application.Interfaces;
-using TmsApi.Domain.Entities;
+using TmsApi.Infrastructure.Hubs;
 using TmsApi.Infrastructure.Persistence;
+using TmsApi.Infrastructure.Services;
 
 namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public class GradesController : ControllerBase
+[Tags("Gradebook")]
+public class GradesController(
+    IMediator _mediator,
+    TmsDbContext? _context = null)
+    : ControllerBase
 {
-    private readonly TmsDbContext _context;
-    private readonly GradingService _gradingService;
-    private readonly INotificationService _notificationService;
-    private readonly TmsApi.Application.Interfaces.ICourseService _courseService;
-    private readonly Microsoft.AspNetCore.SignalR.IHubContext<TmsApi.Infrastructure.Hubs.TmsHub, TmsApi.Infrastructure.Hubs.ITmsClient> _hubContext;
-
-    public GradesController(
-        TmsDbContext context,
-        GradingService gradingService,
-        INotificationService notificationService,
-        TmsApi.Application.Interfaces.ICourseService courseService,
-        Microsoft.AspNetCore.SignalR.IHubContext<TmsApi.Infrastructure.Hubs.TmsHub, TmsApi.Infrastructure.Hubs.ITmsClient> hubContext)
-    {
-        _context = context;
-        _gradingService = gradingService;
-        _notificationService = notificationService;
-        _courseService = courseService;
-        _hubContext = hubContext;
-    }
-
-    public record AssignGradeInput(int EnrollmentId, string? LetterGrade, decimal? NumericScore, decimal? Grade);
-    public record BulkGradeInputItem(int EnrollmentId, string? LetterGrade, decimal? NumericScore, decimal? Grade);
-    public record BulkAssignInput(IEnumerable<BulkGradeInputItem> Grades);
 
     [Authorize]
     [HttpGet("student/{studentId:int}")]
+    [ProducesResponseType(typeof(StudentAcademicRecordDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get a student's academic record")]
+    [EndpointDescription(
+        "Returns the complete academic record of the specified student, including credits, " +
+        "cumulative GPA, academic standing, and per-course results. Students may only view their " +
+        "own record and receive 403 Forbidden otherwise. Returns 404 Not Found when the student " +
+        "does not exist."
+    )]
     public async Task<IActionResult> GetStudentAcademicRecord(int studentId, CancellationToken cancellationToken)
     {
         if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
         {
-            var currentStudentId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveStudentIdAsync(User, _context);
+            var currentStudentId = _context != null ? await TmsApi.Api.Extensions.ClaimsExtensions.ResolveStudentIdAsync(User, _context) : null;
             if (!currentStudentId.HasValue || currentStudentId.Value != studentId)
             {
                 return Forbid();
             }
         }
 
-        var student = await _context.Students
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == studentId, cancellationToken);
+        var result = await _mediator.Send(new GetStudentAcademicRecordQuery(studentId), cancellationToken);
+        if (result == null) return NotFound(new { message = $"Student with ID {studentId} not found." });
 
-        if (student == null) return NotFound(new { message = $"Student with ID {studentId} not found." });
-
-        var enrollments = await _context.Enrollments
-            .Include(e => e.Course)
-            .AsNoTracking()
-            .Where(e => e.StudentId == studentId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected && !e.IsDeleted)
-            .ToListAsync(cancellationToken);
-
-        var completed = enrollments.Where(e => e.Status == EnrollmentStatus.Completed || e.Grade.HasValue).ToList();
-        var totalCredits = completed.Where(e => e.Course != null).Sum(e => e.Course!.Credits);
-
-        // Compute cumulative GPA across all courses on 4.00 scale
-        var gradedEnrollments = enrollments.Where(e => e.Grade.HasValue && e.Course != null).ToList();
-        decimal calculatedGpa = 0.0m;
-        if (gradedEnrollments.Any())
-        {
-            decimal totalPoints = 0m;
-            int gpaCredits = 0;
-            foreach (var ge in gradedEnrollments)
-            {
-                var cr = ge.Course?.Credits > 0 ? ge.Course.Credits : 3;
-                decimal raw = ge.Grade!.Value;
-                decimal gp = raw switch
-                {
-                    > 4.0m and >= 90m => 4.0m,
-                    > 4.0m and >= 80m => 3.0m,
-                    > 4.0m and >= 70m => 2.0m,
-                    > 4.0m and >= 60m => 1.0m,
-                    > 4.0m => 0.0m,
-                    _ => Math.Min(4.0m, Math.Max(0.0m, raw))
-                };
-                totalPoints += gp * cr;
-                gpaCredits += cr;
-            }
-            calculatedGpa = gpaCredits > 0 ? Math.Round(totalPoints / gpaCredits, 2) : 0.0m;
-        }
-        else if (student.Gpa > 0)
-        {
-            calculatedGpa = student.Gpa > 4.0m
-                ? (student.Gpa >= 90m ? 4.0m : student.Gpa >= 80m ? 3.0m : student.Gpa >= 70m ? 2.0m : student.Gpa >= 60m ? 1.0m : 0.0m)
-                : Math.Round(student.Gpa, 2);
-        }
-
-        var assessments = await _context.Assessments
-            .AsNoTracking()
-            .Include(a => a.Course)
-            .Where(a => a.StudentId == studentId && a.IsPublished)
-            .ToListAsync(cancellationToken);
-
-        return Ok(new
-        {
-            studentId = student.Id,
-            studentName = $"{student.FirstName} {student.LastName}",
-            gpa = calculatedGpa,
-            totalCredits,
-            completedCoursesCount = completed.Count,
-            grades = enrollments.Select(e =>
-            {
-                var courseAssessments = assessments.Where(a => a.CourseId == e.CourseId).Select(a => new
-                {
-                    id = a.Id,
-                    title = a.Title,
-                    maxScore = a.MaxScore,
-                    scoredPoints = a.ScoredPoints,
-                    dueDate = a.DueDate,
-                    status = a.Status,
-                    feedback = a.Feedback,
-                    gradedAt = a.GradedAt,
-                    rubricScoresJson = a.RubricScoresJson
-                }).ToList();
-
-                return new
-                {
-                    enrollmentId = e.Id,
-                    courseId = e.CourseId,
-                    courseCode = e.Course?.Code ?? string.Empty,
-                    courseTitle = e.Course?.Title ?? string.Empty,
-                    credits = e.Course?.Credits ?? 3,
-                    numericScore = e.Grade.HasValue ? (e.Grade.Value <= 4.0m ? e.Grade.Value * 25 : e.Grade.Value) : (decimal?)null,
-                    letterGrade = e.Grade.HasValue ? _gradingService.CalculateGradeLevel(e.Grade.Value).ToString() : null,
-                    status = e.Status.ToString(),
-                    assessments = courseAssessments
-                };
-            })
-        });
+        return Ok(result);
     }
 
     [Authorize]
     [HttpGet("my-grades")]
+    [ProducesResponseType(typeof(StudentAcademicRecordDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get the authenticated student's academic record")]
+    [EndpointDescription(
+        "Returns the academic record of the currently authenticated student, including credits, " +
+        "cumulative GPA, academic standing, and per-course results. Returns 404 Not Found when the " +
+        "user is not linked to a student record."
+    )]
     public async Task<IActionResult> GetMyGrades(CancellationToken cancellationToken)
     {
-        var currentStudentId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveStudentIdAsync(User, _context);
+        var currentStudentId = _context != null ? await TmsApi.Api.Extensions.ClaimsExtensions.ResolveStudentIdAsync(User, _context) : null;
         if (!currentStudentId.HasValue)
         {
             return NotFound(new { message = "Student record not found for authenticated user." });
@@ -160,287 +81,102 @@ public class GradesController : ControllerBase
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("assign")]
     [HttpPost("")]
+    [ProducesResponseType(typeof(GradeResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Assign a grade to an enrollment")]
+    [EndpointDescription(
+        "Assigns a letter grade and/or numeric score to the specified enrollment, updates the " +
+        "student's GPA, and persists the change. Returns 404 Not Found when the enrollment does " +
+        "not exist."
+    )]
     public async Task<IActionResult> AssignGrade([FromBody] AssignGradeInput dto, CancellationToken cancellationToken)
     {
-        var enrollment = await _context.Enrollments
-            .Include(e => e.Student)
-            .Include(e => e.Course)
-            .FirstOrDefaultAsync(e => e.Id == dto.EnrollmentId, cancellationToken);
-
-        if (enrollment == null)
+        var command = new AssignGradeCommand(new AssignGradeRequestDto
         {
-            return NotFound(new { message = $"Enrollment with ID {dto.EnrollmentId} not found." });
-        }
-
-        decimal numericScore = dto.NumericScore ?? dto.Grade ?? 85m;
-        // If score is 0-100 scale, normalize to GPA 0.0 - 4.0 scale
-        decimal gpaValue = numericScore > 4.0m ? (numericScore / 100m) * 4.0m : numericScore;
-
-        enrollment.Grade = gpaValue;
-        if (gpaValue >= 2.0m)
-        {
-            enrollment.Status = EnrollmentStatus.Completed;
-        }
-
-        var studentGrades = await _context.Enrollments
-            .Where(e => e.StudentId == enrollment.StudentId && e.Grade.HasValue && e.Id != enrollment.Id)
-            .Select(e => e.Grade!.Value)
-            .ToListAsync(cancellationToken);
-
-        studentGrades.Add(gpaValue);
-        enrollment.Student.Gpa = _gradingService.CalculateGPA(studentGrades);
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        var letterGrade = _gradingService.CalculateGradeLevel(gpaValue).ToString();
-
-        // Send notification to student in DB
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.StudentId == enrollment.StudentId, cancellationToken);
-        var notifUserId = user?.Id ?? enrollment.Student.UserId ?? enrollment.StudentId.ToString();
-
-        await _notificationService.CreateNotificationAsync(
-            notifUserId,
-            "Grade Published",
-            $"Your final grade for {enrollment.Course?.Code ?? "Course"} ({enrollment.Course?.Title}) is {letterGrade} ({numericScore:F0}%).",
-            "Grade",
-            enrollment.Id,
-            "Enrollment",
-            cancellationToken);
-
-        // SignalR live update
-        await _hubContext.Clients.Group($"Student_{enrollment.StudentId}").ReceiveNotification(
-            "Grade Published",
-            $"Your final grade for {enrollment.Course?.Code ?? "Course"} ({enrollment.Course?.Title}) is {letterGrade} ({numericScore:F0}%).");
-        await _hubContext.Clients.Group($"Student_{enrollment.StudentId}").ReceiveEnrollmentNotification(new
-        {
-            studentId = enrollment.StudentId,
-            courseId = enrollment.CourseId,
-            grade = gpaValue,
-            letterGrade
-        });
-        await _hubContext.Clients.Group($"Student_{enrollment.StudentId}").ReceiveGradePublished(new
-        {
-            studentId = enrollment.StudentId,
-            courseId = enrollment.CourseId,
-            grade = gpaValue,
-            letterGrade
+            EnrollmentId = dto.EnrollmentId,
+            LetterGrade = dto.LetterGrade,
+            NumericScore = dto.NumericScore,
+            Grade = dto.Grade
         });
 
-        if (user != null)
-        {
-            await _hubContext.Clients.Group($"User_{user.Id}").ReceiveNotification(
-                "Grade Published",
-                $"Your final grade for {enrollment.Course?.Code ?? "Course"} ({enrollment.Course?.Title}) is {letterGrade} ({numericScore:F0}%).");
-        }
+        var result = await _mediator.Send(command, cancellationToken);
+        if (result == null) return NotFound(new { message = $"Enrollment with ID {dto.EnrollmentId} not found." });
 
-        return Ok(new
-        {
-            enrollmentId = enrollment.Id,
-            grade = gpaValue,
-            numericScore,
-            updatedGpa = enrollment.Student.Gpa,
-            letterGrade
-        });
+        return Ok(result);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("bulk-assign")]
     [HttpPost("bulk")]
+    [ProducesResponseType(typeof(List<GradeResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Assign grades to multiple enrollments")]
+    [EndpointDescription(
+        "Assigns grades to multiple enrollments in a single operation and returns the result for " +
+        "each enrollment, including any updated GPA values."
+    )]
     public async Task<IActionResult> BulkAssignGrades([FromBody] BulkAssignInput dto, CancellationToken cancellationToken)
     {
-        var results = new List<object>();
-        var affectedStudentIds = new HashSet<int>();
-
-        foreach (var item in dto.Grades)
+        var command = new BulkAssignGradesCommand(new BulkAssignGradesRequestDto
         {
-            var enrollment = await _context.Enrollments
-                .Include(e => e.Student)
-                .Include(e => e.Course)
-                .FirstOrDefaultAsync(e => e.Id == item.EnrollmentId, cancellationToken);
-
-            if (enrollment != null)
+            Grades = (dto.Grades ?? Enumerable.Empty<BulkGradeInputItem>()).Select(g => new BulkGradeInputItemDto
             {
-                decimal numericScore = item.NumericScore ?? item.Grade ?? 85m;
-                decimal gpaValue = numericScore > 4.0m ? (numericScore / 100m) * 4.0m : numericScore;
-                enrollment.Grade = gpaValue;
-                if (gpaValue >= 2.0m) enrollment.Status = EnrollmentStatus.Completed;
+                EnrollmentId = g.EnrollmentId,
+                LetterGrade = g.LetterGrade,
+                NumericScore = g.NumericScore,
+                Grade = g.Grade
+            }).ToList()
+        });
 
-                affectedStudentIds.Add(enrollment.StudentId);
-
-                var letterGrade = _gradingService.CalculateGradeLevel(gpaValue).ToString();
-                results.Add(new { enrollmentId = item.EnrollmentId, grade = gpaValue, letterGrade, status = "Updated" });
-
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.StudentId == enrollment.StudentId, cancellationToken);
-                if (user != null)
-                {
-                    await _notificationService.CreateNotificationAsync(
-                        user.Id,
-                        "Grade Published",
-                        $"Your grade for {enrollment.Course?.Code ?? "Course"} is {letterGrade}.",
-                        "Grade",
-                        enrollment.Id,
-                        "Enrollment",
-                        cancellationToken);
-                }
-            }
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // Recalculate GPA for all affected students
-        foreach (var sId in affectedStudentIds)
-        {
-            var sGrades = await _context.Enrollments
-                .Where(e => e.StudentId == sId && e.Grade.HasValue)
-                .Select(e => e.Grade!.Value)
-                .ToListAsync(cancellationToken);
-
-            var student = await _context.Students.FindAsync(new object[] { sId }, cancellationToken);
-            if (student != null)
-            {
-                student.Gpa = _gradingService.CalculateGPA(sGrades);
-            }
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-
+        var results = await _mediator.Send(command, cancellationToken);
         return Ok(results);
     }
 
-    // ─── Instructor Gradebook Spreadsheet Matrix ─────────────────────────────
-
-    public record GradebookCellRequest(int CourseId, int StudentId, int AssignmentId, decimal? Score, string? Feedback);
-
     [Authorize(Roles = "Admin,Instructor")]
     [HttpGet("gradebook/course/{courseId:int}")]
+    [ProducesResponseType(typeof(CourseGradebookDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get a course's gradebook")]
+    [EndpointDescription(
+        "Returns the full gradebook for the specified course, including all assessment columns and " +
+        "each enrolled student's scores. Instructors may only view gradebooks for courses they own " +
+        "and receive 403 Forbidden otherwise. Returns 404 Not Found when the course does not exist."
+    )]
     public async Task<IActionResult> GetCourseGradebook(int courseId, CancellationToken cancellationToken)
     {
         if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
         {
-            var instructorId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveInstructorIdAsync(User, _context);
-            var courseOwner = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId, cancellationToken);
-            if (courseOwner == null || courseOwner.InstructorId != instructorId) return Forbid();
+            if (_context != null)
+            {
+                var instructorId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveInstructorIdAsync(User, _context);
+                var courseOwner = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId, cancellationToken);
+                if (courseOwner == null || courseOwner.InstructorId != instructorId) return Forbid();
+            }
         }
 
-        var course = await _context.Courses
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted, cancellationToken);
+        var result = await _mediator.Send(new GetCourseGradebookQuery(courseId), cancellationToken);
+        if (result == null) return NotFound(new { message = "Course not found." });
 
-        if (course == null) return NotFound(new { message = "Course not found." });
-
-        if (course.Status != "Active" && course.Status != "Completed")
-        {
-            return Ok(new
-            {
-                courseId = course.Id,
-                courseTitle = course.Title,
-                courseCode = course.Code,
-                courseStatus = course.Status,
-                isApproved = false,
-                message = "Course is pending approval. Assessments and gradebook will be automatically generated once approved by Admin.",
-                assignments = new List<object>(),
-                rows = new List<object>()
-            });
-        }
-
-        // Ensure configured assessments are created for approved active courses
-        await _courseService.EnsureCourseAssessmentsGeneratedAsync(courseId, cancellationToken);
-
-        var assignments = await _context.Assignments
-            .AsNoTracking()
-            .Where(a => a.CourseId == courseId && !a.IsDeleted && a.IsPublished)
-            .OrderBy(a => a.AssignmentNumber)
-            .ThenBy(a => a.CreatedAt)
-            .Select(a => new
-            {
-                id = a.Id,
-                assignmentNumber = a.AssignmentNumber,
-                title = a.Title,
-                maxPoints = a.MaxPoints,
-                dueDate = a.DueDate
-            })
-            .ToListAsync(cancellationToken);
-
-        var assignmentIds = assignments.Select(a => a.id).ToList();
-
-        var enrollments = await _context.Enrollments
-            .AsNoTracking()
-            .Include(e => e.Student)
-                .ThenInclude(s => s.User)
-            .Where(e => e.CourseId == courseId && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed) && !e.IsDeleted)
-            .OrderBy(e => e.Student.LastName)
-            .ThenBy(e => e.Student.FirstName)
-            .ToListAsync(cancellationToken);
-
-        var assessments = await _context.Assessments
-            .AsNoTracking()
-            .Where(a => a.CourseId == courseId && a.AssignmentId.HasValue && assignmentIds.Contains(a.AssignmentId.Value))
-            .ToListAsync(cancellationToken);
-
-        var rows = enrollments.Select(e =>
-        {
-            var st = e.Student;
-            var studentAssessments = assessments.Where(a => a.StudentId == st.Id).ToList();
-
-            var gradeCells = assignments.Select(asgn =>
-            {
-                var match = studentAssessments.FirstOrDefault(a => a.AssignmentId == asgn.id);
-                return new
-                {
-                    assignmentId = asgn.id,
-                    assessmentId = match?.Id,
-                    score = match?.ScoredPoints,
-                    maxScore = match?.MaxScore ?? asgn.maxPoints,
-                    status = match?.Status ?? "Pending",
-                    isGraded = match != null && match.Status == "Graded" && match.ScoredPoints.HasValue,
-                    feedback = match?.Feedback
-                };
-            }).ToList();
-
-            var requiredCount = assignments.Count;
-            var gradedCells = gradeCells.Where(g => g.isGraded && g.score.HasValue).ToList();
-            var gradedCount = gradedCells.Count;
-            var isGradingComplete = requiredCount > 0 && gradedCount == requiredCount;
-
-            decimal? totalScore = isGradingComplete ? gradedCells.Sum(g => g.score!.Value) : null;
-            decimal? totalMaxScore = isGradingComplete ? assignments.Sum(a => a.maxPoints) : null;
-            decimal? avgPercentage = isGradingComplete && totalMaxScore > 0 ? Math.Round((totalScore!.Value / totalMaxScore.Value) * 100m, 1) : null;
-            string letter = isGradingComplete && avgPercentage.HasValue ? _gradingService.CalculateGradeLevel(avgPercentage.Value).ToString() : "Pending";
-
-            return new
-            {
-                studentId = st.Id,
-                studentName = $"{st.FirstName} {st.LastName}",
-                registrationNumber = st.RegistrationNumber,
-                avatarUrl = st.User?.ProfilePictureUrl ?? st.ProfilePictureUrl,
-                grades = gradeCells,
-                totalScore,
-                totalMaxScore,
-                averagePercentage = avgPercentage,
-                letterGrade = letter,
-                isGradingComplete,
-                gradedAssessmentCount = gradedCount,
-                requiredAssessmentCount = requiredCount
-            };
-        }).ToList();
-
-        return Ok(new
-        {
-            courseId = course.Id,
-            courseTitle = course.Title,
-            courseCode = course.Code,
-            courseStatus = course.Status,
-            isApproved = true,
-            assignments,
-            rows
-        });
+        return Ok(result);
     }
-
-    public record BulkGradebookItem(int StudentId, int AssignmentId, decimal? Score, string? Feedback);
-    public record BulkGradebookRequest(int CourseId, List<BulkGradebookItem> Grades);
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("gradebook/bulk")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Submit grades for multiple gradebook cells")]
+    [EndpointDescription(
+        "Updates the scores and feedback for many student/assessment cells of a course gradebook in " +
+        "a single operation. Returns 400 Bad Request when no grades are submitted or a score fails " +
+        "validation, and 403 Forbidden when an instructor submits for a course they do not own."
+    )]
     public async Task<IActionResult> SubmitBulkGradebook([FromBody] BulkGradebookRequest request, CancellationToken cancellationToken)
     {
         if (request.Grades == null || !request.Grades.Any())
@@ -448,274 +184,114 @@ public class GradesController : ControllerBase
             return BadRequest(new { message = "No grades submitted." });
         }
 
-        if (User?.IsInRole("Instructor") == true && !User.IsInRole("Admin"))
-        {
-            var instructorId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveInstructorIdAsync(User, _context);
-            var courseOwner = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CourseId, cancellationToken);
-            if (courseOwner == null || courseOwner.InstructorId != instructorId) return Forbid();
-        }
-
-        var assignmentIds = request.Grades.Select(g => g.AssignmentId).Distinct().ToList();
-        var assignments = await _context.Assignments
-            .Where(a => a.CourseId == request.CourseId && assignmentIds.Contains(a.Id))
-            .ToDictionaryAsync(a => a.Id, cancellationToken);
-
-        // Validation pass: ensure all grades are provided and within [0, maxPoints]
-        foreach (var item in request.Grades)
-        {
-            if (!assignments.TryGetValue(item.AssignmentId, out var assignment))
-            {
-                return BadRequest(new { message = $"Assignment with ID {item.AssignmentId} not found in this course." });
-            }
-
-            if (!item.Score.HasValue)
-            {
-                return BadRequest(new
-                {
-                    message = "Grade validation failed.",
-                    errors = new
-                    {
-                        score = new[] { "Grade is required." }
-                    }
-                });
-            }
-
-            if (item.Score.Value < 0)
-            {
-                return BadRequest(new { message = $"Grade cannot be negative. Found {item.Score.Value} for assignment '{assignment.Title}'." });
-            }
-            if (item.Score.Value > assignment.MaxPoints)
-            {
-                return BadRequest(new { message = $"Grade cannot exceed maximum points ({assignment.MaxPoints}). Found {item.Score.Value} for assignment '{assignment.Title}'." });
-            }
-        }
-
-        // Fetch existing assessments
-        var studentIds = request.Grades.Select(g => g.StudentId).Distinct().ToList();
-        var existingAssessments = await _context.Assessments
-            .Where(a => a.CourseId == request.CourseId &&
-                        studentIds.Contains(a.StudentId) &&
-                        assignmentIds.Contains(a.AssignmentId!.Value))
-            .ToListAsync(cancellationToken);
-
-        var affectedStudentIds = new HashSet<int>();
-
-        foreach (var item in request.Grades)
-        {
-            var assignment = assignments[item.AssignmentId];
-            var assessment = existingAssessments.FirstOrDefault(a => a.StudentId == item.StudentId && a.AssignmentId == item.AssignmentId);
-
-            if (assessment == null)
-            {
-                assessment = new Assessment
-                {
-                    CourseId = request.CourseId,
-                    StudentId = item.StudentId,
-                    AssignmentId = item.AssignmentId,
-                    Title = assignment.Title,
-                    MaxScore = assignment.MaxPoints,
-                    DueDate = assignment.DueDate,
-                    IsPublished = true
-                };
-                await _context.Assessments.AddAsync(assessment, cancellationToken);
-                existingAssessments.Add(assessment);
-            }
-
-            if (item.Score.HasValue)
-            {
-                assessment.ScoredPoints = item.Score.Value;
-                assessment.Status = "Graded";
-                assessment.GradedAt = DateTime.UtcNow;
-                if (!string.IsNullOrWhiteSpace(item.Feedback)) assessment.Feedback = item.Feedback;
-                affectedStudentIds.Add(item.StudentId);
-            }
-            else
-            {
-                assessment.ScoredPoints = null;
-                assessment.Status = "Pending";
-                assessment.GradedAt = null;
-            }
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // Recalculate enrollment grades and course completion for affected students
-        if (affectedStudentIds.Any())
-        {
-            var enrollments = await _context.Enrollments
-                .Where(e => e.CourseId == request.CourseId && affectedStudentIds.Contains(e.StudentId) && !e.IsDeleted)
-                .ToListAsync(cancellationToken);
-
-            var totalAssignmentsCount = await _context.Assignments
-                .CountAsync(a => a.CourseId == request.CourseId && !a.IsDeleted && a.IsPublished, cancellationToken);
-
-            var allStudentAssessments = await _context.Assessments
-                .Where(a => a.CourseId == request.CourseId && affectedStudentIds.Contains(a.StudentId))
-                .ToListAsync(cancellationToken);
-
-            foreach (var en in enrollments)
-            {
-                var sAssessments = allStudentAssessments.Where(a => a.StudentId == en.StudentId).ToList();
-                var gradedAssessments = sAssessments.Where(a => a.ScoredPoints.HasValue).ToList();
-
-                if (gradedAssessments.Any())
-                {
-                    decimal totalScored = gradedAssessments.Sum(a => a.ScoredPoints!.Value);
-                    decimal totalMax = gradedAssessments.Sum(a => a.MaxScore);
-                    decimal avgPct = totalMax > 0 ? Math.Round((totalScored / totalMax) * 100m, 1) : 0m;
-                    en.Grade = avgPct;
-
-                    if (totalAssignmentsCount > 0 && gradedAssessments.Count >= totalAssignmentsCount && avgPct >= 60m)
-                    {
-                        en.Status = EnrollmentStatus.Completed;
-                    }
-                }
-            }
-
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-
-        // Notify affected students via SignalR
-        foreach (var sId in affectedStudentIds)
-        {
-            await _hubContext.Clients.Group($"Student_{sId}").ReceiveGradePublished(new
-            {
-                courseId = request.CourseId,
-                studentId = sId,
-                message = "Grades have been updated."
-            });
-        }
-        await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "gradesSubmitted", courseId = request.CourseId });
-
-        return Ok(new
-        {
-            message = "Grades submitted successfully",
-            updatedCount = request.Grades.Count
-        });
-    }
-
-    [Authorize(Roles = "Admin,Instructor")]
-    [HttpPost("gradebook/cell")]
-    public async Task<IActionResult> UpdateGradebookCell([FromBody] GradebookCellRequest request, CancellationToken cancellationToken)
-    {
         if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
         {
-            var instructorId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveInstructorIdAsync(User, _context);
-            var courseOwner = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CourseId, cancellationToken);
-            if (courseOwner == null || courseOwner.InstructorId != instructorId) return Forbid();
+            if (_context != null)
+            {
+                var instructorId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveInstructorIdAsync(User, _context);
+                var courseOwner = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CourseId, cancellationToken);
+                if (courseOwner == null || courseOwner.InstructorId != instructorId) return Forbid();
+            }
         }
 
-        var assignment = await _context.Assignments.FindAsync(new object[] { request.AssignmentId }, cancellationToken);
-        if (assignment == null) return NotFound(new { message = "Assignment not found." });
+        var command = new SubmitBulkGradebookCommand(new BulkGradebookSubmitRequestDto
+        {
+            CourseId = request.CourseId,
+            Grades = request.Grades.Select(g => new BulkGradebookItemInputDto
+            {
+                StudentId = g.StudentId,
+                AssignmentId = g.AssignmentId,
+                Score = g.Score,
+                Feedback = g.Feedback
+            }).ToList()
+        });
 
-        if (!request.Score.HasValue)
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            if (result != null)
+            {
+                var successProp = result.GetType().GetProperty("success")?.GetValue(result);
+                if (successProp is bool s && !s)
+                {
+                    var msgProp = result.GetType().GetProperty("message")?.GetValue(result)?.ToString() ?? "Grade validation failed.";
+                    return BadRequest(new
+                    {
+                        message = msgProp,
+                        errors = new { score = new[] { msgProp } }
+                    });
+                }
+            }
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
         {
             return BadRequest(new
             {
                 message = "Grade validation failed.",
-                errors = new
-                {
-                    score = new[] { "Grade is required." }
-                }
+                errors = new { score = new[] { ex.Message } }
             });
         }
+    }
 
-        if (request.Score.Value < 0)
+    [Authorize(Roles = "Admin,Instructor")]
+    [HttpPost("gradebook/cell")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update a single gradebook cell")]
+    [EndpointDescription(
+        "Updates the score and feedback for one student/assessment cell in a course gradebook. " +
+        "Returns 400 Bad Request when the score fails validation, 403 Forbidden when an instructor " +
+        "edits a course they do not own, and 404 Not Found when the assignment does not exist."
+    )]
+    public async Task<IActionResult> UpdateGradebookCell([FromBody] GradebookCellRequest request, CancellationToken cancellationToken)
+    {
+        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
         {
-            return BadRequest(new { message = "Grade cannot be negative." });
-        }
-        if (request.Score.Value > assignment.MaxPoints)
-        {
-            return BadRequest(new { message = $"Grade cannot exceed the maximum score of {assignment.MaxPoints}." });
-        }
-
-        var assessment = await _context.Assessments
-            .FirstOrDefaultAsync(a => a.CourseId == request.CourseId &&
-                                      a.StudentId == request.StudentId &&
-                                      a.AssignmentId == request.AssignmentId, cancellationToken);
-
-        if (assessment == null)
-        {
-            assessment = new Assessment
+            if (_context != null)
             {
-                CourseId = request.CourseId,
-                StudentId = request.StudentId,
-                AssignmentId = request.AssignmentId,
-                Title = assignment.Title,
-                MaxScore = assignment.MaxPoints,
-                DueDate = assignment.DueDate,
-                IsPublished = true
-            };
-            await _context.Assessments.AddAsync(assessment, cancellationToken);
-        }
-
-        if (request.Score.HasValue)
-        {
-            assessment.ScoredPoints = request.Score.Value;
-            assessment.Status = "Graded";
-            assessment.GradedAt = DateTime.UtcNow;
-            if (request.Feedback != null) assessment.Feedback = request.Feedback;
-        }
-        else
-        {
-            assessment.ScoredPoints = null;
-            assessment.Status = "Pending";
-            assessment.GradedAt = null;
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // Recalculate enrollment grade and completion for this student
-        var enrollment = await _context.Enrollments
-            .FirstOrDefaultAsync(e => e.CourseId == request.CourseId && e.StudentId == request.StudentId && !e.IsDeleted, cancellationToken);
-
-        if (enrollment != null)
-        {
-            var totalAssignmentsCount = await _context.Assignments
-                .CountAsync(a => a.CourseId == request.CourseId && !a.IsDeleted && a.IsPublished, cancellationToken);
-
-            var studentAssessments = await _context.Assessments
-                .Where(a => a.CourseId == request.CourseId && a.StudentId == request.StudentId)
-                .ToListAsync(cancellationToken);
-
-            var gradedAssessments = studentAssessments.Where(a => a.ScoredPoints.HasValue).ToList();
-            if (gradedAssessments.Any())
-            {
-                decimal totalScored = gradedAssessments.Sum(a => a.ScoredPoints!.Value);
-                decimal totalMax = gradedAssessments.Sum(a => a.MaxScore);
-                decimal avgPct = totalMax > 0 ? Math.Round((totalScored / totalMax) * 100m, 1) : 0m;
-                enrollment.Grade = avgPct;
-
-                if (totalAssignmentsCount > 0 && gradedAssessments.Count >= totalAssignmentsCount && avgPct >= 60m)
-                {
-                    enrollment.Status = EnrollmentStatus.Completed;
-                }
-                await _context.SaveChangesAsync(cancellationToken);
+                var instructorId = await TmsApi.Api.Extensions.ClaimsExtensions.ResolveInstructorIdAsync(User, _context);
+                var courseOwner = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CourseId, cancellationToken);
+                if (courseOwner == null || courseOwner.InstructorId != instructorId) return Forbid();
             }
         }
 
-        // Notify student via SignalR
-        if (request.Score.HasValue)
+        var command = new UpdateGradebookCellCommand(new GradebookCellRequestDto
         {
-            await _hubContext.Clients.Group($"Student_{request.StudentId}").ReceiveGradePublished(new
+            CourseId = request.CourseId,
+            StudentId = request.StudentId,
+            AssignmentId = request.AssignmentId,
+            Score = request.Score,
+            Feedback = request.Feedback
+        });
+
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            if (result == null) return NotFound(new { message = "Assignment not found." });
+            var successProp = result.GetType().GetProperty("success")?.GetValue(result);
+            if (successProp is bool s && !s)
             {
-                courseId = request.CourseId,
-                studentId = request.StudentId,
-                assignmentId = request.AssignmentId,
-                scoredPoints = request.Score.Value,
-                maxScore = assignment.MaxPoints,
-                message = $"Grade published for '{assignment.Title}'."
+                var msgProp = result.GetType().GetProperty("message")?.GetValue(result)?.ToString() ?? "Grade validation failed.";
+                return BadRequest(new
+                {
+                    message = msgProp,
+                    errors = new { score = new[] { msgProp } }
+                });
+            }
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = "Grade validation failed.",
+                errors = new { score = new[] { ex.Message } }
             });
         }
-
-        return Ok(new
-        {
-            message = "Grade updated successfully.",
-            assessmentId = assessment.Id,
-            studentId = assessment.StudentId,
-            assignmentId = assessment.AssignmentId,
-            score = assessment.ScoredPoints,
-            status = assessment.Status
-        });
     }
+
 }

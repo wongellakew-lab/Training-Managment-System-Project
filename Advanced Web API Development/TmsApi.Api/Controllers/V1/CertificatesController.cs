@@ -1,3 +1,4 @@
+using TmsApi.Application.DTOs.CertificateDtos;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,21 +13,25 @@ namespace TmsApi.Api.Controllers.V1;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public class CertificatesController : ControllerBase
+[Tags("Certificates")]
+public class CertificatesController(
+    ICertificateService _certificateService,
+    TmsDbContext _context)
+    : ControllerBase
 {
-    private readonly ICertificateService _certificateService;
-    private readonly TmsDbContext _context;
-
-    public CertificatesController(ICertificateService certificateService, TmsDbContext context)
-    {
-        _certificateService = certificateService;
-        _context = context;
-    }
-
-    public record IssueCertificateRequest(int StudentId, int CourseId);
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("issue")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Issue a certificate to a student")]
+    [EndpointDescription(
+        "Issues a course-completion certificate to the specified student. The certificate is only " +
+        "created when the student's GPA and course completion requirements are met; otherwise the " +
+        "request is rejected with 400 Bad Request. Accessible to administrators and instructors."
+    )]
     public async Task<IActionResult> IssueCertificate([FromBody] IssueCertificateRequest request, CancellationToken cancellationToken)
     {
         var success = await _certificateService.IssueCertificateAsync(request.StudentId, request.CourseId, cancellationToken);
@@ -42,10 +47,31 @@ public class CertificatesController : ControllerBase
 
     [Authorize]
     [HttpGet("my-certificates")]
+    [ProducesResponseType(typeof(List<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [EndpointSummary("Get the authenticated student's certificates")]
+    [EndpointDescription(
+        "Returns the certificates issued to the currently authenticated student. Eligible " +
+        "auto-issued certificates are generated from the student's active or completed enrollments " +
+        "before the list is returned. Returns an empty list when the user is not linked to a " +
+        "student profile."
+    )]
     public async Task<IActionResult> GetMyCertificates(CancellationToken cancellationToken)
     {
         var studentId = await User.ResolveStudentIdAsync(_context);
         if (!studentId.HasValue) return Ok(new List<object>());
+
+        // Check any eligible active/completed courses for this student
+        var enrolledCourseIds = await _context.Enrollments
+            .AsNoTracking()
+            .Where(e => e.StudentId == studentId.Value && !e.IsDeleted && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed))
+            .Select(e => e.CourseId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var cId in enrolledCourseIds)
+        {
+            await _certificateService.CheckAndIssueCertificateIfEligibleAsync(studentId.Value, cId, cancellationToken);
+        }
 
         var certs = await (from c in _context.Certificates.AsNoTracking()
                            join crs in _context.Courses.AsNoTracking() on c.CourseId equals crs.Id into crsGroup
@@ -72,6 +98,15 @@ public class CertificatesController : ControllerBase
 
     [Authorize]
     [HttpGet("student/{studentId:int}")]
+    [ProducesResponseType(typeof(List<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Get a student's certificates")]
+    [EndpointDescription(
+        "Returns the certificates issued to the specified student, generating any that the student " +
+        "has become newly eligible for. Authenticated students may only view their own certificates " +
+        "and receive 403 Forbidden otherwise."
+    )]
     public async Task<IActionResult> GetStudentCertificates(int studentId, CancellationToken cancellationToken)
     {
         if (User.IsInRole("Student") && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
@@ -79,6 +114,17 @@ public class CertificatesController : ControllerBase
             var myStudentId = await User.ResolveStudentIdAsync(_context);
             if (!myStudentId.HasValue || myStudentId.Value != studentId)
                 return Forbid();
+        }
+
+        var enrolledCourseIds = await _context.Enrollments
+            .AsNoTracking()
+            .Where(e => e.StudentId == studentId && !e.IsDeleted && (e.Status == EnrollmentStatus.Active || e.Status == EnrollmentStatus.Completed))
+            .Select(e => e.CourseId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var cId in enrolledCourseIds)
+        {
+            await _certificateService.CheckAndIssueCertificateIfEligibleAsync(studentId, cId, cancellationToken);
         }
 
         var certs = await (from c in _context.Certificates.AsNoTracking()
@@ -105,6 +151,14 @@ public class CertificatesController : ControllerBase
     }
 
     [HttpGet("verify/{certificateNumber}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Verify a certificate by its number")]
+    [EndpointDescription(
+        "Verifies an issued certificate using its certificate number and returns the certificate " +
+        "details. Returns 404 Not Found when no certificate matches the supplied number. This " +
+        "endpoint is publicly accessible."
+    )]
     public async Task<IActionResult> VerifyCertificate(string certificateNumber, CancellationToken cancellationToken)
     {
         var certificate = await _context.Certificates
@@ -138,6 +192,16 @@ public class CertificatesController : ControllerBase
 
     [Authorize]
     [HttpGet("{id:int}/download")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Download a certificate as printable HTML")]
+    [EndpointDescription(
+        "Returns a print-ready HTML certificate page for the specified certificate. Authenticated " +
+        "students may only download their own certificates and receive 403 Forbidden otherwise. " +
+        "Returns 404 Not Found when the certificate does not exist."
+    )]
     public async Task<IActionResult> DownloadCertificate(int id, CancellationToken cancellationToken)
     {
         var certificate = await _context.Certificates

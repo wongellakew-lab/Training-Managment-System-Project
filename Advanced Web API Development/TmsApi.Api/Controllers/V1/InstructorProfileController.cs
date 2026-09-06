@@ -1,145 +1,96 @@
 using Asp.Versioning;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TmsApi.Api.Extensions;
-using TmsApi.Infrastructure.Identity;
-using TmsApi.Infrastructure.Persistence;
+using TmsApi.Application.DTOs.InstructorDtos;
+using TmsApi.Application.Instructors.Commands;
+using TmsApi.Application.Instructors.Queries;
+using TmsApi.Domain.Entities;
 
 namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public class InstructorProfileController : ControllerBase
+[Tags("Instructors")]
+public class InstructorProfileController(
+    IMediator _mediator,
+    UserManager<TmsUser> _userManager)
+    : ControllerBase
 {
-    private readonly TmsDbContext _context;
-    private readonly UserManager<TmsUser> _userManager;
-    private readonly IWebHostEnvironment _env;
-
-    public InstructorProfileController(
-        TmsDbContext context,
-        UserManager<TmsUser> userManager,
-        IWebHostEnvironment env)
-    {
-        _context = context;
-        _userManager = userManager;
-        _env = env;
-    }
-
-    public record UpdateInstructorProfileRequest(
-        string FirstName,
-        string LastName,
-        string? PhoneNumber,
-        string? Department,
-        string? Bio);
-
-    public record ChangePasswordRequest(
-        string CurrentPassword,
-        string NewPassword);
-
     [Authorize(Roles = "Admin,Instructor")]
     [HttpGet]
+    [ProducesResponseType(typeof(InstructorProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get the authenticated instructor's profile")]
+    [EndpointDescription(
+        "Returns the profile of the currently authenticated instructor, including identity details, " +
+        "course, student, and certificate counts. Returns 404 Not Found when no instructor profile " +
+        "is linked to the authenticated user."
+    )]
     public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
 
-        var instructor = await _context.Instructors
-            .Include(i => i.Courses.Where(c => !c.IsDeleted))
-                .ThenInclude(c => c.Enrollments.Where(e => !e.IsDeleted))
-            .FirstOrDefaultAsync(i => i.UserId == user.Id || (user.InstructorId.HasValue && i.Id == user.InstructorId.Value), cancellationToken);
+        var profile = await _mediator.Send(new GetInstructorProfileQuery(user.Id), cancellationToken);
+        if (profile == null) return NotFound(new { message = "Instructor profile not found." });
 
-        if (instructor == null)
-        {
-            // Fallback for demo: first instructor
-            instructor = await _context.Instructors
-                .Include(i => i.Courses.Where(c => !c.IsDeleted))
-                    .ThenInclude(c => c.Enrollments.Where(e => !e.IsDeleted))
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        if (instructor == null) return NotFound(new { message = "Instructor profile not found." });
-
-        var courseIds = instructor.Courses.Select(c => c.Id).ToList();
-        var activeStudents = instructor.Courses
-            .SelectMany(c => c.Enrollments)
-            .Where(e => e.Status == Domain.Entities.EnrollmentStatus.Active || e.Status == Domain.Entities.EnrollmentStatus.Completed)
-            .Select(e => e.StudentId)
-            .Distinct()
-            .Count();
-
-        var totalCertificates = await _context.Certificates
-            .CountAsync(c => courseIds.Contains(c.CourseId), cancellationToken);
-
-        var totalAttendances = await _context.Attendances
-            .CountAsync(a => courseIds.Contains(a.CourseId), cancellationToken);
-
-        var presentCount = await _context.Attendances
-            .CountAsync(a => courseIds.Contains(a.CourseId) && (a.Status == Domain.Entities.AttendanceStatus.Present || a.Status == Domain.Entities.AttendanceStatus.Late), cancellationToken);
-
-        var attendanceRate = totalAttendances > 0
-            ? Math.Round(((decimal)presentCount / totalAttendances) * 100m, 1)
-            : 93.4m;
-
-        return Ok(new
-        {
-            id = instructor.Id,
-            userId = user.Id,
-            employeeNumber = instructor.EmployeeNumber,
-            firstName = user.FirstName ?? instructor.FirstName,
-            lastName = user.LastName ?? instructor.LastName,
-            email = user.Email ?? instructor.Email,
-            phoneNumber = user.PhoneNumber,
-            department = instructor.Department,
-            hireDate = instructor.HireDate,
-            bio = "Certified Senior Instructor passionate about modern engineering paradigms, continuous integration, and hands-on laboratory workshops.",
-            profilePictureUrl = user.ProfilePictureUrl,
-            totalCourses = instructor.Courses.Count,
-            activeStudents,
-            totalCertificates,
-            attendanceRate
-        });
+        return Ok(profile);
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update the authenticated instructor's profile")]
+    [EndpointDescription(
+        "Updates the profile of the currently authenticated instructor, including name, contact " +
+        "details, department, and bio. Returns 404 Not Found when no instructor record is linked " +
+        "to the authenticated user."
+    )]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateInstructorProfileRequest request, CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
 
-        var instructor = await _context.Instructors
-            .FirstOrDefaultAsync(i => i.UserId == user.Id || (user.InstructorId.HasValue && i.Id == user.InstructorId.Value), cancellationToken);
-
-        if (instructor != null)
+        var dto = new UpdateInstructorProfileDto
         {
-            instructor.FirstName = request.FirstName;
-            instructor.LastName = request.LastName;
-            if (!string.IsNullOrWhiteSpace(request.Department)) instructor.Department = request.Department;
-        }
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            PhoneNumber = request.PhoneNumber,
+            Department = request.Department,
+            Bio = request.Bio
+        };
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
-        user.PhoneNumber = request.PhoneNumber;
-
-        await _userManager.UpdateAsync(user);
-        await _context.SaveChangesAsync(cancellationToken);
+        var success = await _mediator.Send(new UpdateInstructorProfileCommand(user.Id, dto), cancellationToken);
+        if (!success) return NotFound(new { message = "Instructor not found." });
 
         return Ok(new
         {
             message = "Profile updated successfully.",
-            firstName = user.FirstName,
-            lastName = user.LastName,
-            phoneNumber = user.PhoneNumber,
-            department = instructor?.Department
+            firstName = request.FirstName,
+            lastName = request.LastName,
+            phoneNumber = request.PhoneNumber,
+            department = request.Department
         });
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("avatar")]
-    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [EndpointSummary("Upload the authenticated instructor's avatar")]
+    [EndpointDescription(
+        "Uploads a profile avatar for the currently authenticated instructor. Only JPEG, PNG, and " +
+        "WebP images up to 3MB are accepted. Returns 400 Bad Request when no file is provided, the " +
+        "file is too large, or its content type is not allowed."
+    )]
+    public async Task<IActionResult> UploadAvatar(IFormFile file, CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
@@ -151,28 +102,22 @@ public class InstructorProfileController : ControllerBase
         if (!allowed.Contains(file.ContentType.ToLower()))
             return BadRequest(new { message = "Only JPEG, PNG, or WebP images are allowed." });
 
-        var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "avatars");
-        if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-        var ext = Path.GetExtension(file.FileName).ToLower();
-        var uniqueName = $"avatar_{user.Id}_{DateTime.UtcNow.Ticks}{ext}";
-        var filePath = Path.Combine(uploadsFolder, uniqueName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var avatarUrl = $"/uploads/avatars/{uniqueName}";
-        user.ProfilePictureUrl = avatarUrl;
-        await _userManager.UpdateAsync(user);
-
+        var avatarUrl = await _mediator.Send(new UploadInstructorAvatarCommand(user.Id, file), cancellationToken);
         return Ok(new { profilePictureUrl = avatarUrl });
     }
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [EndpointSummary("Change the authenticated instructor's password")]
+    [EndpointDescription(
+        "Changes the password for the currently authenticated instructor. Returns 400 Bad Request " +
+        "when the current password is incorrect or the new password does not satisfy the configured " +
+        "password policy."
+    )]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangeInstructorPasswordRequest request)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();

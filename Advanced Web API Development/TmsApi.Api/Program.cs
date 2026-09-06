@@ -113,6 +113,7 @@ builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<GradingService>();
 builder.Services.AddScoped<DataShaper<CourseDto>>();
 builder.Services.AddScoped<IStudentService, StudentService>();
@@ -125,6 +126,10 @@ builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITranscriptService, TranscriptService>();
+builder.Services.AddScoped<IAssignmentService, AssignmentService>();
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IGradeService, GradeService>();
+builder.Services.AddScoped<IInstructorService, InstructorService>();
 
 // SignalR & Background Channels
 builder.Services.AddSignalR();
@@ -168,6 +173,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new TmsApi.Api.Converters.NullableDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new TmsApi.Api.Converters.CustomDateTimeJsonConverter());
     });
 builder.Services.AddOpenApi();
 

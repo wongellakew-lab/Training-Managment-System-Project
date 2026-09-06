@@ -1,203 +1,128 @@
+using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TmsApi.Application.DTOs.StudentDtos;
-using TmsApi.Application.Interfaces;
-using TmsApi.Domain.Entities;
-using TmsApi.Infrastructure.Identity;
-using TmsApi.Infrastructure.Persistence;
-using TmsApi.Infrastructure.Services;
+using TmsApi.Application.Auth.Commands;
+using TmsApi.Application.Auth.Queries;
+using TmsApi.Application.DTOs.AuthDtos;
 
 namespace TmsApi.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-public class AuthController : ControllerBase
+[Tags("Authentication")]
+public class AuthController(
+    IMediator _mediator)
+    : ControllerBase
 {
-    private readonly UserManager<TmsUser> _userManager;
-    private readonly TokenService _tokenService;
-    private readonly TmsDbContext _context;
-    private readonly IStudentService _studentService;
-
-    public AuthController(
-        UserManager<TmsUser> userManager,
-        TokenService tokenService,
-        TmsDbContext context,
-        IStudentService studentService)
-    {
-        _userManager = userManager;
-        _tokenService = tokenService;
-        _context = context;
-        _studentService = studentService;
-    }
-
-    public record RegisterRequest(string Email, string Password, string FirstName, string LastName, string Role, string? RegNumber);
-    public record LoginRequest(string Email, string Password);
-    public record RefreshTokenRequest(string RefreshToken);
-
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [EndpointSummary("Register a new user account")]
+    [EndpointDescription(
+        "Creates a new Training Management System account for a student, instructor, or admin. " +
+        "Returns the created user profile together with JWT access and refresh tokens. " +
+        "The request is rejected with 400 Bad Request if the email is already registered or the " +
+        "provided registration data is invalid."
+    )]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser != null)
+        var (succeeded, response, errors) = await _mediator.Send(new RegisterCommand(request), cancellationToken);
+        if (!succeeded)
         {
-            return BadRequest(new { message = "User with this email already exists." });
+            return BadRequest(errors);
         }
-
-        var user = new TmsUser
-        {
-            UserName = request.Email,
-            Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName
-        };
-
-        var roleToAssign = request.Role is "Admin" or "Instructor" or "Student" ? request.Role : "Student";
-
-        var result = await _userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-        {
-            return BadRequest(result.Errors);
-        }
-
-        await _userManager.AddToRoleAsync(user, roleToAssign);
-
-        if (string.Equals(roleToAssign, "Student", StringComparison.OrdinalIgnoreCase))
-        {
-            var student = new Student
-            {
-                UserId = user.Id,
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                Email = request.Email,
-                RegistrationNumber = request.RegNumber ?? $"REG-{Guid.NewGuid().ToString()[..8].ToUpper()}",
-                EnrollmentDate = DateTime.UtcNow
-            };
-            await _context.Students.AddAsync(student);
-            await _context.SaveChangesAsync();
-            user.StudentId = student.Id;
-            await _userManager.UpdateAsync(user);
-        }
-        else if (string.Equals(roleToAssign, "Instructor", StringComparison.OrdinalIgnoreCase))
-        {
-            var instructor = new Instructor
-            {
-                UserId = user.Id,
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                Email = request.Email,
-                EmployeeNumber = $"EMP-{Guid.NewGuid().ToString()[..6].ToUpper()}",
-                Department = "Computer Science",
-                HireDate = DateTime.UtcNow
-            };
-            await _context.Instructors.AddAsync(instructor);
-            await _context.SaveChangesAsync();
-            user.InstructorId = instructor.Id;
-            await _userManager.UpdateAsync(user);
-        }
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var (accessToken, refreshToken) = await _tokenService.GenerateTokensAsync(user, roles);
 
         return Ok(new
         {
-            user = new
-            {
-                user.Id,
-                user.Email,
-                user.FirstName,
-                user.LastName,
-                user.StudentId,
-                user.InstructorId,
-                role = roles.FirstOrDefault() ?? roleToAssign,
-                roles
-            },
-            token = accessToken,
-            accessToken,
-            refreshToken
+            user = response!.User,
+            token = response.Token,
+            accessToken = response.AccessToken,
+            refreshToken = response.RefreshToken
         });
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [EndpointSummary("Authenticate with email and password")]
+    [EndpointDescription(
+        "Validates the caller's credentials and returns the authenticated user profile together " +
+        "with a JWT access token and a refresh token used to obtain new access tokens. " +
+        "Returns 401 Unauthorized when the credentials are invalid or the account cannot sign in."
+    )]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
-        if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
+        var (succeeded, response, errorMessage) = await _mediator.Send(new LoginCommand(request), cancellationToken);
+        if (!succeeded)
         {
-            return Unauthorized(new { message = "Invalid email or password." });
+            return Unauthorized(new { message = errorMessage });
         }
-
-        if (await _userManager.IsLockedOutAsync(user))
-        {
-            return Unauthorized(new { message = "Your account is suspended. Please contact an administrator." });
-        }
-
-        if (user.InstructorId.HasValue)
-        {
-            var instructor = await _context.Instructors.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == user.InstructorId.Value);
-            if (instructor != null && string.Equals(instructor.Status, "Suspended", StringComparison.OrdinalIgnoreCase))
-            {
-                return Unauthorized(new { message = "Your account is suspended. Please contact an administrator." });
-            }
-        }
-        else if (user.StudentId.HasValue)
-        {
-            var student = await _context.Students.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Id == user.StudentId.Value);
-            if (student != null && string.Equals(student.Status, "Suspended", StringComparison.OrdinalIgnoreCase))
-            {
-                return Unauthorized(new { message = "Your account is suspended. Please contact an administrator." });
-            }
-        }
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var (accessToken, refreshToken) = await _tokenService.GenerateTokensAsync(user, roles);
 
         return Ok(new
         {
-            user = new
-            {
-                user.Id,
-                user.Email,
-                user.FirstName,
-                user.LastName,
-                user.StudentId,
-                user.InstructorId,
-                role = roles.FirstOrDefault() ?? "Student",
-                roles
-            },
-            token = accessToken,
-            accessToken,
-            refreshToken
+            user = response!.User,
+            token = response.Token,
+            accessToken = response.AccessToken,
+            refreshToken = response.RefreshToken
         });
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+    [ProducesResponseType(typeof(RefreshResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [EndpointSummary("Refresh an expired JWT access token")]
+    [EndpointDescription(
+        "Exchanges a valid refresh token for a new pair of JWT access and refresh tokens. " +
+        "Does not change any database data. Returns 401 Unauthorized when the refresh token is " +
+        "invalid, expired, or has already been revoked."
+    )]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var tokens = await _tokenService.RefreshTokenAsync(request.RefreshToken);
-        if (!tokens.HasValue)
+        var response = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken), cancellationToken);
+        if (response == null)
         {
             return Unauthorized(new { message = "Invalid or expired refresh token." });
         }
 
         return Ok(new
         {
-            token = tokens.Value.AccessToken,
-            accessToken = tokens.Value.AccessToken,
-            refreshToken = tokens.Value.RefreshToken
+            token = response.Token,
+            accessToken = response.AccessToken,
+            refreshToken = response.RefreshToken
         });
+    }
+
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [EndpointSummary("Sign out the current user")]
+    [EndpointDescription(
+        "Revokes the provided refresh token for the currently authenticated user so it can no " +
+        "longer be used to obtain new access tokens. Requires no specific role beyond authentication."
+    )]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest? request, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        await _mediator.Send(new RevokeTokenCommand(request?.RefreshToken, userId), cancellationToken);
+        return Ok(new { message = "Logged out successfully." });
     }
 
     [Authorize]
     [HttpGet("profile")]
-    public async Task<IActionResult> Profile()
+    [ProducesResponseType(typeof(AuthUserResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get the current user's profile")]
+    [EndpointDescription(
+        "Returns the profile of the currently authenticated user, including identity details, " +
+        "the assigned role, and the linked student or instructor ID when one exists. " +
+        "Returns 404 Not Found if no user record exists for the authenticated principal."
+    )]
+    public async Task<IActionResult> Profile(CancellationToken cancellationToken)
     {
-        var user = await _userManager.GetUserAsync(User);
+        var user = await _mediator.Send(new GetCurrentUserProfileQuery(User), cancellationToken);
         if (user == null) return NotFound();
-
-        var roles = await _userManager.GetRolesAsync(user);
 
         return Ok(new
         {
@@ -207,8 +132,8 @@ public class AuthController : ControllerBase
             user.LastName,
             user.StudentId,
             user.InstructorId,
-            role = roles.FirstOrDefault() ?? "Student",
-            roles
+            role = user.Role,
+            roles = user.Roles
         });
     }
 }

@@ -61,6 +61,7 @@ public class CourseDto
 public class CourseModuleDto
 {
     public int Id { get; set; }
+    public int CourseId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int OrderIndex { get; set; } = 1;
@@ -70,6 +71,7 @@ public class CourseModuleDto
 public class CourseLessonDto
 {
     public int Id { get; set; }
+    public int CourseModuleId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int OrderIndex { get; set; } = 1;
@@ -82,6 +84,7 @@ public class CourseLessonDto
 public class CourseResourceDto
 {
     public int Id { get; set; }
+    public int CourseId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string FileType { get; set; } = "PDF";
     public string FileSize { get; set; } = "1.0 MB";
@@ -184,3 +187,81 @@ public class RejectCourseDto
 {
     public string Reason { get; set; } = string.Empty;
 }
+
+public class ReorderItemDto
+{
+    public int Id { get; set; }
+    public int OrderIndex { get; set; }
+}
+
+public class CreateLessonDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int DurationMinutes { get; set; } = 30;
+    public string? ContentText { get; set; }
+    public string? PdfUrl { get; set; }
+    public string? PdfFileName { get; set; }
+}
+
+public class UpdateLessonDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int DurationMinutes { get; set; } = 30;
+    public string? ContentText { get; set; }
+    public string? PdfUrl { get; set; }
+    public string? PdfFileName { get; set; }
+}
+
+public class CreateModuleDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+
+public class UpdateModuleDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+
+public class CourseBuilderDto
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string About { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Level { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public int DurationHours { get; set; }
+    public int LessonsCount { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string FeaturesJson { get; set; } = "[]";
+    public int? InstructorId { get; set; }
+    public string? InstructorName { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public int MaxCapacity { get; set; } = 50;
+    public List<CourseScheduleDto> Schedules { get; set; } = new();
+    public string? RejectionReason { get; set; }
+    public int ExpectedAssignmentCount { get; set; } = 5;
+    public decimal AssignmentMaxPoints { get; set; } = 10m;
+    public bool HasMidterm { get; set; } = true;
+    public decimal MidtermMaxPoints { get; set; } = 20m;
+    public int ExpectedMidtermCount { get; set; } = 1;
+    public bool HasFinal { get; set; } = true;
+    public decimal FinalMaxPoints { get; set; } = 30m;
+    public int ExpectedFinalCount { get; set; } = 1;
+    public int TotalAssessments => ExpectedAssignmentCount + (HasMidterm ? 1 : ExpectedMidtermCount) + (HasFinal ? 1 : ExpectedFinalCount);
+    public decimal TotalCoursePoints => (ExpectedAssignmentCount * AssignmentMaxPoints) + ((HasMidterm || ExpectedMidtermCount > 0) ? MidtermMaxPoints : 0m) + ((HasFinal || ExpectedFinalCount > 0) ? FinalMaxPoints : 0m);
+    public int CreatedAssignmentsCount { get; set; }
+    public int TotalCreatedAssessments { get; set; }
+    public bool HasGradedAssessments { get; set; }
+    public List<CourseModuleDto> Modules { get; set; } = new();
+    public List<CourseResourceDto> Resources { get; set; } = new();
+}
+

@@ -38,6 +38,7 @@ public class UpdateStudentDto
 
 public class AdminStudentEnrolledCourseDto
 {
+    public int EnrollmentId { get; set; }
     public int CourseId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
@@ -71,4 +72,35 @@ public class AdminStudentDetailDto
     public string Status { get; set; } = "Active";
     public string Avatar { get; set; } = string.Empty;
     public List<AdminStudentEnrolledCourseDto> EnrolledCourses { get; set; } = new();
+}
+
+public class StudentProfileDto
+{
+    public int Id { get; set; }
+    public string UserId { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? Bio { get; set; }
+    public string? AvatarUrl { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+    public string? Department { get; set; }
+    public string? RegistrationNumber { get; set; }
+    public decimal Gpa { get; set; }
+    public DateTime EnrollmentDate { get; set; }
+    public List<string> Roles { get; set; } = new();
+    public int TotalEnrollments { get; set; }
+    public int ActiveCourses { get; set; }
+    public int CompletedCourses { get; set; }
+    public int EarnedCertificates { get; set; }
+}
+
+public class UpdateStudentProfileDto
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? Bio { get; set; }
+    public string? Department { get; set; }
 }

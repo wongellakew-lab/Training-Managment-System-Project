@@ -13,23 +13,21 @@ namespace TmsApi.Api.Controllers.V1;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public class SchedulesController : ControllerBase
+[Tags("Schedules")]
+public class SchedulesController(
+    IScheduleService _scheduleService,
+    TmsDbContext _context,
+    IHubContext<TmsHub, ITmsClient> _hubContext) : ControllerBase
 {
-    private readonly IScheduleService _scheduleService;
-    private readonly TmsDbContext _context;
-    private readonly IHubContext<TmsHub, ITmsClient> _hubContext;
-
-    public SchedulesController(
-        IScheduleService scheduleService,
-        TmsDbContext context,
-        IHubContext<TmsHub, ITmsClient> hubContext)
-    {
-        _scheduleService = scheduleService;
-        _context = context;
-        _hubContext = hubContext;
-    }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ScheduleDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List schedules, filtered by audience")]
+    [EndpointDescription(
+        "Returns schedules optionally filtered by category, month, and year. Administrators see all " +
+        "schedules, while other authenticated callers only receive the schedules relevant to their " +
+        "linked student or instructor profile."
+    )]
     public async Task<IActionResult> GetSchedules(
         [FromQuery] string? category,
         [FromQuery] int? month,
@@ -52,6 +50,15 @@ public class SchedulesController : ControllerBase
 
     [Authorize]
     [HttpGet("my-schedule")]
+    [ProducesResponseType(typeof(StudentScheduleSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get the authenticated student's schedule overview")]
+    [EndpointDescription(
+        "Returns the schedule overview for the currently authenticated student, including class " +
+        "counts for the week and month, the next upcoming class, enrolled courses, and the filtered " +
+        "schedule list. Returns 404 Not Found when the user is not linked to a student profile."
+    )]
     public async Task<IActionResult> GetMySchedule(
         [FromQuery] int? year,
         [FromQuery] int? month,
@@ -70,6 +77,16 @@ public class SchedulesController : ControllerBase
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpGet("instructor-schedule")]
+    [ProducesResponseType(typeof(IEnumerable<ScheduleDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get the authenticated instructor's schedule")]
+    [EndpointDescription(
+        "Returns the teaching schedule for the currently authenticated instructor, optionally " +
+        "filtered by month, year, or date. Returns 404 Not Found when the user is not linked to an " +
+        "instructor profile."
+    )]
     public async Task<IActionResult> GetInstructorSchedule(
         [FromQuery] int? year,
         [FromQuery] int? month,
@@ -87,6 +104,12 @@ public class SchedulesController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ScheduleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get a schedule by ID")]
+    [EndpointDescription(
+        "Returns a single schedule entry. Returns 404 Not Found when the schedule does not exist."
+    )]
     public async Task<IActionResult> GetScheduleById(int id, CancellationToken cancellationToken)
     {
         var schedule = await _scheduleService.GetScheduleByIdAsync(id, cancellationToken);
@@ -97,6 +120,16 @@ public class SchedulesController : ControllerBase
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPost]
+    [ProducesResponseType(typeof(ScheduleDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [EndpointSummary("Create a new schedule entry")]
+    [EndpointDescription(
+        "Creates a new schedule entry (meeting, workshop, class, or event) with the provided " +
+        "audience targeting. Triggers a real-time schedule update notification to all connected " +
+        "clients. Returns 201 Created with the new schedule."
+    )]
     public async Task<IActionResult> CreateSchedule([FromBody] CreateScheduleDto dto, CancellationToken cancellationToken)
     {
         var result = await _scheduleService.CreateScheduleAsync(dto, cancellationToken);
@@ -106,6 +139,16 @@ public class SchedulesController : ControllerBase
 
     [Authorize(Roles = "Admin,Instructor")]
     [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update a schedule entry")]
+    [EndpointDescription(
+        "Updates the details of the specified schedule entry and triggers a real-time schedule " +
+        "update notification to all connected clients. Returns 204 No Content on success or 404 " +
+        "Not Found when the schedule does not exist."
+    )]
     public async Task<IActionResult> UpdateSchedule(int id, [FromBody] UpdateScheduleDto dto, CancellationToken cancellationToken)
     {
         var updated = await _scheduleService.UpdateScheduleAsync(id, dto, cancellationToken);
@@ -117,6 +160,16 @@ public class SchedulesController : ControllerBase
 
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete a schedule entry")]
+    [EndpointDescription(
+        "Permanently deletes the specified schedule entry and triggers a real-time schedule update " +
+        "notification to all connected clients. Administrator-only operation. Returns 204 No " +
+        "Content on success or 404 Not Found when the schedule does not exist."
+    )]
     public async Task<IActionResult> DeleteSchedule(int id, CancellationToken cancellationToken)
     {
         var deleted = await _scheduleService.DeleteScheduleAsync(id, cancellationToken);

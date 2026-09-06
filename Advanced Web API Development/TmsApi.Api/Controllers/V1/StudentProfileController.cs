@@ -1,97 +1,58 @@
+using Asp.Versioning;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using TmsApi.Application.DTOs.StudentDtos;
+using TmsApi.Application.Students.Commands;
+using TmsApi.Application.Students.Queries;
 using TmsApi.Domain.Entities;
-using TmsApi.Infrastructure.Identity;
-using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Api.Controllers.V1;
 
 [Authorize]
 [ApiController]
-[Route("api/v1/[controller]")]
-public class StudentProfileController : ControllerBase
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
+[Tags("Students")]
+public class StudentProfileController(
+    IMediator _mediator,
+    UserManager<TmsUser> _userManager)
+    : ControllerBase
 {
-    private readonly UserManager<TmsUser> _userManager;
-    private readonly TmsDbContext _context;
-    private readonly IWebHostEnvironment _env;
-
-    public StudentProfileController(
-        UserManager<TmsUser> userManager,
-        TmsDbContext context,
-        IWebHostEnvironment env)
-    {
-        _userManager = userManager;
-        _context = context;
-        _env = env;
-    }
-
-    public record UpdateProfileRequest(string FirstName, string LastName, string? PhoneNumber, string? Department, string? Bio);
-    public record ChangePasswordRequest(string CurrentPassword, string NewPassword, string ConfirmNewPassword);
-
     [HttpGet]
-    public async Task<IActionResult> GetProfile()
+    [ProducesResponseType(typeof(StudentProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get the authenticated student's profile")]
+    [EndpointDescription(
+        "Returns the profile of the currently authenticated student, including identity details, " +
+        "academic summary, roles, and course statistics. Returns 404 Not Found when the user is " +
+        "not linked to a student profile."
+    )]
+    public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return NotFound(new { message = "User not found." });
 
-        Student? student = null;
-        if (user.StudentId.HasValue)
-        {
-            student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Id == user.StudentId.Value);
-        }
-        if (student == null)
-        {
-            student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == user.Id);
-        }
+        var profile = await _mediator.Send(new GetStudentProfileQuery(user.Id), cancellationToken);
+        if (profile == null) return NotFound(new { message = "Student profile not found." });
 
-        var roles = await _userManager.GetRolesAsync(user);
-
-        var totalEnrollments = student != null
-            ? await _context.Enrollments.CountAsync(e => e.StudentId == student.Id && !e.IsDeleted)
-            : 0;
-
-        var completedCourses = student != null
-            ? await _context.Enrollments.CountAsync(e => e.StudentId == student.Id && e.Status == EnrollmentStatus.Completed && !e.IsDeleted)
-            : 0;
-
-        var activeCourses = student != null
-            ? await _context.Enrollments.CountAsync(e => e.StudentId == student.Id && e.Status == EnrollmentStatus.Active && !e.IsDeleted)
-            : 0;
-
-        var earnedCertificates = student != null
-            ? await _context.Certificates.CountAsync(c => c.StudentId == student.Id)
-            : 0;
-
-        var regNum = !string.IsNullOrWhiteSpace(student?.RegistrationNumber)
-            ? student.RegistrationNumber
-            : (student != null ? $"STU-{student.Id:D5}" : $"STU-{user.Id[..Math.Min(6, user.Id.Length)].ToUpper()}");
-
-        return Ok(new
-        {
-            id = user.Id,
-            studentId = user.StudentId ?? student?.Id,
-            email = user.Email,
-            firstName = user.FirstName,
-            lastName = user.LastName,
-            phoneNumber = user.PhoneNumber ?? student?.PhoneNumber ?? string.Empty,
-            department = user.Department ?? student?.Department ?? "General Academic Program",
-            bio = user.Bio ?? student?.Bio ?? string.Empty,
-            profilePictureUrl = user.ProfilePictureUrl ?? student?.ProfilePictureUrl,
-            registrationNumber = regNum,
-            gpa = student?.Gpa ?? 0m,
-            enrollmentDate = student?.EnrollmentDate ?? user.CreatedAt,
-            roles,
-            totalEnrollments,
-            completedCourses,
-            activeCourses,
-            earnedCertificates
-        });
+        return Ok(profile);
     }
 
     [HttpPut]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update the authenticated student's profile")]
+    [EndpointDescription(
+        "Updates the profile of the currently authenticated student. First name and last name are " +
+        "required and trimmed before saving. Returns 400 Bad Request when required fields are " +
+        "missing, 404 Not Found when the user has no linked student record, or 200 OK on success."
+    )]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateStudentProfileRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
         {
@@ -101,45 +62,33 @@ public class StudentProfileController : ControllerBase
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return NotFound(new { message = "User not found." });
 
-        user.FirstName = request.FirstName.Trim();
-        user.LastName = request.LastName.Trim();
-        user.PhoneNumber = request.PhoneNumber?.Trim();
-        user.Department = request.Department?.Trim();
-        user.Bio = request.Bio?.Trim();
-
-        await _userManager.UpdateAsync(user);
-
-        Student? student = null;
-        if (user.StudentId.HasValue)
+        var dto = new UpdateStudentProfileDto
         {
-            student = await _context.Students.FindAsync(user.StudentId.Value);
-        }
-        if (student == null)
-        {
-            student = await _context.Students.FirstOrDefaultAsync(s => s.UserId == user.Id);
-        }
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            PhoneNumber = request.PhoneNumber?.Trim(),
+            Department = request.Department?.Trim(),
+            Bio = request.Bio?.Trim()
+        };
 
-        if (student != null)
-        {
-            student.FirstName = user.FirstName;
-            student.LastName = user.LastName;
-            student.PhoneNumber = user.PhoneNumber;
-            student.Department = user.Department;
-            student.Bio = user.Bio;
-            if (student.UserId == null) student.UserId = user.Id;
-            if (!user.StudentId.HasValue)
-            {
-                user.StudentId = student.Id;
-                await _userManager.UpdateAsync(user);
-            }
-            await _context.SaveChangesAsync();
-        }
+        var updated = await _mediator.Send(new UpdateStudentProfileCommand(user.Id, dto), cancellationToken);
+        if (!updated) return NotFound(new { message = "Student not found." });
 
         return Ok(new { message = "Profile updated successfully." });
     }
 
     [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Change the authenticated student's password")]
+    [EndpointDescription(
+        "Changes the password for the currently authenticated student. The new password must match " +
+        "the confirmation field and satisfy the configured password policy. Returns 400 Bad Request " +
+        "when the passwords do not match or the current password is incorrect."
+    )]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangeStudentPasswordRequest request)
     {
         if (request.NewPassword != request.ConfirmNewPassword)
         {
@@ -159,7 +108,17 @@ public class StudentProfileController : ControllerBase
     }
 
     [HttpPost("avatar")]
-    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [EndpointSummary("Upload the authenticated student's avatar")]
+    [EndpointDescription(
+        "Uploads a profile avatar for the currently authenticated student. Only JPEG, PNG, and WebP " +
+        "images up to 2MB are accepted. Returns 400 Bad Request when no file is provided, the file " +
+        "is too large, or its content type is not allowed."
+    )]
+    public async Task<IActionResult> UploadAvatar(IFormFile file, CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
         {
@@ -180,42 +139,7 @@ public class StudentProfileController : ControllerBase
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return NotFound(new { message = "User not found." });
 
-        var uploadsFolder = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "avatars");
-        if (!Directory.Exists(uploadsFolder))
-        {
-            Directory.CreateDirectory(uploadsFolder);
-        }
-
-        var extension = Path.GetExtension(file.FileName).ToLower();
-        var uniqueFileName = $"avatar_{user.Id}_{DateTime.UtcNow.Ticks}{extension}";
-        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var avatarUrl = $"/uploads/avatars/{uniqueFileName}";
-        user.ProfilePictureUrl = avatarUrl;
-        await _userManager.UpdateAsync(user);
-
-        Student? student = null;
-        if (user.StudentId.HasValue)
-        {
-            student = await _context.Students.FindAsync(user.StudentId.Value);
-        }
-        if (student == null)
-        {
-            student = await _context.Students.FirstOrDefaultAsync(s => s.UserId == user.Id);
-        }
-
-        if (student != null)
-        {
-            student.ProfilePictureUrl = avatarUrl;
-            if (student.UserId == null) student.UserId = user.Id;
-            await _context.SaveChangesAsync();
-        }
-
+        var avatarUrl = await _mediator.Send(new UploadStudentAvatarCommand(user.Id, file), cancellationToken);
         return Ok(new { avatarUrl, message = "Avatar uploaded successfully." });
     }
 }
