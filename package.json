@@ -1,0 +1,16 @@
+{
+  "name": "training-managment-system---copy",
+  "version": "1.0.0",
+  "description": "![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4) ![Angular 22](https://img.shields.io/badge/Angular-22-DD0031) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6) ![License](https://img.shields.io/badge/License-Not%20licensed-gray)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
