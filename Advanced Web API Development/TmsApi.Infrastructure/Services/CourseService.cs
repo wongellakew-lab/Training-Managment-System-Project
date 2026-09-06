@@ -1,27 +1,28 @@
 using System.Dynamic;
 using AutoMapper;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs;
 using TmsApi.Application.DTOs.CourseDtos;
+using TmsApi.Application.DTOs.InstructorDtos;
 using TmsApi.Application.Interfaces;
 using TmsApi.Application.Shaping;
 using TmsApi.Domain.Entities;
+using TmsApi.Infrastructure.Hubs;
 using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class CourseService : ICourseService
+public class CourseService(
+    TmsDbContext _context,
+    IMapper _mapper,
+    DataShaper<CourseDto> _dataShaper,
+    IWebHostEnvironment? _env = null,
+    IHubContext<TmsHub, ITmsClient>? _hubContext = null,
+    INotificationService? _notificationService = null) : ICourseService
 {
-    private readonly TmsDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly DataShaper<CourseDto> _dataShaper;
-
-    public CourseService(TmsDbContext context, IMapper mapper, DataShaper<CourseDto> dataShaper)
-    {
-        _context = context;
-        _mapper = mapper;
-        _dataShaper = dataShaper;
-    }
 
     public async Task<PagedResponse<CourseDto>> GetCoursesAsync(PagedRequest request, CancellationToken cancellationToken = default)
     {
@@ -649,8 +650,455 @@ public class CourseService : ICourseService
                         }
                     }
                 }
-                await _context.SaveChangesAsync(cancellationToken);
             }
         }
+    }
+
+    public async Task<bool> ApproveCourseAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses
+            .Include(c => c.Modules)
+                .ThenInclude(m => m.Lessons)
+            .Include(c => c.Schedules)
+            .Include(c => c.Instructor)
+                .ThenInclude(i => i!.User)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
+
+        if (course == null) return false;
+
+        bool hasContent = course.Modules.Any(m => m.Lessons.Any());
+        if (!hasContent) throw new InvalidOperationException("Course cannot be approved because it has no modules or lessons.");
+
+        if (!course.Schedules.Any(s => !s.IsDeleted)) throw new InvalidOperationException("Course cannot be approved because it has no scheduled classes.");
+
+        course.Status = "Active";
+        course.RejectionReason = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await EnsureCourseAssessmentsGeneratedAsync(id, cancellationToken);
+
+        var recipientUserId = course.Instructor?.UserId;
+        if (string.IsNullOrEmpty(recipientUserId) && course.InstructorId.HasValue)
+        {
+            var instructorUser = await _context.Users.FirstOrDefaultAsync(u => u.InstructorId == course.InstructorId.Value, cancellationToken);
+            recipientUserId = instructorUser?.Id;
+        }
+
+        if (_notificationService != null && !string.IsNullOrEmpty(recipientUserId))
+        {
+            await _notificationService.CreateNotificationAsync(
+                recipientUserId,
+                "Course Approved",
+                $"Your course '{course.Title}' ({course.Code}) has been approved by administration and is now active in the catalog.",
+                "Course",
+                course.Id,
+                "Course",
+                cancellationToken);
+        }
+
+        if (_hubContext != null)
+        {
+            await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseApproved", courseId = course.Id });
+        }
+
+        return true;
+    }
+
+    public async Task<bool> RejectCourseAsync(int id, string reason, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses
+            .Include(c => c.Instructor)
+                .ThenInclude(i => i!.User)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
+
+        if (course == null) return false;
+
+        course.Status = "Rejected";
+        course.RejectionReason = reason;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var recipientUserId = course.Instructor?.UserId;
+        if (string.IsNullOrEmpty(recipientUserId) && course.InstructorId.HasValue)
+        {
+            var instructorUser = await _context.Users.FirstOrDefaultAsync(u => u.InstructorId == course.InstructorId.Value, cancellationToken);
+            recipientUserId = instructorUser?.Id;
+        }
+
+        if (_notificationService != null && !string.IsNullOrEmpty(recipientUserId))
+        {
+            await _notificationService.CreateNotificationAsync(
+                recipientUserId,
+                "Course Rejected",
+                $"Your course '{course.Title}' ({course.Code}) was rejected: {reason}",
+                "Course",
+                course.Id,
+                "Course",
+                cancellationToken);
+        }
+
+        if (_hubContext != null)
+        {
+            await _hubContext.Clients.All.ReceiveScheduleUpdate(new { action = "courseRejected", courseId = course.Id });
+        }
+
+        return true;
+    }
+
+    public async Task<CourseBuilderDto?> GetCourseForBuilderAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses
+            .AsNoTracking()
+            .Include(c => c.Instructor)
+            .Include(c => c.Schedules)
+            .Include(c => c.Modules)
+                .ThenInclude(m => m.Lessons)
+            .Include(c => c.Resources)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
+
+        if (course == null) return null;
+
+        var assignments = await _context.Assessments
+            .AsNoTracking()
+            .Where(a => a.CourseId == id)
+            .ToListAsync(cancellationToken);
+
+        // Regular assignments exclude Midterm and Final milestones
+        var regularAssignmentsCount = assignments.Count(a =>
+            !a.Title.Contains("Midterm", StringComparison.OrdinalIgnoreCase) &&
+            !a.Title.Contains("Final", StringComparison.OrdinalIgnoreCase));
+
+        var hasGradedAssessments = assignments.Any(a => a.ScoredPoints.HasValue);
+
+        return new CourseBuilderDto
+        {
+            Id = course.Id,
+            Code = course.Code,
+            Title = course.Title,
+            Description = course.Description,
+            About = course.About,
+            Category = course.Category,
+            Level = course.Level,
+            Status = course.Status,
+            DurationHours = course.DurationHours,
+            LessonsCount = course.LessonsCount,
+            ImageUrl = course.ImageUrl,
+            Department = course.Department,
+            FeaturesJson = course.FeaturesJson,
+            InstructorId = course.InstructorId,
+            InstructorName = course.Instructor != null ? $"{course.Instructor.FirstName} {course.Instructor.LastName}".Trim() : null,
+            StartDate = course.StartDate,
+            EndDate = course.EndDate,
+            MaxCapacity = course.MaxCapacity,
+            RejectionReason = course.RejectionReason,
+            ExpectedAssignmentCount = course.ExpectedAssignmentCount,
+            AssignmentMaxPoints = course.AssignmentMaxPoints,
+            HasMidterm = course.HasMidterm,
+            MidtermMaxPoints = course.MidtermMaxPoints,
+            ExpectedMidtermCount = course.ExpectedMidtermCount,
+            HasFinal = course.HasFinal,
+            FinalMaxPoints = course.FinalMaxPoints,
+            ExpectedFinalCount = course.ExpectedFinalCount,
+            CreatedAssignmentsCount = regularAssignmentsCount,
+            TotalCreatedAssessments = assignments.Count,
+            HasGradedAssessments = hasGradedAssessments,
+            Schedules = course.Schedules.Where(s => !s.IsDeleted).Select(s => new CourseScheduleDto
+            {
+                Id = s.Id,
+                DayOfWeek = s.DayOfWeek,
+                StartTime = s.StartTime,
+                EndTime = s.EndTime,
+                Location = s.Location,
+                Room = s.Room,
+                ScheduleType = s.ScheduleType
+            }).ToList(),
+            Modules = course.Modules.OrderBy(m => m.OrderIndex).Select(m => new CourseModuleDto
+            {
+                Id = m.Id,
+                CourseId = m.CourseId,
+                Title = m.Title,
+                Description = m.Description,
+                OrderIndex = m.OrderIndex,
+                Lessons = m.Lessons.OrderBy(l => l.OrderIndex).Select(l => new CourseLessonDto
+                {
+                    Id = l.Id,
+                    CourseModuleId = l.CourseModuleId,
+                    Title = l.Title,
+                    Description = l.Description,
+                    OrderIndex = l.OrderIndex,
+                    DurationMinutes = l.DurationMinutes,
+                    ContentText = l.ContentText,
+                    PdfUrl = l.PdfUrl,
+                    PdfFileName = l.PdfFileName
+                }).ToList()
+            }).ToList(),
+            Resources = course.Resources.Select(r => new CourseResourceDto
+            {
+                Id = r.Id,
+                CourseId = r.CourseId,
+                Title = r.Title,
+                FileType = r.FileType,
+                FileSize = r.FileSize,
+                Url = r.Url
+            }).ToList()
+        };
+    }
+
+    public async Task<CourseModuleDto?> AddModuleAsync(int courseId, CreateModuleDto dto, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses.FindAsync(new object[] { courseId }, cancellationToken);
+        if (course == null || course.IsDeleted) return null;
+
+        var maxOrder = await _context.CourseModules
+            .Where(m => m.CourseId == courseId)
+            .MaxAsync(m => (int?)m.OrderIndex, cancellationToken) ?? 0;
+
+        var module = new CourseModule
+        {
+            CourseId = courseId,
+            Title = dto.Title,
+            Description = dto.Description,
+            OrderIndex = maxOrder + 1
+        };
+
+        await _context.CourseModules.AddAsync(module, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new CourseModuleDto
+        {
+            Id = module.Id,
+            CourseId = module.CourseId,
+            Title = module.Title,
+            Description = module.Description,
+            OrderIndex = module.OrderIndex,
+            Lessons = new List<CourseLessonDto>()
+        };
+    }
+
+    public async Task<bool> UpdateModuleAsync(int moduleId, UpdateModuleDto dto, CancellationToken cancellationToken = default)
+    {
+        var module = await _context.CourseModules.FindAsync(new object[] { moduleId }, cancellationToken);
+        if (module == null) return false;
+
+        module.Title = dto.Title;
+        module.Description = dto.Description;
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DeleteModuleAsync(int moduleId, CancellationToken cancellationToken = default)
+    {
+        var module = await _context.CourseModules.FindAsync(new object[] { moduleId }, cancellationToken);
+        if (module == null) return false;
+
+        _context.CourseModules.Remove(module);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> ReorderModulesAsync(int courseId, List<ReorderItemDto> items, CancellationToken cancellationToken = default)
+    {
+        var modules = await _context.CourseModules
+            .Where(m => m.CourseId == courseId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+        {
+            var mod = modules.FirstOrDefault(m => m.Id == item.Id);
+            if (mod != null)
+            {
+                mod.OrderIndex = item.OrderIndex;
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<CourseLessonDto?> AddLessonAsync(int moduleId, CreateLessonDto dto, CancellationToken cancellationToken = default)
+    {
+        var module = await _context.CourseModules.FindAsync(new object[] { moduleId }, cancellationToken);
+        if (module == null) return null;
+
+        var maxOrder = await _context.CourseLessons
+            .Where(l => l.CourseModuleId == moduleId)
+            .MaxAsync(l => (int?)l.OrderIndex, cancellationToken) ?? 0;
+
+        var lesson = new CourseLesson
+        {
+            CourseModuleId = moduleId,
+            Title = dto.Title,
+            Description = dto.Description,
+            OrderIndex = maxOrder + 1,
+            DurationMinutes = dto.DurationMinutes,
+            ContentText = dto.ContentText,
+            PdfUrl = dto.PdfUrl,
+            PdfFileName = dto.PdfFileName
+        };
+
+        await _context.CourseLessons.AddAsync(lesson, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new CourseLessonDto
+        {
+            Id = lesson.Id,
+            CourseModuleId = lesson.CourseModuleId,
+            Title = lesson.Title,
+            Description = lesson.Description,
+            OrderIndex = lesson.OrderIndex,
+            DurationMinutes = lesson.DurationMinutes,
+            ContentText = lesson.ContentText,
+            PdfUrl = lesson.PdfUrl,
+            PdfFileName = lesson.PdfFileName
+        };
+    }
+
+    public async Task<bool> UpdateLessonAsync(int lessonId, UpdateLessonDto dto, CancellationToken cancellationToken = default)
+    {
+        var lesson = await _context.CourseLessons.FindAsync(new object[] { lessonId }, cancellationToken);
+        if (lesson == null) return false;
+
+        lesson.Title = dto.Title;
+        lesson.Description = dto.Description;
+        lesson.DurationMinutes = dto.DurationMinutes;
+        lesson.ContentText = dto.ContentText;
+        lesson.PdfUrl = dto.PdfUrl;
+        lesson.PdfFileName = dto.PdfFileName;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DeleteLessonAsync(int lessonId, CancellationToken cancellationToken = default)
+    {
+        var lesson = await _context.CourseLessons.FindAsync(new object[] { lessonId }, cancellationToken);
+        if (lesson == null) return false;
+
+        _context.CourseLessons.Remove(lesson);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> ReorderLessonsAsync(int moduleId, List<ReorderItemDto> items, CancellationToken cancellationToken = default)
+    {
+        var lessons = await _context.CourseLessons
+            .Where(l => l.CourseModuleId == moduleId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+        {
+            var l = lessons.FirstOrDefault(x => x.Id == item.Id);
+            if (l != null)
+            {
+                l.OrderIndex = item.OrderIndex;
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<string?> UploadThumbnailAsync(int courseId, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses.FindAsync(new object[] { courseId }, cancellationToken);
+        if (course == null || course.IsDeleted || _env == null) return null;
+
+        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploadsDir = Path.Combine(webRoot, "uploads", "thumbnails");
+        if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var fileName = $"course_{courseId}_{DateTime.UtcNow.Ticks}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        var url = $"/uploads/thumbnails/{fileName}";
+        course.ImageUrl = url;
+        await _context.SaveChangesAsync(cancellationToken);
+        return url;
+    }
+
+    public async Task<CourseResourceDto?> UploadResourceAsync(int courseId, string title, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses.FindAsync(new object[] { courseId }, cancellationToken);
+        if (course == null || course.IsDeleted || _env == null) return null;
+
+        var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploadsDir = Path.Combine(webRoot, "uploads", "course_resources");
+        if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var fileName = $"res_{courseId}_{DateTime.UtcNow.Ticks}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        var url = $"/uploads/course_resources/{fileName}";
+        var sizeInMb = (file.Length / 1024f / 1024f).ToString("0.0") + " MB";
+        var resource = new CourseResource
+        {
+            CourseId = courseId,
+            Title = string.IsNullOrWhiteSpace(title) ? file.FileName : title,
+            FileType = ext.TrimStart('.').ToUpperInvariant(),
+            FileSize = sizeInMb,
+            Url = url
+        };
+
+        await _context.CourseResources.AddAsync(resource, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new CourseResourceDto
+        {
+            Id = resource.Id,
+            CourseId = resource.CourseId,
+            Title = resource.Title,
+            FileType = resource.FileType,
+            FileSize = resource.FileSize,
+            Url = resource.Url
+        };
+    }
+
+    public async Task<bool> DeleteResourceAsync(int resourceId, CancellationToken cancellationToken = default)
+    {
+        var resource = await _context.CourseResources.FindAsync(new object[] { resourceId }, cancellationToken);
+        if (resource == null) return false;
+
+        _context.CourseResources.Remove(resource);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<List<InstructorCourseDto>> GetInstructorMyCoursesAsync(int instructorId, CancellationToken cancellationToken = default)
+    {
+        var courses = await _context.Courses
+            .AsNoTracking()
+            .Include(c => c.Enrollments)
+            .Include(c => c.Modules)
+                .ThenInclude(m => m.Lessons)
+            .Where(c => c.InstructorId == instructorId && !c.IsDeleted)
+            .OrderByDescending(c => c.Id)
+            .ToListAsync(cancellationToken);
+
+        return courses.Select(c => new InstructorCourseDto
+        {
+            Id = c.Id,
+            Code = c.Code,
+            Title = c.Title,
+            Category = c.Category,
+            Level = c.Level,
+            Status = c.Status,
+            EnrolledStudentsCount = c.Enrollments.Count(e => !e.IsDeleted),
+            LessonsCount = c.Modules.SelectMany(m => m.Lessons).Count(),
+            Rating = c.Rating,
+            ImageUrl = c.ImageUrl,
+            StartDate = c.StartDate,
+            EndDate = c.EndDate
+        }).ToList();
     }
 }

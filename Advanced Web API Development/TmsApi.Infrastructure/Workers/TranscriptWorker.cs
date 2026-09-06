@@ -6,21 +6,11 @@ using TmsApi.Infrastructure.Transcripts;
 
 namespace TmsApi.Infrastructure.Workers;
 
-public class TranscriptWorker : BackgroundService
+public class TranscriptWorker(
+    TranscriptQueue _queue,
+    IHubContext<TmsHub, ITmsClient> _hubContext,
+    ILogger<TranscriptWorker> _logger) : BackgroundService
 {
-    private readonly TranscriptQueue _queue;
-    private readonly IHubContext<TmsHub, ITmsClient> _hubContext;
-    private readonly ILogger<TranscriptWorker> _logger;
-
-    public TranscriptWorker(
-        TranscriptQueue queue,
-        IHubContext<TmsHub, ITmsClient> hubContext,
-        ILogger<TranscriptWorker> logger)
-    {
-        _queue = queue;
-        _hubContext = hubContext;
-        _logger = logger;
-    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

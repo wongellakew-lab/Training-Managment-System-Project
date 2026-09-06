@@ -11,16 +11,10 @@ using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class TokenService
+public class TokenService(
+    IConfiguration _configuration,
+    TmsDbContext _context)
 {
-    private readonly IConfiguration _configuration;
-    private readonly TmsDbContext _context;
-
-    public TokenService(IConfiguration configuration, TmsDbContext context)
-    {
-        _configuration = configuration;
-        _context = context;
-    }
 
     public async Task<(string AccessToken, string RefreshToken)> GenerateTokensAsync(TmsUser user, IList<string> roles)
     {
@@ -101,5 +95,36 @@ public class TokenService
             .ToListAsync();
 
         return await GenerateTokensAsync(user, roles);
+    }
+
+    public async Task<bool> RevokeTokenAsync(string token)
+    {
+        var storedRefreshToken = await _context.RefreshTokens.SingleOrDefaultAsync(x => x.Token == token);
+        if (storedRefreshToken == null)
+        {
+            return false;
+        }
+
+        storedRefreshToken.Invalidated = true;
+        _context.RefreshTokens.Update(storedRefreshToken);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task RevokeAllUserTokensAsync(string userId)
+    {
+        var activeTokens = await _context.RefreshTokens
+            .Where(x => x.UserId == userId && !x.Invalidated && !x.Used && x.ExpiryDate > DateTime.UtcNow)
+            .ToListAsync();
+
+        if (activeTokens.Count > 0)
+        {
+            foreach (var t in activeTokens)
+            {
+                t.Invalidated = true;
+            }
+            _context.RefreshTokens.UpdateRange(activeTokens);
+            await _context.SaveChangesAsync();
+        }
     }
 }

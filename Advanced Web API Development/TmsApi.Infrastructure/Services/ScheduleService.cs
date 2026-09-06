@@ -7,16 +7,10 @@ using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class ScheduleService : IScheduleService
+public class ScheduleService(
+    TmsDbContext _context,
+    IMapper _mapper) : IScheduleService
 {
-    private readonly TmsDbContext _context;
-    private readonly IMapper _mapper;
-
-    public ScheduleService(TmsDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<IEnumerable<ScheduleDto>> GetSchedulesAsync(
         string? category = null,

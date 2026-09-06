@@ -221,15 +221,38 @@ public static class DataSeeder
         foreach (var inst in unlinkedInstructors)
         {
             var user = await userManager.FindByEmailAsync(inst.Email);
-            if (user != null)
+            if (user == null)
             {
-                inst.UserId = user.Id;
+                user = new TmsUser
+                {
+                    UserName = inst.Email,
+                    Email = inst.Email,
+                    FirstName = inst.FirstName,
+                    LastName = inst.LastName,
+                    Department = inst.Department,
+                    InstructorId = inst.Id,
+                    EmailConfirmed = true
+                };
+                var createResult = await userManager.CreateAsync(user, "Instructor@123");
+                if (createResult.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Instructor");
+                }
+            }
+            else
+            {
                 if (!user.InstructorId.HasValue)
                 {
                     user.InstructorId = inst.Id;
                     await userManager.UpdateAsync(user);
                 }
+                if (!await userManager.IsInRoleAsync(user, "Instructor"))
+                {
+                    await userManager.AddToRoleAsync(user, "Instructor");
+                }
             }
+
+            inst.UserId = user.Id;
         }
         if (unlinkedInstructors.Any())
         {

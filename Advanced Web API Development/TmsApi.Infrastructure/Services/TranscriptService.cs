@@ -7,16 +7,10 @@ using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class TranscriptService : ITranscriptService
+public class TranscriptService(
+    TmsDbContext _context,
+    GradingService _gradingService) : ITranscriptService
 {
-    private readonly TmsDbContext _context;
-    private readonly GradingService _gradingService;
-
-    public TranscriptService(TmsDbContext context, GradingService gradingService)
-    {
-        _context = context;
-        _gradingService = gradingService;
-    }
 
     public async Task<TranscriptDto?> GetStudentTranscriptAsync(int studentId, CancellationToken cancellationToken = default)
     {

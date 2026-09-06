@@ -5,16 +5,17 @@ using TmsApi.Application.DTOs.CourseDtos;
 using TmsApi.Application.DTOs.DashboardDtos;
 using TmsApi.Application.DTOs.EnrollmentDtos;
 using TmsApi.Application.DTOs.ScheduleDtos;
+using TmsApi.Application.Grading;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class DashboardService : IDashboardService
+public class DashboardService(
+    TmsDbContext _context,
+    IMapper _mapper) : IDashboardService
 {
-    private readonly TmsDbContext _context;
-    private readonly IMapper _mapper;
 
     private static readonly string[] MonthNames =
         { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
@@ -22,13 +23,6 @@ public class DashboardService : IDashboardService
     private static readonly string[] Colors =
         { "#1E40AF", "#0284C7", "#38BDF8", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4" };
 
-    public DashboardService(TmsDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
-
-    // ─── Student Dashboard ─────────────────────────────────────────────────
     // ─── Student Dashboard ─────────────────────────────────────────────────
     public async Task<StudentDashboardDto> GetStudentDashboardAsync(int studentId, CancellationToken cancellationToken = default)
     {
@@ -56,34 +50,15 @@ public class DashboardService : IDashboardService
         // Calculate dynamic GPA from graded enrollments and course credits on a standard 4.00 scale
         var gradedEnrollments = enrollments.Where(e => e.Grade.HasValue && e.Course != null).ToList();
         decimal cumulativeGpa = 0.0m;
+        var gradingService = new GradingService();
         if (gradedEnrollments.Any())
         {
-            decimal totalGradePoints = 0m;
-            int gpaCredits = 0;
-            foreach (var ge in gradedEnrollments)
-            {
-                var credits = ge.Course?.Credits > 0 ? ge.Course.Credits : 3;
-                decimal rawGrade = ge.Grade!.Value;
-                // Convert to standard 4.00 scale: if stored as 0-100 percentage, map to standard grade point (or continuous 4.0 scale)
-                decimal courseGradePoint = rawGrade switch
-                {
-                    > 4.0m and >= 90m => 4.0m,
-                    > 4.0m and >= 80m => 3.0m,
-                    > 4.0m and >= 70m => 2.0m,
-                    > 4.0m and >= 60m => 1.0m,
-                    > 4.0m => 0.0m,
-                    _ => Math.Min(4.0m, Math.Max(0.0m, rawGrade))
-                };
-                totalGradePoints += courseGradePoint * credits;
-                gpaCredits += credits;
-            }
-            cumulativeGpa = gpaCredits > 0 ? Math.Round(totalGradePoints / gpaCredits, 2) : 0m;
+            var courseTuples = gradedEnrollments.Select(e => (e.Grade!.Value, e.Course?.Credits > 0 ? e.Course.Credits : 3));
+            cumulativeGpa = gradingService.CalculateEnrollmentGPA(courseTuples);
         }
         else if (student != null && student.Gpa > 0)
         {
-            cumulativeGpa = student.Gpa > 4.0m
-                ? (student.Gpa >= 90m ? 4.0m : student.Gpa >= 80m ? 3.0m : student.Gpa >= 70m ? 2.0m : student.Gpa >= 60m ? 1.0m : 0.0m)
-                : Math.Round(student.Gpa, 2);
+            cumulativeGpa = gradingService.CalculateGradePoint(student.Gpa);
         }
 
         // Earned credits from completed courses
@@ -584,7 +559,7 @@ public class DashboardService : IDashboardService
 
         var upcomingSessionDtos = upcomingCandidates
             .OrderBy(c => c.StartDateTime)
-            .Take(6)
+            .Take(3)
             .Select(c => c.Dto)
             .ToList();
 
@@ -623,7 +598,7 @@ public class DashboardService : IDashboardService
 
         decimal attendanceRate = totalAttendances > 0
             ? Math.Round(((decimal)presentCount / totalAttendances) * 100m, 1)
-            : 92.5m;
+            : 0.0m;
 
         return new InstructorDashboardDto
         {

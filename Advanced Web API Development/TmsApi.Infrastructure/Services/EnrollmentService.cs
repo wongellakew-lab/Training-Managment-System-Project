@@ -9,16 +9,10 @@ using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class EnrollmentService : IEnrollmentService
+public class EnrollmentService(
+    TmsDbContext _context,
+    IMapper _mapper) : IEnrollmentService
 {
-    private readonly TmsDbContext _context;
-    private readonly IMapper _mapper;
-
-    public EnrollmentService(TmsDbContext context, IMapper mapper)
-    {
-        _context = context;
-        _mapper = mapper;
-    }
 
     public async Task<PagedResponse<EnrollmentDto>> GetEnrollmentsAsync(
         int page,
@@ -118,11 +112,22 @@ public class EnrollmentService : IEnrollmentService
         if (course.EnrollmentDeadline.HasValue && DateTime.UtcNow > course.EnrollmentDeadline.Value)
             throw new InvalidOperationException($"The enrollment period for '{course.Title}' closed on {course.EnrollmentDeadline.Value:MMM dd, yyyy}.");
 
-        // Check if already enrolled
+        // Check if already enrolled (including deleted/inactive records via IgnoreQueryFilters)
         var existing = await _context.Enrollments
-            .FirstOrDefaultAsync(e => e.StudentId == dto.StudentId && e.CourseId == dto.CourseId && e.Status != EnrollmentStatus.Dropped && e.Status != EnrollmentStatus.Rejected, cancellationToken);
-        if (existing != null)
-            throw new InvalidOperationException($"Student is already enrolled or has a pending enrollment in this course.");
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(e => e.StudentId == dto.StudentId && e.CourseId == dto.CourseId, cancellationToken);
+
+        if (existing != null && !existing.IsDeleted)
+        {
+            if (existing.Status == EnrollmentStatus.Active || existing.Status == EnrollmentStatus.Pending || existing.Status == EnrollmentStatus.Waitlisted)
+            {
+                throw new InvalidOperationException("Student is already enrolled or has a pending enrollment in this course.");
+            }
+            if (existing.Status == EnrollmentStatus.Completed)
+            {
+                throw new InvalidOperationException("You have already completed this course.");
+            }
+        }
 
         // Check prerequisites
         if (!string.IsNullOrWhiteSpace(course.Prerequisites) && !course.Prerequisites.Equals("None", StringComparison.OrdinalIgnoreCase))
@@ -153,18 +158,38 @@ public class EnrollmentService : IEnrollmentService
         // Keep course.EnrolledStudentsCount in sync; updating Course ensures row-version optimistic concurrency check executes
         course.EnrolledStudentsCount = activeOrPendingCount + 1;
 
-        var enrollment = new Enrollment
+        Enrollment enrollment;
+        if (existing != null)
         {
-            StudentId = dto.StudentId,
-            CourseId = dto.CourseId,
-            Batch = string.IsNullOrWhiteSpace(dto.Batch) ? "Batch 1" : dto.Batch,
-            PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? "+1 202-555-0142" : dto.PhoneNumber,
-            Country = string.IsNullOrWhiteSpace(dto.Country) ? "USA" : dto.Country,
-            EnrolledAt = DateTime.UtcNow,
-            Status = dto.Status != 0 ? dto.Status : EnrollmentStatus.Active
-        };
+            // Reactivate and update existing dropped / rejected / deleted record
+            enrollment = existing;
+            enrollment.Status = dto.Status != 0 ? dto.Status : EnrollmentStatus.Active;
+            enrollment.IsDeleted = false;
+            enrollment.IsArchived = false;
+            enrollment.EnrolledAt = DateTime.UtcNow;
+            enrollment.Grade = null;
+            if (!string.IsNullOrWhiteSpace(dto.Batch))
+                enrollment.Batch = dto.Batch;
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+                enrollment.PhoneNumber = dto.PhoneNumber;
+            if (!string.IsNullOrWhiteSpace(dto.Country))
+                enrollment.Country = dto.Country;
+        }
+        else
+        {
+            enrollment = new Enrollment
+            {
+                StudentId = dto.StudentId,
+                CourseId = dto.CourseId,
+                Batch = string.IsNullOrWhiteSpace(dto.Batch) ? "Batch 1" : dto.Batch,
+                PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? "+1 202-555-0142" : dto.PhoneNumber,
+                Country = string.IsNullOrWhiteSpace(dto.Country) ? "USA" : dto.Country,
+                EnrolledAt = DateTime.UtcNow,
+                Status = dto.Status != 0 ? dto.Status : EnrollmentStatus.Active
+            };
+            await _context.Enrollments.AddAsync(enrollment, cancellationToken);
+        }
 
-        await _context.Enrollments.AddAsync(enrollment, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
         if (enrollment.Status == EnrollmentStatus.Active)
@@ -175,19 +200,27 @@ public class EnrollmentService : IEnrollmentService
 
             if (publishedAssignments.Count > 0)
             {
+                var existingAssignmentIds = await _context.Assessments
+                    .Where(a => a.CourseId == dto.CourseId && a.StudentId == dto.StudentId && a.AssignmentId.HasValue)
+                    .Select(a => a.AssignmentId!.Value)
+                    .ToListAsync(cancellationToken);
+
                 foreach (var asgn in publishedAssignments)
                 {
-                    _context.Assessments.Add(new Assessment
+                    if (!existingAssignmentIds.Contains(asgn.Id))
                     {
-                        StudentId = dto.StudentId,
-                        CourseId = dto.CourseId,
-                        AssignmentId = asgn.Id,
-                        Title = asgn.Title,
-                        MaxScore = asgn.MaxPoints,
-                        DueDate = asgn.DueDate,
-                        Status = "Pending",
-                        IsPublished = true
-                    });
+                        _context.Assessments.Add(new Assessment
+                        {
+                            StudentId = dto.StudentId,
+                            CourseId = dto.CourseId,
+                            AssignmentId = asgn.Id,
+                            Title = asgn.Title,
+                            MaxScore = asgn.MaxPoints,
+                            DueDate = asgn.DueDate,
+                            Status = "Pending",
+                            IsPublished = true
+                        });
+                    }
                 }
                 await _context.SaveChangesAsync(cancellationToken);
             }

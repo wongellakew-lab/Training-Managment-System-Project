@@ -10,18 +10,11 @@ using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
 
-public class NotificationService : INotificationService
+public class NotificationService(
+    TmsDbContext _context,
+    IMapper _mapper,
+    IHubContext<TmsHub> _hubContext) : INotificationService
 {
-    private readonly TmsDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IHubContext<TmsHub> _hubContext;
-
-    public NotificationService(TmsDbContext context, IMapper mapper, IHubContext<TmsHub> hubContext)
-    {
-        _context = context;
-        _mapper = mapper;
-        _hubContext = hubContext;
-    }
 
     public async Task<PagedResponse<NotificationDto>> GetUserNotificationsAsync(string userId, int page, int pageSize, bool? unreadOnly = null, CancellationToken cancellationToken = default)
     {
