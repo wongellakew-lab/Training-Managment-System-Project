@@ -3,69 +3,184 @@
   @if (!isStudent() && (viewMode() === 'grid' || !showDetailsDrawer())) {
     <div class="courses-analytics-row">
       <!-- Courses by Category Card -->
-      <div class="eduva-card category-breakdown-card">
-        <div class="card-header-flex">
-          <h3 class="card-title">Courses by Category</h3>
-          <button mat-icon-button class="more-menu-btn" aria-label="Category options">
-            <mat-icon>more_horiz</mat-icon>
-          </button>
-        </div>
-
-        <div class="category-stat-total">
-          <span class="total-big-num font-mono">{{ totalCount }}</span>
-          <span class="total-sub">Courses</span>
-        </div>
-
-        <!-- Segmented Category Bar -->
-        <div class="segmented-bar-wrapper">
-          <div class="seg-bar-container">
-            @for (cat of categoryCounts(); track cat.name) {
-              <div class="seg-item" [ngClass]="cat.colorClass" [style.width.%]="cat.percent"></div>
-            }
+      <div class="eduva-card modern-analytics-card category-breakdown-card">
+        <div class="analytics-card-header">
+          <div class="header-title-group">
+            <div class="header-icon-box icon-purple">
+              <mat-icon>category</mat-icon>
+            </div>
+            <div>
+              <h3 class="card-title">Courses by Category</h3>
+              <span class="card-subtitle">Distribution across departments</span>
+            </div>
           </div>
+          <div class="header-badge-group">
+            <span class="pill-stat-badge">
+              <span class="pulse-dot"></span>
+              {{ categoryCounts().length }} Categories
+            </span>
+          </div>
+        </div>
 
-          <div class="category-legend-grid">
-            @for (cat of categoryCounts(); track cat.name) {
-              <div class="cat-legend-cell">
-                <span class="legend-box" [ngClass]="cat.colorClass"></span>
-                <span class="cat-name">{{ cat.name }}</span>
-                <span class="cat-pct font-mono">{{ cat.percent }}%</span>
-                <span class="cat-count font-mono">{{ cat.count }}</span>
+        <div class="category-hero-metric">
+          <div class="metric-block">
+            <span class="metric-num font-mono">{{ totalCount || courses().length }}</span>
+            <span class="metric-lbl">Total Courses Active</span>
+          </div>
+          @if (categoryCounts().length > 0) {
+            <div class="leading-cat-callout">
+              <span class="callout-lbl">Top Category:</span>
+              <span class="callout-val" [style.color]="categoryCounts()[0].hex">
+                {{ categoryCounts()[0].name }} ({{ categoryCounts()[0].percent }}%)
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- Segmented Category Visual Bar -->
+        <div class="modern-segmented-bar">
+          @for (cat of categoryCounts(); track cat.name) {
+            <div
+              class="seg-slice"
+              [style.width.%]="cat.percent"
+              [style.background-color]="cat.hex"
+              [title]="cat.name + ': ' + cat.count + ' courses (' + cat.percent + '%)'"
+            ></div>
+          }
+        </div>
+
+        <!-- Interactive Category Grid -->
+        <div class="category-chips-grid">
+          @for (cat of categoryCounts(); track cat.name) {
+            <div
+              class="category-chip-item"
+              [class.active-filter]="selectedCategory() === cat.name"
+              (click)="filterByCategoryFromCard(cat.name)"
+              [title]="'Click to filter courses by ' + cat.name"
+            >
+              <div class="chip-top">
+                <span class="cat-dot" [style.background-color]="cat.hex"></span>
+                <span class="cat-name-text">{{ cat.name }}</span>
+                <span class="cat-pct-tag font-mono">{{ cat.percent }}%</span>
               </div>
-            }
-          </div>
+              <div class="chip-bottom">
+                <span class="cat-count-sub">{{ cat.count }} {{ cat.count === 1 ? 'Course' : 'Courses' }}</span>
+                <div class="chip-progress-track">
+                  <div class="chip-progress-fill" [style.width.%]="cat.percent" [style.background-color]="cat.hex"></div>
+                </div>
+              </div>
+            </div>
+          }
         </div>
       </div>
 
       <!-- Top Enrolled Courses Card -->
-      <div class="eduva-card ratings-breakdown-card">
-        <div class="card-header-flex">
-          <h3 class="card-title">Top Enrolled Courses</h3>
-          <span class="pill-badge status-active font-mono">{{ totalEnrolled() }} / {{ totalCapacity() }} Total Seats</span>
+      <div class="eduva-card modern-analytics-card top-enrolled-card">
+        <div class="analytics-card-header">
+          <div class="header-title-group">
+            <div class="header-icon-box icon-amber">
+              <mat-icon>trending_up</mat-icon>
+            </div>
+            <div>
+              <h3 class="card-title">Top Enrolled Courses</h3>
+              <span class="card-subtitle">Highest student enrollment & demand</span>
+            </div>
+          </div>
+          <div class="header-badge-group">
+            <span class="pill-stat-badge highlight-badge font-mono">
+              <mat-icon class="inline-icon">people</mat-icon>
+              {{ totalEnrolled() }} / {{ totalCapacity() }} Seats ({{ overallOccupancyRate() }}%)
+            </span>
+          </div>
         </div>
 
-        <div class="top-rated-courses-subpanel" style="width: 100%;">
-          @if (topCourses().length === 0) {
-            <div style="padding: 24px; text-align: center; color: var(--text-muted);">
+        @if (topCourses().length === 0) {
+          <div class="empty-top-courses">
+            <div class="empty-icon-wrap">
               <mat-icon>school</mat-icon>
-              <p>No active courses available.</p>
             </div>
-          } @else {
-            <div class="top-rated-list">
-              @for (tc of topCourses(); track tc.id) {
-                <div class="top-rated-item" style="cursor: pointer;" (click)="openCourseDetails(tc)">
-                  <div class="item-text">
-                    <h5 class="item-title">{{ tc.title }}</h5>
-                    <span class="item-reviews font-mono">{{ tc.enrolledCount }} / {{ tc.maxCapacity }} Enrolled &bull; {{ tc.level }}</span>
+            <h4>No Enrollment Data</h4>
+            <p>Courses will appear here once students begin enrolling.</p>
+          </div>
+        } @else {
+          <div class="top-courses-ranked-list">
+            @for (tc of topCourses(); track tc.id; let idx = $index) {
+              <div
+                class="ranked-course-row"
+                [class.rank-gold]="idx === 0"
+                [class.rank-silver]="idx === 1"
+                [class.rank-bronze]="idx === 2"
+                (click)="openCourseDetails(tc)"
+                [title]="'View details for ' + tc.title"
+              >
+                <!-- Rank Medal / Number -->
+                <div class="rank-indicator" [class]="'rank-' + (idx + 1)">
+                  @if (idx === 0) {
+                    <mat-icon class="medal-icon">military_tech</mat-icon>
+                  } @else {
+                    <span class="rank-num font-mono">#{{ idx + 1 }}</span>
+                  }
+                </div>
+
+                <!-- Course Thumbnail / Avatar -->
+                <div class="course-mini-thumb">
+                  @if (tc.imageUrl) {
+                    <img [src]="tc.imageUrl" [alt]="tc.title" />
+                  } @else {
+                    <div class="course-thumb-fallback" [ngClass]="getCategoryClass(tc.category)">
+                      <mat-icon>menu_book</mat-icon>
+                    </div>
+                  }
+                </div>
+
+                <!-- Course Details -->
+                <div class="course-meta-column">
+                  <div class="title-and-tag">
+                    <h5 class="course-title-text">{{ tc.title }}</h5>
+                    @if (tc.code) {
+                      <span class="course-code-pill font-mono">{{ tc.code }}</span>
+                    }
                   </div>
-                  <div class="circle-score-gauge">
-                    <span class="pill-badge" [ngClass]="getCategoryClass(tc.category)">{{ tc.category }}</span>
+                  <div class="course-sub-line">
+                    <span class="category-text-label" [ngClass]="getCategoryClass(tc.category)">{{ tc.category || 'General' }}</span>
+                    <span class="bullet-dot">&bull;</span>
+                    <span class="instructor-text">{{ tc.instructorName || tc.department || 'Training Dept' }}</span>
+                    <span class="bullet-dot">&bull;</span>
+                    <span class="level-tag">{{ tc.level || 'Beginner' }}</span>
                   </div>
                 </div>
-              }
-            </div>
-          }
-        </div>
+
+                <!-- Enrollment Fill / Progress -->
+                <div class="enrollment-stat-column">
+                  <div class="enrollment-numbers">
+                    <span class="enrolled-num font-mono"><strong>{{ tc.enrolledCount || 0 }}</strong>/{{ tc.maxCapacity || 30 }}</span>
+                    <span
+                      class="occupancy-badge font-mono"
+                      [class.badge-critical]="tc.occupancyStatus === 'critical'"
+                      [class.badge-high]="tc.occupancyStatus === 'high'"
+                      [class.badge-normal]="tc.occupancyStatus === 'normal'"
+                    >
+                      {{ tc.occupancyPercent }}%
+                    </span>
+                  </div>
+                  <div class="course-capacity-bar">
+                    <div
+                      class="capacity-fill"
+                      [style.width.%]="tc.occupancyPercent"
+                      [class.fill-critical]="tc.occupancyStatus === 'critical'"
+                      [class.fill-high]="tc.occupancyStatus === 'high'"
+                      [class.fill-normal]="tc.occupancyStatus === 'normal'"
+                    ></div>
+                  </div>
+                </div>
+
+                <div class="row-arrow-action">
+                  <mat-icon>chevron_right</mat-icon>
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   }

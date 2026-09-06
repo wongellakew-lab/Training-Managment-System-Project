@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -31,15 +31,24 @@ export class LiveSyncService {
   readonly scheduleUpdated$ = new Subject<void>();
   readonly courseCapacityChanged$ = new Subject<{ courseId: number; enrolledCount: number; maxCapacity: number }>();
   readonly transcriptCompleted$ = new Subject<{ jobId: string; studentId: number; downloadUrl: string }>();
+  readonly certificateIssued$ = new Subject<{ title: string; message: string }>();
 
   constructor() {
-    // If authenticated, automatically connect and load notifications
-    if (this.authService.isAuthenticated()) {
-      this.connect();
-    }
+    effect(() => {
+      const isAuth = this.authService.isAuthenticated();
+      if (isAuth) {
+        this.connect();
+      } else {
+        this.disconnect();
+      }
+    });
   }
 
   connect(): void {
+    if (!this.authService.isAuthenticated()) {
+      return;
+    }
+
     if (this.hubConnection && this.hubConnection.state === signalR.HubConnectionState.Connected) {
       return;
     }
@@ -85,7 +94,11 @@ export class LiveSyncService {
 
   disconnect(): void {
     if (this.hubConnection) {
-      this.hubConnection.stop();
+      try {
+        this.hubConnection.stop().catch(() => {});
+      } catch {
+        // Ignored during disconnection
+      }
       this.hubConnection = null;
       this.isConnected.set(false);
     }
@@ -120,9 +133,13 @@ export class LiveSyncService {
   private registerEventHandlers(): void {
     if (!this.hubConnection) return;
 
-    // Handle enrollment notifications (pushed after approve/reject)
+    // Handle enrollment & general notifications (pushed after approve/reject/certificate)
     this.hubConnection.on('ReceiveNotification', (title: string, message: string) => {
-      this.notificationService.addRealtimeNotification(title, message, 'Enrollment');
+      const type = title.toLowerCase().includes('certificate') ? 'Certificate' : 'Enrollment';
+      this.notificationService.addRealtimeNotification(title, message, type);
+      if (title.toLowerCase().includes('certificate')) {
+        this.certificateIssued$.next({ title, message });
+      }
     });
 
     // Enrollment updates (e.g., capacity change events)

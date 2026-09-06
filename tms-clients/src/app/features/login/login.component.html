@@ -114,7 +114,7 @@
       }
 
       <!-- Form -->
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form" novalidate>
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form" novalidate autocomplete="off">
 
         @if (isRegisterMode()) {
           <div class="form-row-2">
@@ -164,7 +164,7 @@
               formControlName="email"
               type="email"
               placeholder="you@company.com"
-              autocomplete="email"
+              autocomplete="off" name="tms_user_email"
             />
             <mat-icon matPrefix>email</mat-icon>
             @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
@@ -189,7 +189,7 @@
               [type]="hidePassword() ? 'password' : 'text'"
               formControlName="password"
               placeholder="••••••••"
-              [autocomplete]="isRegisterMode() ? 'new-password' : 'current-password'"
+              autocomplete="new-password" name="tms_user_password"
             />
             <mat-icon matPrefix>lock_outline</mat-icon>
             <button

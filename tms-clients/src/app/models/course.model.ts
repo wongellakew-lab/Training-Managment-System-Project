@@ -146,8 +146,8 @@ export interface UpdateCourseDto {
   credits: number;
   maxCapacity: number;
   instructorId?: number;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string | null;
+  endDate?: string | null;
   rejectionReason?: string;
   expectedAssignmentCount?: number;
   assignmentMaxPoints?: number;

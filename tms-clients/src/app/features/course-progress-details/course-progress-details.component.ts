@@ -108,4 +108,27 @@ export class CourseProgressDetailsComponent implements OnInit, OnDestroy {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[dayOfWeek] || 'Unknown';
   }
+
+  getGradeLevel(letter?: string | null, score?: number | null): 'a' | 'b' | 'c' | 'd' | 'f' | 'pending' {
+    if (letter) {
+      const normalized = letter.trim().toUpperCase();
+      if (normalized.startsWith('A')) return 'a';
+      if (normalized.startsWith('B')) return 'b';
+      if (normalized.startsWith('C')) return 'c';
+      if (normalized.startsWith('D')) return 'd';
+      if (normalized.startsWith('F')) return 'f';
+    }
+    if (score !== null && score !== undefined) {
+      if (score >= 90) return 'a';
+      if (score >= 80) return 'b';
+      if (score >= 70) return 'c';
+      if (score >= 60) return 'd';
+      return 'f';
+    }
+    return 'pending';
+  }
+
+  getGradeLevelClass(letter?: string | null, score?: number | null): string {
+    return `grade-level-${this.getGradeLevel(letter, score)}`;
+  }
 }

@@ -53,6 +53,11 @@ export class InstructorGradebookComponent implements OnInit {
   rows = signal<GradebookRow[]>([]);
   isLoading = signal<boolean>(true);
 
+  // Authoritative Evaluation Statistics
+  alreadyEvaluatedCount = signal<number>(0);
+  notYetEvaluatedCount = signal<number>(0);
+  totalRequiredEvaluations = signal<number>(0);
+
   // Pending changes and validation tracking
   pendingChanges = signal<Map<string, PendingCellChange>>(new Map());
   cellErrors = signal<Map<string, string>>(new Map());
@@ -110,6 +115,9 @@ export class InstructorGradebookComponent implements OnInit {
         this.gradebookData.set(data);
         this.assignments.set(data.assignments || []);
         this.rows.set(data.rows || []);
+        this.alreadyEvaluatedCount.set(data.alreadyEvaluatedCount ?? 0);
+        this.notYetEvaluatedCount.set(data.notYetEvaluatedCount ?? 0);
+        this.totalRequiredEvaluations.set(data.totalRequiredEvaluations ?? 0);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -222,6 +230,17 @@ export class InstructorGradebookComponent implements OnInit {
         const currentSaving = new Set(this.savingCells());
         currentSaving.delete(cellKey);
         this.savingCells.set(currentSaving);
+
+        // Update authoritative evaluation stats
+        if (res.alreadyEvaluatedCount !== undefined) {
+          this.alreadyEvaluatedCount.set(res.alreadyEvaluatedCount);
+        }
+        if (res.notYetEvaluatedCount !== undefined) {
+          this.notYetEvaluatedCount.set(res.notYetEvaluatedCount);
+        }
+        if (res.totalRequiredEvaluations !== undefined) {
+          this.totalRequiredEvaluations.set(res.totalRequiredEvaluations);
+        }
 
         // Remove from pending changes if present
         const pending = new Map(this.pendingChanges());
@@ -395,10 +414,20 @@ export class InstructorGradebookComponent implements OnInit {
     }));
 
     this.instructorService.submitBulkGradebook(cid, payload).subscribe({
-      next: () => {
+      next: (res) => {
         this.submitStatus.set('success');
         this.submitMessage.set('Grades submitted successfully');
         this.snackBar.open('Grades submitted successfully', 'OK', { duration: 3500 });
+
+        if (res?.alreadyEvaluatedCount !== undefined) {
+          this.alreadyEvaluatedCount.set(res.alreadyEvaluatedCount);
+        }
+        if (res?.notYetEvaluatedCount !== undefined) {
+          this.notYetEvaluatedCount.set(res.notYetEvaluatedCount);
+        }
+        if (res?.totalRequiredEvaluations !== undefined) {
+          this.totalRequiredEvaluations.set(res.totalRequiredEvaluations);
+        }
 
         // Update local gradebook rows data to reflect submitted changes
         changes.forEach(change => {

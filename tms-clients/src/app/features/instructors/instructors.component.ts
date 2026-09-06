@@ -204,7 +204,7 @@ export class InstructorsComponent implements OnInit, OnDestroy {
   }
 
   submitNewInstructor(): void {
-    if (!this.newInstructor.firstName || !this.newInstructor.lastName || !this.newInstructor.email) {
+    if (!this.newInstructor.firstName?.trim() || !this.newInstructor.lastName?.trim() || !this.newInstructor.email?.trim()) {
       this.modalError.set('Please fill in all required fields.');
       return;
     }
@@ -221,7 +221,11 @@ export class InstructorsComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isSaving.set(false);
-        this.modalError.set(err.error?.message || 'Failed to create instructor. Please try again.');
+        let errorMsg = err.error?.message;
+        if (!errorMsg && Array.isArray(err.error?.errors) && err.error.errors.length > 0) {
+          errorMsg = err.error.errors.map((e: any) => e.error || e.message || e).join(' ');
+        }
+        this.modalError.set(errorMsg || 'Failed to create instructor. Please try again.');
       }
     });
   }

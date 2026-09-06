@@ -126,6 +126,18 @@
 
       &.text-primary { color: #2563eb; }
       &.text-success { color: #10b981; }
+      &.text-evaluated { color: #059669; }
+      &.text-not-evaluated { color: #d97706; }
+    }
+
+    &.stat-evaluated {
+      border-color: rgba(16, 185, 129, 0.35);
+      background: linear-gradient(135deg, var(--bg-card, #ffffff) 0%, rgba(16, 185, 129, 0.06) 100%);
+    }
+
+    &.stat-not-evaluated {
+      border-color: rgba(245, 158, 11, 0.35);
+      background: linear-gradient(135deg, var(--bg-card, #ffffff) 0%, rgba(245, 158, 11, 0.06) 100%);
     }
   }
 }
@@ -389,3 +401,23 @@
     }
   }
 }
+
+:host-context(html.dark-theme) {
+  .stats-strip {
+    .stat-box {
+      .stat-val {
+        &.text-evaluated { color: #34d399; }
+        &.text-not-evaluated { color: #fbbf24; }
+      }
+      &.stat-evaluated {
+        border-color: rgba(16, 185, 129, 0.35);
+        background: linear-gradient(135deg, var(--bg-card, #151e32) 0%, rgba(16, 185, 129, 0.12) 100%);
+      }
+      &.stat-not-evaluated {
+        border-color: rgba(245, 158, 11, 0.35);
+        background: linear-gradient(135deg, var(--bg-card, #151e32) 0%, rgba(245, 158, 11, 0.12) 100%);
+      }
+    }
+  }
+}
+

@@ -94,22 +94,13 @@
 
         <!-- Action Bar -->
         <div class="course-actions-bar">
-          <button mat-stroked-button (click)="openCourseDetails(c.id)" title="View Course Details">
+          <button mat-stroked-button (click)="openCourseDetails(c.id)" title="View Course Details" class="action-btn view-course-btn">
             <mat-icon>visibility</mat-icon>
-            <span>Overview</span>
+            <span>View Course</span>
           </button>
-          <button mat-flat-button color="primary" (click)="openBuilder(c.id)" class="builder-btn">
+          <button mat-flat-button color="primary" (click)="openBuilder(c.id)" title="Edit Course" class="action-btn edit-course-btn">
             <mat-icon>edit_note</mat-icon>
-            <span>Content Builder</span>
-          </button>
-          <button mat-stroked-button (click)="openAttendance(c.id)" title="Digital Roll Call">
-            <mat-icon>fact_check</mat-icon>
-          </button>
-          <button mat-stroked-button (click)="openAssignments(c.id)" title="Assignments">
-            <mat-icon>assignment</mat-icon>
-          </button>
-          <button mat-stroked-button (click)="openGradebook(c.id)" title="Gradebook">
-            <mat-icon>table_chart</mat-icon>
+            <span>Edit Course</span>
           </button>
         </div>
       </div>

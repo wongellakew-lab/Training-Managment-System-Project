@@ -67,6 +67,23 @@ export class StudentCourseDetailsComponent implements OnInit, OnDestroy {
     return Math.min(100, Math.round(((c.enrolledCount || 0) / c.maxCapacity) * 100));
   });
 
+  readonly hasCertificate = computed(() => {
+    const c = this.course();
+    if (!c || !c.featuresJson) return false;
+    try {
+      const parsed = typeof c.featuresJson === 'string' ? JSON.parse(c.featuresJson) : c.featuresJson;
+      if (Array.isArray(parsed)) {
+        return parsed.some((f: any) => typeof f === 'string' && f.toLowerCase().includes('certificate'));
+      }
+      if (typeof parsed === 'object' && parsed !== null) {
+        return !!(parsed.certificate ?? parsed.hasCertificate ?? parsed.completionCertificate ?? parsed['Completion Certificate']);
+      }
+    } catch {
+      return typeof c.featuresJson === 'string' && c.featuresJson.toLowerCase().includes('certificate');
+    }
+    return false;
+  });
+
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('id');
     if (!idParam || isNaN(+idParam)) {

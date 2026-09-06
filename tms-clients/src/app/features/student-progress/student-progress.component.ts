@@ -67,4 +67,24 @@ export class StudentProgressComponent implements OnInit, OnDestroy {
     const total = list.reduce((acc, c) => acc + c.completionPercentage, 0);
     return Math.round(total / list.length);
   }
+
+  getGradeLetter(gpa?: number | null): string {
+    if (gpa === null || gpa === undefined) return '—';
+    const score = gpa <= 4.0 ? gpa * 25 : gpa;
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+  }
+
+  getGradeLevelClass(gpa?: number | null): string {
+    if (gpa === null || gpa === undefined) return 'grade-level-pending';
+    const score = gpa <= 4.0 ? gpa * 25 : gpa;
+    if (score >= 90) return 'grade-level-a';
+    if (score >= 80) return 'grade-level-b';
+    if (score >= 70) return 'grade-level-c';
+    if (score >= 60) return 'grade-level-d';
+    return 'grade-level-f';
+  }
 }

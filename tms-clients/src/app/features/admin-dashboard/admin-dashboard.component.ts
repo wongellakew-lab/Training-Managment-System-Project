@@ -89,7 +89,24 @@ export class AdminDashboardComponent implements OnInit {
     const list = this.dashboard()?.enrollmentTrends;
     if (!list || list.length === 0) return 0;
     const max = Math.max(...list.map(r => r.count), 1);
-    return Math.round((val / max) * 100);
+    const pct = Math.round((val / max) * 100);
+    return Math.max(12, pct);
+  }
+
+  getCategoryClass(category?: string): string {
+    const cat = (category || 'general').toLowerCase();
+    if (cat.includes('web') || cat.includes('dev')) return 'cat-webdev';
+    if (cat.includes('design')) return 'cat-design';
+    if (cat.includes('market')) return 'cat-marketing';
+    if (cat.includes('commun')) return 'cat-communication';
+    if (cat.includes('busi')) return 'cat-business';
+    if (cat.includes('computer') || cat.includes('cs') || cat.includes('it')) return 'cat-cs';
+    return 'cat-general';
+  }
+
+  getCourseCapacityPercent(enrolled = 0, capacity = 30): number {
+    if (!capacity || capacity <= 0) return 0;
+    return Math.min(100, Math.round((enrolled / capacity) * 100));
   }
 
   ngOnInit(): void {

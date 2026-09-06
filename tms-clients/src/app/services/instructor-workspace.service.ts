@@ -234,8 +234,24 @@ export class InstructorWorkspaceService {
     assignmentId: number;
     score: number | null;
     feedback?: string;
-  }): Observable<{ message: string; assessmentId: number; score: number | null; status: string }> {
-    return this.http.post<{ message: string; assessmentId: number; score: number | null; status: string }>(`${this.baseUrl}/grades/gradebook/cell`, data);
+  }): Observable<{
+    message: string;
+    assessmentId: number;
+    score: number | null;
+    status: string;
+    alreadyEvaluatedCount?: number;
+    notYetEvaluatedCount?: number;
+    totalRequiredEvaluations?: number;
+  }> {
+    return this.http.post<{
+      message: string;
+      assessmentId: number;
+      score: number | null;
+      status: string;
+      alreadyEvaluatedCount?: number;
+      notYetEvaluatedCount?: number;
+      totalRequiredEvaluations?: number;
+    }>(`${this.baseUrl}/grades/gradebook/cell`, data);
   }
 
   submitBulkGradebook(courseId: number, grades: {
@@ -243,8 +259,20 @@ export class InstructorWorkspaceService {
     assignmentId: number;
     score: number | null;
     feedback?: string;
-  }[]): Observable<{ message: string; updatedCount: number }> {
-    return this.http.post<{ message: string; updatedCount: number }>(`${this.baseUrl}/grades/gradebook/bulk`, {
+  }[]): Observable<{
+    message: string;
+    updatedCount: number;
+    alreadyEvaluatedCount?: number;
+    notYetEvaluatedCount?: number;
+    totalRequiredEvaluations?: number;
+  }> {
+    return this.http.post<{
+      message: string;
+      updatedCount: number;
+      alreadyEvaluatedCount?: number;
+      notYetEvaluatedCount?: number;
+      totalRequiredEvaluations?: number;
+    }>(`${this.baseUrl}/grades/gradebook/bulk`, {
       courseId,
       grades
     });

@@ -244,6 +244,27 @@
     &.badge-evaluated {
       background: rgba(16, 185, 129, 0.1);
       color: #10b981;
+
+      &.grade-level-a {
+        background: rgba(16, 185, 129, 0.12);
+        color: #059669;
+      }
+      &.grade-level-b {
+        background: rgba(2, 132, 199, 0.12);
+        color: #0284c7;
+      }
+      &.grade-level-c {
+        background: rgba(245, 158, 11, 0.12);
+        color: #d97706;
+      }
+      &.grade-level-d {
+        background: rgba(234, 88, 12, 0.12);
+        color: #ea580c;
+      }
+      &.grade-level-f {
+        background: rgba(239, 68, 68, 0.12);
+        color: #dc2626;
+      }
     }
 
     &.badge-pending {
@@ -267,6 +288,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      transition: all 0.25s ease;
 
       .score-val {
         font-size: 1.125rem;
@@ -278,6 +300,36 @@
         font-size: 0.875rem;
         font-weight: 700;
         color: #10b981;
+      }
+
+      &.grade-level-a {
+        background: rgba(16, 185, 129, 0.12);
+        border-color: #10b981;
+        .score-val, .score-letter { color: #059669; }
+      }
+
+      &.grade-level-b {
+        background: rgba(2, 132, 199, 0.12);
+        border-color: #0284c7;
+        .score-val, .score-letter { color: #0284c7; }
+      }
+
+      &.grade-level-c {
+        background: rgba(245, 158, 11, 0.12);
+        border-color: #f59e0b;
+        .score-val, .score-letter { color: #d97706; }
+      }
+
+      &.grade-level-d {
+        background: rgba(234, 88, 12, 0.12);
+        border-color: #ea580c;
+        .score-val, .score-letter { color: #ea580c; }
+      }
+
+      &.grade-level-f {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: #ef4444;
+        .score-val, .score-letter { color: #dc2626; }
       }
     }
 
@@ -299,6 +351,15 @@
         .val {
           font-weight: 600;
           color: var(--text-primary);
+        }
+
+        .status-indicator {
+          font-weight: 600;
+          &.grade-level-a { color: #059669; }
+          &.grade-level-b { color: #0284c7; }
+          &.grade-level-c { color: #d97706; }
+          &.grade-level-d { color: #ea580c; }
+          &.grade-level-f { color: #dc2626; }
         }
 
         .text-success {
@@ -747,6 +808,69 @@
       font-weight: 700;
       color: var(--text-primary);
       margin: 0;
+    }
+  }
+}
+
+:host-context(html.dark-theme) {
+  .badge.badge-evaluated {
+    &.grade-level-a {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+    &.grade-level-b {
+      background: rgba(2, 132, 199, 0.2);
+      color: #38bdf8;
+    }
+    &.grade-level-c {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+    }
+    &.grade-level-d {
+      background: rgba(234, 88, 12, 0.2);
+      color: #fb923c;
+    }
+    &.grade-level-f {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+  }
+
+  .grade-display-box {
+    .score-circle {
+      &.grade-level-a {
+        background: rgba(16, 185, 129, 0.18);
+        border-color: #10b981;
+        .score-val, .score-letter { color: #34d399; }
+      }
+      &.grade-level-b {
+        background: rgba(2, 132, 199, 0.18);
+        border-color: #0284c7;
+        .score-val, .score-letter { color: #38bdf8; }
+      }
+      &.grade-level-c {
+        background: rgba(245, 158, 11, 0.18);
+        border-color: #f59e0b;
+        .score-val, .score-letter { color: #fbbf24; }
+      }
+      &.grade-level-d {
+        background: rgba(234, 88, 12, 0.18);
+        border-color: #ea580c;
+        .score-val, .score-letter { color: #fb923c; }
+      }
+      &.grade-level-f {
+        background: rgba(239, 68, 68, 0.18);
+        border-color: #ef4444;
+        .score-val, .score-letter { color: #f87171; }
+      }
+    }
+
+    .grade-details .grade-row .status-indicator {
+      &.grade-level-a { color: #34d399; }
+      &.grade-level-b { color: #38bdf8; }
+      &.grade-level-c { color: #fbbf24; }
+      &.grade-level-d { color: #fb923c; }
+      &.grade-level-f { color: #f87171; }
     }
   }
 }

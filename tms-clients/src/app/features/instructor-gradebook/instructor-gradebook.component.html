@@ -47,19 +47,27 @@
     <div class="stats-strip">
       <div class="stat-box">
         <span class="stat-label">Enrolled Students</span>
-        <span class="stat-val">{{ rows().length }}</span>
+        <span class="stat-val font-mono">{{ rows().length }}</span>
       </div>
       <div class="stat-box">
-        <span class="stat-label">Assignments Evaluated</span>
-        <span class="stat-val">{{ assignments().length }}</span>
+        <span class="stat-label">Configured Assessments</span>
+        <span class="stat-val font-mono">{{ assignments().length }}</span>
+      </div>
+      <div class="stat-box stat-evaluated">
+        <span class="stat-label">Already Evaluated</span>
+        <span class="stat-val font-mono text-evaluated">{{ alreadyEvaluatedCount() }}</span>
+      </div>
+      <div class="stat-box stat-not-evaluated">
+        <span class="stat-label">Not Yet Evaluated</span>
+        <span class="stat-val font-mono text-not-evaluated">{{ notYetEvaluatedCount() }}</span>
       </div>
       <div class="stat-box">
         <span class="stat-label">Class Average</span>
-        <span class="stat-val text-primary">{{ classAverage() }}%</span>
+        <span class="stat-val font-mono text-primary">{{ classAverage() }}%</span>
       </div>
       <div class="stat-box">
         <span class="stat-label">Passing Rate</span>
-        <span class="stat-val text-success">{{ passingCount() }} / {{ rows().length }}</span>
+        <span class="stat-val font-mono text-success">{{ passingCount() }} / {{ rows().length }}</span>
       </div>
     </div>
 

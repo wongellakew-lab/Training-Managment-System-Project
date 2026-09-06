@@ -40,6 +40,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
 
   readonly isStudent = computed(() => this.authService.userRole() === 'Student');
   readonly courses = signal<Course[]>([]);
+  readonly allCourses = signal<Course[]>([]);
   readonly selectedStatus = signal<string>('All');
   readonly selectedCategory = signal<string>('All Category');
   readonly selectedSkillLevel = signal<string>('All');
@@ -84,28 +85,79 @@ export class CoursesComponent implements OnInit, OnDestroy {
     return pages;
   });
 
-  readonly topCourses = computed(() => {
-    const list = [...this.courses()];
-    return list.sort((a, b) => (b.enrolledCount ?? 0) - (a.enrolledCount ?? 0)).slice(0, 3);
+  readonly statsCourseList = computed(() => {
+    return this.allCourses().length > 0 ? this.allCourses() : this.courses();
   });
 
-  readonly totalCapacity = computed(() => this.courses().reduce((sum, c) => sum + (c.maxCapacity ?? 0), 0));
-  readonly totalEnrolled = computed(() => this.courses().reduce((sum, c) => sum + (c.enrolledCount ?? 0), 0));
+  readonly topCourses = computed(() => {
+    const list = [...this.statsCourseList()];
+    return list
+      .sort((a, b) => (b.enrolledCount ?? 0) - (a.enrolledCount ?? 0))
+      .slice(0, 4)
+      .map(c => {
+        const capacity = c.maxCapacity || 30;
+        const enrolled = c.enrolledCount || 0;
+        const percent = Math.min(100, Math.round((enrolled / capacity) * 100));
+        return {
+          ...c,
+          occupancyPercent: percent,
+          occupancyStatus: percent >= 90 ? 'critical' : percent >= 70 ? 'high' : 'normal'
+        };
+      });
+  });
+
+  readonly totalCapacity = computed(() => this.statsCourseList().reduce((sum, c) => sum + (c.maxCapacity ?? 0), 0));
+  readonly totalEnrolled = computed(() => this.statsCourseList().reduce((sum, c) => sum + (c.enrolledCount ?? 0), 0));
+
+  readonly overallOccupancyRate = computed(() => {
+    const cap = this.totalCapacity();
+    const enr = this.totalEnrolled();
+    return cap > 0 ? Math.round((enr / cap) * 100) : 0;
+  });
 
   readonly categoryCounts = computed(() => {
-    const list = this.courses();
+    const list = this.statsCourseList();
     const map = new Map<string, number>();
     for (const c of list) {
       const cat = c.category || 'General';
       map.set(cat, (map.get(cat) || 0) + 1);
     }
-    const colors = ['sq-design', 'sq-webdev', 'sq-marketing', 'sq-business', 'sq-others'];
-    return Array.from(map.entries()).map(([name, count], idx) => ({
-      name,
-      count,
-      colorClass: colors[idx % colors.length],
-      percent: list.length > 0 ? Math.round((count / list.length) * 100) : 0
-    }));
+    const colorMap: Record<string, { colorClass: string; hex: string }> = {
+      'Web Development': { colorClass: 'cat-webdev', hex: '#2563eb' },
+      'Web Dev': { colorClass: 'cat-webdev', hex: '#2563eb' },
+      'Design': { colorClass: 'cat-design', hex: '#7c3aed' },
+      'Marketing': { colorClass: 'cat-marketing', hex: '#059669' },
+      'Communication': { colorClass: 'cat-communication', hex: '#d97706' },
+      'Language': { colorClass: 'cat-language', hex: '#ea580c' },
+      'Business': { colorClass: 'cat-business', hex: '#db2777' },
+      'Computer Science': { colorClass: 'cat-cs', hex: '#0891b2' },
+      'Information Technology': { colorClass: 'cat-it', hex: '#0284c7' },
+      'General': { colorClass: 'cat-general', hex: '#475569' }
+    };
+    const defaultColors = [
+      { colorClass: 'cat-webdev', hex: '#2563eb' },
+      { colorClass: 'cat-design', hex: '#7c3aed' },
+      { colorClass: 'cat-marketing', hex: '#059669' },
+      { colorClass: 'cat-communication', hex: '#d97706' },
+      { colorClass: 'cat-business', hex: '#db2777' },
+      { colorClass: 'cat-cs', hex: '#0891b2' },
+      { colorClass: 'cat-general', hex: '#475569' }
+    ];
+
+    const sortedEntries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    const total = list.length || 1;
+
+    return sortedEntries.map(([name, count], idx) => {
+      const matched = colorMap[name] || defaultColors[idx % defaultColors.length];
+      const percent = Math.round((count / total) * 100);
+      return {
+        name,
+        count,
+        percent,
+        colorClass: matched.colorClass,
+        hex: matched.hex
+      };
+    });
   });
 
   private sub?: Subscription;
@@ -120,6 +172,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
       this.loadCourses();
     });
 
+    this.loadAllCoursesForStats();
     this.loadCourses();
 
     // Subscribe to live course capacity changes
@@ -208,6 +261,25 @@ export class CoursesComponent implements OnInit, OnDestroy {
       },
       error: () => this.isLoading.set(false)
     });
+  }
+
+  loadAllCoursesForStats(): void {
+    this.courseService.getCourses({ pageSize: 100 }).subscribe({
+      next: (res) => {
+        this.allCourses.set(res.items || []);
+      },
+      error: () => {}
+    });
+  }
+
+  filterByCategoryFromCard(catName: string): void {
+    if (this.selectedCategory() === catName) {
+      this.selectedCategory.set('All Category');
+    } else {
+      this.selectedCategory.set(catName);
+    }
+    this.currentPage = 1;
+    this.loadCourses();
   }
 
 

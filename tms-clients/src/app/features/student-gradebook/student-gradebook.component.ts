@@ -81,4 +81,23 @@ export class StudentGradebookComponent implements OnInit, OnDestroy {
       return [];
     }
   }
+
+  getGradeLevelClass(letter?: string | null, score?: number | null): string {
+    if (letter) {
+      const normalized = letter.trim().toUpperCase();
+      if (normalized.startsWith('A')) return 'grade-level-a';
+      if (normalized.startsWith('B')) return 'grade-level-b';
+      if (normalized.startsWith('C')) return 'grade-level-c';
+      if (normalized.startsWith('D')) return 'grade-level-d';
+      if (normalized.startsWith('F')) return 'grade-level-f';
+    }
+    if (score !== null && score !== undefined) {
+      if (score >= 90) return 'grade-level-a';
+      if (score >= 80) return 'grade-level-b';
+      if (score >= 70) return 'grade-level-c';
+      if (score >= 60) return 'grade-level-d';
+      return 'grade-level-f';
+    }
+    return 'grade-level-pending';
+  }
 }

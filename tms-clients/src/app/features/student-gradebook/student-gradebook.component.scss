@@ -147,9 +147,12 @@
         font-weight: 800;
         color: var(--eduva-green);
 
-        &.no-grade {
-          color: var(--text-muted);
-        }
+        &.grade-level-a { color: #059669; }
+        &.grade-level-b { color: #0284c7; }
+        &.grade-level-c { color: #d97706; }
+        &.grade-level-d { color: #ea580c; }
+        &.grade-level-f { color: #dc2626; }
+        &.grade-level-pending, &.no-grade { color: var(--text-muted); }
       }
 
       .score-percent {
@@ -195,6 +198,31 @@
         color: #10b981;
         padding: 0.35rem 1rem;
         border-radius: var(--radius-md);
+
+        &.grade-level-a {
+          background: rgba(16, 185, 129, 0.15);
+          color: #059669;
+        }
+        &.grade-level-b {
+          background: rgba(2, 132, 199, 0.15);
+          color: #0284c7;
+        }
+        &.grade-level-c {
+          background: rgba(245, 158, 11, 0.15);
+          color: #d97706;
+        }
+        &.grade-level-d {
+          background: rgba(234, 88, 12, 0.15);
+          color: #ea580c;
+        }
+        &.grade-level-f {
+          background: rgba(239, 68, 68, 0.15);
+          color: #dc2626;
+        }
+        &.grade-level-pending {
+          background: rgba(148, 163, 184, 0.15);
+          color: #64748b;
+        }
       }
     }
 
@@ -342,3 +370,41 @@
     color: var(--eduva-blue);
   }
 }
+
+:host-context(html.dark-theme) {
+  .grade-letter {
+    &.grade-level-a { color: #34d399; }
+    &.grade-level-b { color: #38bdf8; }
+    &.grade-level-c { color: #fbbf24; }
+    &.grade-level-d { color: #fb923c; }
+    &.grade-level-f { color: #f87171; }
+  }
+
+  .grade-pill-lg {
+    &.grade-level-a {
+      background: rgba(16, 185, 129, 0.25);
+      color: #34d399;
+    }
+    &.grade-level-b {
+      background: rgba(2, 132, 199, 0.25);
+      color: #38bdf8;
+    }
+    &.grade-level-c {
+      background: rgba(245, 158, 11, 0.25);
+      color: #fbbf24;
+    }
+    &.grade-level-d {
+      background: rgba(234, 88, 12, 0.25);
+      color: #fb923c;
+    }
+    &.grade-level-f {
+      background: rgba(239, 68, 68, 0.25);
+      color: #f87171;
+    }
+    &.grade-level-pending {
+      background: rgba(148, 163, 184, 0.25);
+      color: #94a3b8;
+    }
+  }
+}
+

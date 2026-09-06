@@ -155,22 +155,36 @@
 /* Two-Column Responsive Grid */
 .course-details-grid {
   display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 24px;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 28px;
   align-items: start;
+  position: relative;
 
   @media (max-width: 1024px) {
-    grid-template-columns: 320px 1fr;
-    gap: 16px;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 20px;
   }
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
 }
 
-/* LEFT COLUMN: COURSE INFO PANEL */
+/* LEFT COLUMN: STICKY COURSE INFO PANEL */
 .course-info-panel {
+  position: sticky;
+  top: 88px;
+  align-self: start;
+  height: fit-content;
+  z-index: 20;
+  overflow: visible;
+
+  @media (max-width: 768px) {
+    position: static;
+    top: auto;
+  }
+
   .info-card {
     padding: 0;
     overflow: hidden;
@@ -181,7 +195,7 @@
     .course-hero-wrapper {
       position: relative;
       width: 100%;
-      height: 200px;
+      height: 175px;
       overflow: hidden;
 
       .hero-img {
@@ -207,10 +221,10 @@
     }
 
     .info-card-body {
-      padding: 1.5rem;
+      padding: 1.15rem 1.25rem;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 0.85rem;
 
       .course-headline {
         font-size: 1.25rem;
@@ -225,14 +239,14 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 12px;
+        padding: 8px 10px;
         background: var(--bg-subtle);
         border-radius: 10px;
         border: 1px solid var(--border-subtle);
 
         .inst-img {
-          width: 44px;
-          height: 44px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           object-fit: cover;
         }
@@ -288,6 +302,21 @@
             color: var(--text-secondary);
             background: var(--bg-subtle);
             border: 1px solid var(--border-subtle);
+          }
+
+          &.cert-tag {
+            color: #d97706;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+
+            mat-icon {
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+            }
           }
         }
       }
@@ -385,6 +414,42 @@
         }
       }
 
+      /* Completion Certificate Callout */
+      .cert-included-callout {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.04));
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        border-radius: 10px;
+
+        .cert-callout-icon {
+          color: #d97706;
+          font-size: 22px;
+          width: 22px;
+          height: 22px;
+          flex-shrink: 0;
+        }
+
+        .cert-callout-info {
+          display: flex;
+          flex-direction: column;
+          line-height: 1.25;
+
+          .cert-callout-title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--text-primary);
+          }
+
+          .cert-callout-sub {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+          }
+        }
+      }
+
       /* Enrollment Button */
       .enrollment-action-wrapper {
         .enroll-action-btn {
@@ -449,6 +514,7 @@
 
 /* RIGHT COLUMN: MAIN SECTIONS */
 .course-main-sections {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -678,6 +744,132 @@
       color: var(--text-muted);
       margin: 0;
       font-style: italic;
+    }
+  }
+
+  /* Completion Certificate Card */
+  .certificate-card {
+    border-left: 4px solid #f59e0b;
+
+    .cert-gold-icon {
+      color: #d97706;
+    }
+
+    .cert-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #b45309;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 4px 10px;
+      border-radius: 9999px;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: #d97706;
+      }
+    }
+
+    .cert-banner-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+
+      .cert-banner-main {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.25rem;
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.03));
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-radius: 12px;
+
+        .cert-badge-round {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+
+          mat-icon {
+            color: #ffffff;
+            font-size: 28px;
+            width: 28px;
+            height: 28px;
+          }
+        }
+
+        .cert-banner-copy {
+          .cert-banner-heading {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 0.25rem 0;
+          }
+
+          .cert-banner-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.5;
+          }
+        }
+      }
+
+      .cert-highlights-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+
+        @media (max-width: 640px) {
+          grid-template-columns: 1fr;
+        }
+
+        .cert-highlight-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          padding: 0.85rem 1rem;
+          background: var(--bg-subtle);
+          border: 1px solid var(--border-subtle);
+          border-radius: 10px;
+
+          .highlight-check {
+            color: #10b981;
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            margin-top: 1px;
+          }
+
+          .highlight-details {
+            display: flex;
+            flex-direction: column;
+
+            strong {
+              font-size: 0.8125rem;
+              color: var(--text-primary);
+              font-weight: 700;
+            }
+
+            span {
+              font-size: 0.725rem;
+              color: var(--text-muted);
+              margin-top: 2px;
+            }
+          }
+        }
+      }
     }
   }
 

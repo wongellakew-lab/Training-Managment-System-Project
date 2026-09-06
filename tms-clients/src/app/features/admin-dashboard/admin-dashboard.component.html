@@ -6,7 +6,7 @@
       <!-- Top 4 Stat Cards Row -->
       <div class="stats-cards-row">
         <!-- Total Courses -->
-        <div class="stat-card">
+        <div class="stat-card" [routerLink]="['/admin/courses']" style="cursor: pointer;" title="View all courses">
           <div class="stat-icon-wrapper blue-icon">
             <mat-icon>menu_book</mat-icon>
           </div>
@@ -17,7 +17,7 @@
         </div>
 
         <!-- Total Mentors -->
-        <div class="stat-card">
+        <div class="stat-card" [routerLink]="['/admin/instructors']" style="cursor: pointer;" title="View all faculty mentors">
           <div class="stat-icon-wrapper navy-icon">
             <mat-icon>co_present</mat-icon>
           </div>
@@ -28,7 +28,7 @@
         </div>
 
         <!-- Total Current Students -->
-        <div class="stat-card">
+        <div class="stat-card" [routerLink]="['/admin/students']" style="cursor: pointer;" title="View all students">
           <div class="stat-icon-wrapper cyan-icon">
             <mat-icon>school</mat-icon>
           </div>
@@ -39,7 +39,7 @@
         </div>
 
         <!-- Active Enrollments -->
-        <div class="stat-card">
+        <div class="stat-card" [routerLink]="['/admin/enrollments']" style="cursor: pointer;" title="Manage active enrollments">
           <div class="stat-icon-wrapper green-icon">
             <mat-icon>how_to_reg</mat-icon>
           </div>
@@ -53,19 +53,29 @@
       <!-- Charts Row 1: Enrollment Trends & Top Courses -->
       <div class="charts-row-two-col">
         <!-- Enrollment Trends Card -->
-        <div class="eduva-card chart-card">
+        <div class="eduva-card chart-card enrollment-trends-card">
           <div class="card-header-flex">
-            <div>
-              <h3 class="card-title">Enrollment Trends</h3>
-              <div class="metric-with-badge">
-                <span class="main-metric">{{ dashboard()?.activeEnrollments ?? 0 }} Active</span>
-                @if (dashboard()?.enrollmentGrowthPercentage) {
-                  <span class="growth-pill font-mono">↑ {{ dashboard()?.enrollmentGrowthPercentage }}%</span>
-                }
+            <div class="header-title-meta">
+              <div class="header-icon-box icon-blue">
+                <mat-icon>insights</mat-icon>
+              </div>
+              <div>
+                <h3 class="card-title">Enrollment Trends</h3>
+                <div class="metric-with-badge">
+                  <span class="main-metric font-mono">{{ dashboard()?.activeEnrollments ?? 0 }} Active</span>
+                  @if (dashboard()?.enrollmentGrowthPercentage) {
+                    <span class="growth-pill font-mono" [class.growth-negative]="dashboard()!.enrollmentGrowthPercentage < 0">
+                      {{ dashboard()!.enrollmentGrowthPercentage >= 0 ? '↑' : '↓' }} {{ dashboard()!.enrollmentGrowthPercentage }}%
+                    </span>
+                  }
+                </div>
               </div>
             </div>
             <div class="card-header-actions">
-              <span class="date-period-tag font-mono">Monthly Registrations</span>
+              <span class="date-period-tag font-mono">
+                <mat-icon class="sub-icon">calendar_month</mat-icon>
+                Monthly Registrations
+              </span>
             </div>
           </div>
 
@@ -77,20 +87,36 @@
                 <span>No enrollment trend data recorded</span>
               </div>
             } @else {
-              <div class="bars-wrapper trend-bars">
-                @for (tr of dashboard()!.enrollmentTrends; track tr.month) {
-                  <div class="bar-col" [class.active-month]="tr.isPeak">
-                    @if (tr.isPeak) {
-                      <div class="peak-badge">
-                        <span>{{ tr.count }} Peak</span>
+              <div class="chart-canvas-wrapper">
+                <!-- Background Horizontal Gridlines -->
+                <div class="chart-gridlines">
+                  <div class="gridline"><span>100%</span></div>
+                  <div class="gridline"><span>75%</span></div>
+                  <div class="gridline"><span>50%</span></div>
+                  <div class="gridline"><span>25%</span></div>
+                  <div class="gridline baseline"><span>0</span></div>
+                </div>
+
+                <div class="bars-wrapper trend-bars">
+                  @for (tr of dashboard()!.enrollmentTrends; track tr.month) {
+                    <div class="bar-col" [class.active-month]="tr.isPeak">
+                      <div class="bar-pill-track" [title]="tr.month + ': ' + tr.count + ' enrollments' + (tr.isPeak ? ' (Peak Month)' : '')">
+                        @if (tr.isPeak) {
+                          <div class="peak-badge font-mono">
+                            <mat-icon class="peak-icon">star</mat-icon>
+                            <span>{{ tr.count }}</span>
+                          </div>
+                        } @else {
+                          <div class="hover-count-badge font-mono">{{ tr.count }}</div>
+                        }
+                        <div class="bar-pill-fill" [style.height.%]="getTrendPercent(tr.count)" [class.fill-peak]="tr.isPeak">
+                          <div class="bar-glow"></div>
+                        </div>
                       </div>
-                    }
-                    <div class="bar-pill-group" [style.height.%]="getTrendPercent(tr.count)">
-                      <div class="bar-segment bar-cyan" style="height: 100%;"></div>
+                      <span class="x-label font-mono" [class.label-peak]="tr.isPeak">{{ tr.month }}</span>
                     </div>
-                    <span class="x-label">{{ tr.month }}</span>
-                  </div>
-                }
+                  }
+                </div>
               </div>
             }
           </div>
@@ -134,10 +160,21 @@
       <!-- Bottom Row: Recent Courses & Pending Approvals -->
       <div class="charts-row-two-col">
         <!-- New Courses Card -->
-        <div class="eduva-card new-courses-card">
+        <div class="eduva-card new-courses-card modern-new-courses">
           <div class="card-header-flex">
-            <h3 class="card-title">Recently Added Courses</h3>
-            <a routerLink="/admin/courses" class="link-action">View All</a>
+            <div class="header-title-meta">
+              <div class="header-icon-box icon-emerald">
+                <mat-icon>auto_stories</mat-icon>
+              </div>
+              <div>
+                <h3 class="card-title">Recently Added Courses</h3>
+                <span class="card-subtitle">Latest curriculum additions</span>
+              </div>
+            </div>
+            <a routerLink="/admin/courses" class="link-action font-mono">
+              View All
+              <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+            </a>
           </div>
 
           @if (!dashboard()?.newCourses || dashboard()!.newCourses.length === 0) {
@@ -148,13 +185,46 @@
           } @else {
             <div class="new-courses-list">
               @for (course of dashboard()!.newCourses; track course.id) {
-                <div class="new-course-item" [routerLink]="['/admin/courses', course.id]">
+                <div class="new-course-item" [routerLink]="['/admin/courses', course.id]" [title]="'View ' + course.title">
+                  <!-- Course Thumbnail / Icon Avatar -->
+                  <div class="course-thumb-box">
+                    @if (course.imageUrl) {
+                      <img [src]="course.imageUrl" [alt]="course.title" />
+                    } @else {
+                      <div class="course-thumb-fallback" [ngClass]="getCategoryClass(course.category)">
+                        <mat-icon>school</mat-icon>
+                      </div>
+                    }
+                  </div>
+
                   <div class="course-item-info">
-                    <div class="course-tag tag-webdev">{{ course.category || 'Course' }}</div>
-                    <h4 class="course-item-title">{{ course.title }}</h4>
-                    <div class="course-item-footer">
-                      <span class="student-count font-mono">{{ course.enrolledCount }} / {{ course.maxCapacity }} Enrolled</span>
+                    <div class="course-badge-row">
+                      <span class="course-cat-tag" [ngClass]="getCategoryClass(course.category)">
+                        {{ course.category || 'General' }}
+                      </span>
+                      @if (course.code) {
+                        <span class="course-code-tag font-mono">{{ course.code }}</span>
+                      }
+                      <span class="course-level-tag">{{ course.level || 'Beginner' }}</span>
                     </div>
+
+                    <h4 class="course-item-title">{{ course.title }}</h4>
+
+                    <div class="course-item-footer">
+                      <div class="capacity-indicator">
+                        <div class="capacity-text font-mono">
+                          <strong>{{ course.enrolledCount || 0 }}</strong> / {{ course.maxCapacity || 30 }} Enrolled
+                          <span class="capacity-pct font-mono">({{ getCourseCapacityPercent(course.enrolledCount, course.maxCapacity) }}%)</span>
+                        </div>
+                        <div class="capacity-track">
+                          <div class="capacity-bar-fill" [style.width.%]="getCourseCapacityPercent(course.enrolledCount, course.maxCapacity)"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="course-arrow-btn">
+                    <mat-icon>chevron_right</mat-icon>
                   </div>
                 </div>
               }

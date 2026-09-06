@@ -97,6 +97,11 @@
               <span class="pill-badge status-active">&bull; {{ course()!.status }}</span>
               <span class="pill-badge category-tag">{{ course()!.department || course()!.category }}</span>
               <span class="pill-badge credits-tag font-mono">{{ course()!.credits }} Credits</span>
+              @if (hasCertificate()) {
+                <span class="pill-badge cert-tag font-mono">
+                  <mat-icon>workspace_premium</mat-icon> Certificate
+                </span>
+              }
             </div>
 
             <!-- Duration & Lesson Metrics -->
@@ -139,6 +144,16 @@
                 }
               </div>
             </div>
+
+            @if (hasCertificate()) {
+              <div class="cert-included-callout">
+                <mat-icon class="cert-callout-icon">workspace_premium</mat-icon>
+                <div class="cert-callout-info">
+                  <span class="cert-callout-title">Completion Certificate</span>
+                  <span class="cert-callout-sub">Official credential upon passing</span>
+                </div>
+              </div>
+            }
 
             <!-- Enrollment Call-To-Action Button -->
             <div class="enrollment-action-wrapper">
@@ -266,6 +281,66 @@
             }
           </div>
         </section>
+
+        <!-- Completion Certificate Section (if enabled) -->
+        @if (hasCertificate()) {
+          <section class="eduva-card section-card certificate-card">
+            <div class="section-card-header">
+              <div class="header-icon-title">
+                <div class="cert-icon-wrapper">
+                  <mat-icon class="sec-icon cert-gold-icon">workspace_premium</mat-icon>
+                </div>
+                <div>
+                  <h2 class="section-title">Completion Certificate</h2>
+                  <span class="section-subtitle">Official verified credential conferred upon completion</span>
+                </div>
+              </div>
+              <span class="cert-status-pill font-mono">
+                <mat-icon>verified</mat-icon> Included
+              </span>
+            </div>
+
+            <div class="section-body cert-card-body">
+              <div class="cert-banner-layout">
+                <div class="cert-banner-main">
+                  <div class="cert-badge-round">
+                    <mat-icon>school</mat-icon>
+                  </div>
+                  <div class="cert-banner-copy">
+                    <h4 class="cert-banner-heading">Earn Your Verified Certificate</h4>
+                    <p class="cert-banner-desc">
+                      Successfully complete all course modules and pass required assessments to receive an official Certificate of Completion issued by {{ course()!.instructorName || 'the Course Instructor' }}.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="cert-highlights-grid">
+                  <div class="cert-highlight-item">
+                    <mat-icon class="highlight-check">verified</mat-icon>
+                    <div class="highlight-details">
+                      <strong>Unique Credential ID</strong>
+                      <span>Digitally verifiable on the student portal</span>
+                    </div>
+                  </div>
+                  <div class="cert-highlight-item">
+                    <mat-icon class="highlight-check">share</mat-icon>
+                    <div class="highlight-details">
+                      <strong>Professional Sharing</strong>
+                      <span>Export to LinkedIn and digital portfolios</span>
+                    </div>
+                  </div>
+                  <div class="cert-highlight-item">
+                    <mat-icon class="highlight-check">picture_as_pdf</mat-icon>
+                    <div class="highlight-details">
+                      <strong>High-Resolution PDF</strong>
+                      <span>Instantly downloadable and printable</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        }
 
         <!-- 3. Mode of Evaluation Section -->
         <section class="eduva-card section-card evaluation-card">

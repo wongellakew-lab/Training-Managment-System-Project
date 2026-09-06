@@ -149,8 +149,8 @@ export interface CourseBuilderDetail {
   featuresJson: string;
   instructorId?: number;
   instructorName?: string;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string | null;
+  endDate?: string | null;
   maxCapacity?: number;
   schedules?: CourseSchedule[];
   rejectionReason?: string;
@@ -165,6 +165,7 @@ export interface CourseBuilderDetail {
   totalAssessments?: number;
   totalCoursePoints?: number;
   createdAssignmentsCount?: number;
+  hasGradedAssessments?: boolean;
   modules: BuilderModule[];
   resources: CourseResourceItem[];
 }
@@ -303,6 +304,9 @@ export interface GradebookResponse {
   message?: string;
   assignments: GradebookAssignmentHeader[];
   rows: GradebookRow[];
+  alreadyEvaluatedCount?: number;
+  notYetEvaluatedCount?: number;
+  totalRequiredEvaluations?: number;
 }
 
 export interface InstructorProfile {

@@ -174,8 +174,47 @@
           <div class="title-with-count">
             <h3 class="section-title">Enrolled Courses</h3>
             <span class="count-pill">
-              {{ student()?.enrolledCourses?.length || 0 }} {{ student()?.enrolledCourses?.length === 1 ? 'Course' : 'Courses' }}
+              {{ filteredCourses().length }} of {{ totalCoursesCount() }} {{ totalCoursesCount() === 1 ? 'Course' : 'Courses' }}
             </span>
+          </div>
+
+          <!-- Status Filter Tabs: All, Enrolled, Completed, Dropped -->
+          <div class="status-filter-tabs">
+            <button
+              type="button"
+              class="filter-tab-btn"
+              [class.active]="selectedFilter() === 'All'"
+              (click)="setFilter('All')"
+            >
+              All ({{ totalCoursesCount() }})
+            </button>
+            <button
+              type="button"
+              class="filter-tab-btn tab-enrolled"
+              [class.active]="selectedFilter() === 'Active'"
+              (click)="setFilter('Active')"
+            >
+              <span class="status-dot enrolled-dot"></span>
+              Enrolled ({{ activeEnrolledCount() }})
+            </button>
+            <button
+              type="button"
+              class="filter-tab-btn tab-completed"
+              [class.active]="selectedFilter() === 'Completed'"
+              (click)="setFilter('Completed')"
+            >
+              <span class="status-dot completed-dot"></span>
+              Completed ({{ completedCoursesCount() }})
+            </button>
+            <button
+              type="button"
+              class="filter-tab-btn tab-dropped"
+              [class.active]="selectedFilter() === 'Dropped'"
+              (click)="setFilter('Dropped')"
+            >
+              <span class="status-dot dropped-dot"></span>
+              Dropped ({{ droppedCoursesCount() }})
+            </button>
           </div>
         </div>
 
@@ -185,17 +224,29 @@
             <h4>No Courses Enrolled</h4>
             <p>This student is not currently enrolled in any courses.</p>
           </div>
+        } @else if (filteredCourses().length === 0) {
+          <div class="eduva-card empty-courses-card">
+            <mat-icon class="empty-icon">filter_list_off</mat-icon>
+            <h4>No {{ selectedFilter() }} Courses</h4>
+            <p>There are no courses currently matching the "{{ selectedFilter() }}" filter status.</p>
+            <button mat-stroked-button class="reset-filter-btn" (click)="setFilter('All')">
+              Show All Courses
+            </button>
+          </div>
         } @else {
           <div class="courses-grid">
-            @for (course of student()!.enrolledCourses; track course.courseId) {
+            @for (course of filteredCourses(); track course.courseId) {
               <div class="eduva-card student-course-card" (click)="navigateToCourse(course.courseId)">
                 <div class="card-top">
                   <div class="course-code-category">
                     <span class="course-code font-mono">{{ course.code }}</span>
                     <span class="category-tag">{{ course.category }}</span>
                   </div>
+
+                  <!-- Status Chip Badge -->
                   <span class="enrollment-status-chip" [ngClass]="course.enrollmentStatus.toLowerCase()">
-                    {{ course.enrollmentStatus }}
+                    <span class="status-dot"></span>
+                    <span>{{ course.enrollmentStatus }}</span>
                   </span>
                 </div>
 

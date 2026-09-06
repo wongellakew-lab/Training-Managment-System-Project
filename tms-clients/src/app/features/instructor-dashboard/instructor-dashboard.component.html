@@ -192,7 +192,7 @@
                 <p>No upcoming sessions.</p>
               </div>
 
-              <div *ngFor="let s of dashboard()?.upcomingSessions" class="upcoming-session-item">
+              <div *ngFor="let s of (dashboard()?.upcomingSessions | slice:0:3)" class="upcoming-session-item">
                 <div class="session-date-box">
                   <span class="date-day">{{ s.date | date:'dd' }}</span>
                   <span class="date-month">{{ s.date | date:'MMM' }}</span>

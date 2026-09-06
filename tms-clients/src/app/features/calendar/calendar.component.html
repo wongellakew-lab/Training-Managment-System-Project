@@ -59,34 +59,15 @@
 
         <div class="toolbar-center">
           <div class="filter-tab-group">
-            <button
-              class="tab-chip"
-              [class.active]="selectedCategory() === 'All'"
-              (click)="filterCategory('All')"
-            >
-              All
-            </button>
-            <button
-              class="tab-chip"
-              [class.active]="selectedCategory() === 'Meetings'"
-              (click)="filterCategory('Meetings')"
-            >
-              Meetings
-            </button>
-            <button
-              class="tab-chip"
-              [class.active]="selectedCategory() === 'Workshops'"
-              (click)="filterCategory('Workshops')"
-            >
-              Workshops
-            </button>
-            <button
-              class="tab-chip"
-              [class.active]="selectedCategory() === 'Events'"
-              (click)="filterCategory('Events')"
-            >
-              Events
-            </button>
+            @for (cat of allCategories(); track cat) {
+              <button
+                class="tab-chip"
+                [class.active]="selectedCategory().toLowerCase() === cat.toLowerCase()"
+                (click)="filterCategory(cat)"
+              >
+                {{ cat }}
+              </button>
+            }
           </div>
         </div>
 
@@ -129,9 +110,7 @@
                 @for (sch of cell.schedules; track sch.id) {
                   <div
                     class="agenda-card-pill"
-                    [class.pill-meetings]="sch.category.toLowerCase() === 'meetings'"
-                    [class.pill-workshops]="sch.category.toLowerCase() === 'workshops'"
-                    [class.pill-events]="sch.category.toLowerCase() === 'events' || sch.category.toLowerCase() === 'lecture'"
+                    [ngClass]="getPillClass(sch.category)"
                     [class.is-selected]="selectedSchedule()?.id === sch.id"
                     (click)="selectSchedule(sch, $event)"
                     [title]="sch.title + ' (' + sch.startTime + ' - ' + sch.endTime + ')'"
@@ -180,13 +159,12 @@
                     <span class="date-pill font-mono">{{ item.date | date:'MMM dd' }}</span>
                     <span
                       class="category-pill"
-                      [class.category-pill-cyan]="item.category.toLowerCase() === 'workshops' || item.category.toLowerCase() === 'lecture'"
-                      [class.category-pill-steel]="item.category.toLowerCase() === 'events' || item.category.toLowerCase() === 'meetings'"
+                      [ngClass]="getCategoryBadgeClass(item.category)"
                     >
                       {{ item.category }}
                     </span>
                   </div>
-                  <div class="schedule-icon-box" [class.cyan-bg]="item.category.toLowerCase() === 'workshops'" [class.steel-bg]="item.category.toLowerCase() !== 'workshops'">
+                  <div class="schedule-icon-box" [ngClass]="getIconBoxClass(item.category)">
                     <mat-icon>{{ item.courseId ? 'school' : 'event' }}</mat-icon>
                   </div>
                 </div>
@@ -265,6 +243,11 @@
                 <option value="Meetings">Meetings</option>
                 <option value="Workshops">Workshops</option>
                 <option value="Events">Events</option>
+                <option value="Lecture">Lecture</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Communication">Communication</option>
+                <option value="Web Dev">Web Dev</option>
+                <option value="Design">Design</option>
               </select>
             </div>
             <div class="form-group">

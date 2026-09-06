@@ -146,6 +146,13 @@
     border-radius: var(--radius-full);
     padding: 4px;
     gap: 4px;
+    overflow-x: auto;
+    max-width: 100%;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
     .tab-chip {
       background: transparent;
@@ -157,6 +164,13 @@
       color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+
+      &:hover {
+        color: var(--text-primary);
+        background: var(--bg-subtle, #f1f5f9);
+      }
 
       &.active {
         background: var(--eduva-navy, #172b4d);
@@ -304,31 +318,83 @@
           padding: 6px 8px;
           border-radius: 6px;
           color: #ffffff;
+          background: #2563eb; /* High-contrast default fallback */
           font-size: 0.75rem;
           cursor: pointer;
-          transition: transform 0.15s, box-shadow 0.15s;
+          transition: all 0.15s ease-in-out;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 
           &:hover {
             transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+            filter: brightness(1.06);
+          }
+
+          &.is-selected {
+            outline: 2px solid #ffffff;
+            box-shadow: 0 0 0 3px #0284c7, 0 4px 12px rgba(0, 0, 0, 0.35);
+            transform: scale(1.02);
+            z-index: 2;
           }
 
           &.pill-meetings {
             background: #1e3a8a;
+            color: #ffffff;
           }
 
           &.pill-workshops {
             background: #0284c7;
+            color: #ffffff;
           }
 
-          &.pill-events {
-            background: #334155;
+          &.pill-events, &.pill-lecture {
+            background: #475569;
+            color: #ffffff;
+          }
+
+          &.pill-marketing {
+            background: #047857;
+            color: #ffffff;
+          }
+
+          &.pill-communication {
+            background: #b45309;
+            color: #ffffff;
+          }
+
+          &.pill-webdev {
+            background: #7c3aed;
+            color: #ffffff;
+          }
+
+          &.pill-design {
+            background: #be185d;
+            color: #ffffff;
+          }
+
+          &.pill-computerscience, &.pill-it {
+            background: #0e7490;
+            color: #ffffff;
+          }
+
+          &.pill-business {
+            background: #4338ca;
+            color: #ffffff;
+          }
+
+          &.pill-datascience {
+            background: #0f766e;
+            color: #ffffff;
+          }
+
+          &.pill-default {
+            background: #2563eb;
             color: #ffffff;
           }
 
           .agenda-pill-time {
             font-size: 0.625rem;
-            opacity: 0.95;
+            color: rgba(255, 255, 255, 0.95);
             font-weight: 600;
             line-height: 1.1;
           }
@@ -336,6 +402,7 @@
           .agenda-pill-title {
             font-weight: 700;
             font-size: 0.75rem;
+            color: #ffffff;
             line-height: 1.25;
             margin: 2px 0;
             display: -webkit-box;
@@ -349,19 +416,27 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-top: 3px;
+            margin-top: 4px;
+            gap: 4px;
 
             .footer-icon {
               font-size: 12px;
               width: 12px;
               height: 12px;
-              opacity: 0.85;
+              color: rgba(255, 255, 255, 0.85);
             }
 
             .pill-category-badge {
               font-size: 0.625rem;
               font-weight: 600;
-              opacity: 0.9;
+              color: #ffffff;
+              background: rgba(0, 0, 0, 0.22);
+              padding: 1px 6px;
+              border-radius: 4px;
+              max-width: 80px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
             }
           }
         }
@@ -446,6 +521,7 @@
           display: flex;
           align-items: center;
           gap: 6px;
+          flex-wrap: wrap;
 
           .date-pill {
             font-size: 0.75rem;
@@ -453,32 +529,56 @@
             color: var(--text-primary);
           }
 
-          .category-pill-cyan {
-            background: #0284c7;
+          .category-pill {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: var(--radius-full);
             color: #ffffff;
-            font-size: 0.6875rem;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: var(--radius-full);
-          }
+            background: #2563eb;
+            display: inline-flex;
+            align-items: center;
 
-          .category-pill-steel {
-            background: #cbd5e1;
-            color: #1e293b;
-            font-size: 0.6875rem;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: var(--radius-full);
+            &.badge-meetings { background: #1e3a8a; }
+            &.badge-workshops { background: #0284c7; }
+            &.badge-events { background: #475569; }
+            &.badge-marketing { background: #047857; }
+            &.badge-communication { background: #b45309; }
+            &.badge-webdev { background: #7c3aed; }
+            &.badge-design { background: #be185d; }
+            &.badge-computerscience, &.badge-it { background: #0e7490; }
+            &.badge-business { background: #4338ca; }
+            &.badge-datascience { background: #0f766e; }
+            &.badge-default { background: #2563eb; }
+
+            /* Legacy fallback */
+            &.category-pill-cyan { background: #0284c7; color: #ffffff; }
+            &.category-pill-steel { background: #475569; color: #ffffff; }
           }
         }
 
         .schedule-icon-box {
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
+          color: #ffffff;
+          background: #2563eb;
+          flex-shrink: 0;
+
+          &.box-meetings { background: #1e3a8a; }
+          &.box-workshops { background: #0284c7; }
+          &.box-events { background: #475569; }
+          &.box-marketing { background: #047857; }
+          &.box-communication { background: #b45309; }
+          &.box-webdev { background: #7c3aed; }
+          &.box-design { background: #be185d; }
+          &.box-computerscience, &.box-it { background: #0e7490; }
+          &.box-business { background: #4338ca; }
+          &.box-datascience { background: #0f766e; }
+          &.box-default { background: #2563eb; }
 
           &.cyan-bg { background: #0284c7; color: #ffffff; }
           &.steel-bg { background: #64748b; color: #ffffff; }
@@ -708,6 +808,47 @@
 
         &:hover {
           opacity: 0.9;
+        }
+      }
+    }
+  }
+}
+
+:host-context(html.dark-theme) {
+  .calendar-toolbar {
+    .filter-tab-group {
+      background: var(--bg-surface, #111827);
+      border-color: var(--border-subtle);
+
+      .tab-chip {
+        color: var(--text-secondary);
+
+        &:hover {
+          background: var(--bg-subtle, #1e293b);
+          color: var(--text-primary);
+        }
+
+        &.active {
+          background: #0284c7;
+          color: #ffffff;
+        }
+      }
+    }
+  }
+
+  .calendar-grid-card {
+    .calendar-days-matrix {
+      .cal-matrix-cell {
+        &.selected-cell {
+          background: rgba(2, 132, 199, 0.15);
+          outline-color: #38bdf8;
+        }
+
+        &.today-cell {
+          background: rgba(16, 185, 129, 0.15);
+          .cell-day-num {
+            color: #34d399;
+          }
         }
       }
     }

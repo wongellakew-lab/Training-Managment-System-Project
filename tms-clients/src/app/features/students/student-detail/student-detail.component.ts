@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,6 +7,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { LayoutComponent } from '../../../ui/layout/layout.component';
 import { StudentService, AdminStudentDetail } from '../../../services/student.service';
+
+export type EnrollmentFilter = 'All' | 'Active' | 'Completed' | 'Dropped';
 
 @Component({
   selector: 'app-student-detail',
@@ -31,6 +33,42 @@ export class StudentDetailComponent implements OnInit {
   readonly isLoading = signal<boolean>(true);
   readonly isProcessing = signal<boolean>(false);
   readonly error = signal<string>('');
+  readonly selectedFilter = signal<EnrollmentFilter>('All');
+
+  readonly totalCoursesCount = computed(() => {
+    return this.student()?.enrolledCourses?.length || 0;
+  });
+
+  readonly activeEnrolledCount = computed(() => {
+    const list = this.student()?.enrolledCourses || [];
+    return list.filter(c => c.enrollmentStatus.toLowerCase() === 'active' || c.enrollmentStatus.toLowerCase() === 'enrolled' || c.enrollmentStatus.toLowerCase() === 'approved').length;
+  });
+
+  readonly completedCoursesCount = computed(() => {
+    const list = this.student()?.enrolledCourses || [];
+    return list.filter(c => c.enrollmentStatus.toLowerCase() === 'completed').length;
+  });
+
+  readonly droppedCoursesCount = computed(() => {
+    const list = this.student()?.enrolledCourses || [];
+    return list.filter(c => c.enrollmentStatus.toLowerCase() === 'dropped').length;
+  });
+
+  readonly filteredCourses = computed(() => {
+    const all = this.student()?.enrolledCourses || [];
+    const filter = this.selectedFilter();
+    if (filter === 'All') return all;
+    if (filter === 'Active') {
+      return all.filter(c => c.enrollmentStatus.toLowerCase() === 'active' || c.enrollmentStatus.toLowerCase() === 'enrolled' || c.enrollmentStatus.toLowerCase() === 'approved');
+    }
+    if (filter === 'Completed') {
+      return all.filter(c => c.enrollmentStatus.toLowerCase() === 'completed');
+    }
+    if (filter === 'Dropped') {
+      return all.filter(c => c.enrollmentStatus.toLowerCase() === 'dropped');
+    }
+    return all;
+  });
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
@@ -132,6 +170,10 @@ export class StudentDetailComponent implements OnInit {
         alert(err.error?.message || 'Failed to activate student.');
       }
     });
+  }
+
+  setFilter(filter: EnrollmentFilter): void {
+    this.selectedFilter.set(filter);
   }
 
   onAvatarError(event: Event): void {

@@ -51,6 +51,7 @@ export class AdminCourseListComponent implements OnInit {
 
   showModal = signal(false);
   editingCourseId = signal<number | null>(null);
+  editingCourse = signal<Course | null>(null);
 
   displayedColumns = ['code', 'title', 'status', 'credits', 'capacity', 'instructor', 'actions'];
 
@@ -111,6 +112,7 @@ export class AdminCourseListComponent implements OnInit {
 
   openCreateModal(): void {
     this.editingCourseId.set(null);
+    this.editingCourse.set(null);
     this.formData = {
       code: '',
       title: '',
@@ -124,6 +126,7 @@ export class AdminCourseListComponent implements OnInit {
 
   openEditModal(course: Course): void {
     this.editingCourseId.set(course.id);
+    this.editingCourse.set(course);
     this.formData = {
       code: course.code,
       title: course.title,
@@ -140,12 +143,22 @@ export class AdminCourseListComponent implements OnInit {
     const id = this.editingCourseId();
 
     if (id) {
+      const existing = this.editingCourse();
       const updateDto: UpdateCourseDto = {
         title: this.formData.title,
         description: this.formData.description,
         credits: this.formData.credits,
         maxCapacity: this.formData.maxCapacity,
-        department: this.formData.department
+        department: this.formData.department,
+        category: existing?.category,
+        level: existing?.level,
+        status: existing?.status,
+        durationHours: existing?.durationHours,
+        imageUrl: existing?.imageUrl,
+        about: existing?.about,
+        instructorId: existing?.instructorId,
+        startDate: existing?.startDate && existing.startDate.trim() ? (!isNaN(new Date(existing.startDate).getTime()) ? new Date(existing.startDate).toISOString() : undefined) : undefined,
+        endDate: existing?.endDate && existing.endDate.trim() ? (!isNaN(new Date(existing.endDate).getTime()) ? new Date(existing.endDate).toISOString() : undefined) : undefined
       };
       this.courseService.updateCourse(id, updateDto).subscribe({
         next: () => {

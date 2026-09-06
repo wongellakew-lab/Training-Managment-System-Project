@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -27,7 +27,7 @@ import { UserRole } from '../../models/user.model';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -37,6 +37,22 @@ export class LoginComponent {
   isLoading = signal(false);
   hidePassword = signal(true);
   errorMessage = signal<string | null>(null);
+
+    ngOnInit(): void {
+    // Completely clear login fields to prevent browser autofill/autocomplete repopulation
+    this.form.reset({
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      role: 'Student'
+    });
+
+    const sessionExpired = this.route.snapshot.queryParams['sessionExpired'];
+    if (sessionExpired === 'true') {
+      this.errorMessage.set('Your session has expired. Please sign in again.');
+    }
+  }
 
   form: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -76,10 +92,15 @@ export class LoginComponent {
 
     const val = this.form.value;
 
+    const email = val.email;
+    const password = val.password;
+    // Wipe password from reactive form state immediately
+    this.form.patchValue({ password: '' }, { emitEvent: false });
+
     if (this.isRegisterMode()) {
       this.authService.register({
-        email: val.email,
-        password: val.password,
+        email,
+        password,
         firstName: val.firstName,
         lastName: val.lastName,
         role: val.role
@@ -94,8 +115,8 @@ export class LoginComponent {
       });
     } else {
       this.authService.login({
-        email: val.email,
-        password: val.password
+        email,
+        password
       }).subscribe({
         next: () => this.navigateAfterAuth(),
         error: (err) => {

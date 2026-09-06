@@ -73,7 +73,10 @@
                 </div>
                 @if (course.currentGrade !== null && course.currentGrade !== undefined) {
                   <div class="stat-col">
-                    <span class="stat-val font-mono">{{ (course.currentGrade * 25) | number:'1.0-1' }}%</span>
+                    <span class="stat-val font-mono grade-stat-pill" [ngClass]="getGradeLevelClass(course.currentGrade)">
+                      <strong class="grade-pill-letter">{{ getGradeLetter(course.currentGrade) }}</strong>
+                      <span>{{ (course.currentGrade * 25) | number:'1.0-1' }}%</span>
+                    </span>
                     <span class="stat-label">Current Average</span>
                   </div>
                 }

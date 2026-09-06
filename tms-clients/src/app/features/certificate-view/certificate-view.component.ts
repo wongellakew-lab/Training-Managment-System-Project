@@ -79,6 +79,11 @@ export class CertificateViewComponent implements OnInit {
         this.loadTranscript();
       }
     });
+
+    // Listen to real-time SignalR certificate notifications to update UI instantly
+    this.liveSync.certificateIssued$.subscribe(() => {
+      this.loadCertificates();
+    });
   }
 
   setTab(tab: 'certificates' | 'transcript'): void {

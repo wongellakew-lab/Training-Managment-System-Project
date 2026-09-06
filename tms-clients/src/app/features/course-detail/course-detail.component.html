@@ -1,27 +1,211 @@
-<app-layout pageTitle="Course Overview">
-  <div class="course-detail-page">
-    @if (isLoading()) {
-      <div class="loading-state">
-        <mat-spinner diameter="36"></mat-spinner>
-        <span>Loading course syllabus and specifications...</span>
+<app-layout [pageTitle]="course()?.title || 'Course Overview'">
+  <!-- Top Navigation & Breadcrumb Header -->
+  <div class="course-details-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()" [title]="isInstructor() ? 'Back to My Courses' : (isAdmin() ? 'Back to Courses' : 'Back to Catalog')">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div class="breadcrumb-trail">
+        <span class="crumb-parent" (click)="goBack()">{{ isInstructor() ? 'My Courses' : (isAdmin() ? 'Courses' : 'Catalog') }}</span>
+        <mat-icon class="crumb-separator">chevron_right</mat-icon>
+        <span class="crumb-current">Course Overview</span>
       </div>
-    } @else if (course()) {
-      <mat-card class="course-detail-card eduva-card">
-        <!-- Top badges -->
-        <div class="detail-top-row">
-          <div class="chip-group">
-            <span class="code-badge font-mono">{{ course()?.code }}</span>
-            <span class="category-badge">{{ course()?.category || 'General' }}</span>
-            <span class="credits-badge">{{ course()?.credits }} Academic Credits</span>
-            <span
-              class="pill-badge font-mono font-bold"
-              [ngClass]="(course()?.status?.toLowerCase() || 'draft') === 'active' || (course()?.status?.toLowerCase() || 'draft') === 'published' ? 'status-active' : ((course()?.status?.toLowerCase() || '') === 'under review' ? 'status-under-review' : ((course()?.status?.toLowerCase() || '') === 'rejected' ? 'status-rejected' : 'status-draft'))"
-            >
-              &bull; {{ course()?.status || 'Draft' }}
-            </span>
+    </div>
+    <div class="header-right">
+      @if (course()?.code) {
+        <span class="course-code-pill font-mono">{{ course()?.code }}</span>
+      }
+    </div>
+  </div>
+
+  <!-- Loading State Skeleton -->
+  @if (isLoading()) {
+    <div class="details-loading-container">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p class="loading-label">Loading course details...</p>
+    </div>
+  }
+
+  <!-- Error / Not Found State -->
+  @else if (!course()) {
+    <div class="eduva-card details-state-card not-found-card">
+      <div class="state-icon-box">
+        <mat-icon>search_off</mat-icon>
+      </div>
+      <h2 class="state-title">Course Not Found</h2>
+      <p class="state-sub">The course you are looking for does not exist or could not be loaded.</p>
+      <button mat-flat-button color="primary" class="state-btn" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        <span>Back to Courses</span>
+      </button>
+    </div>
+  }
+
+  <!-- Loaded Course Details Main View -->
+  @else if (course()) {
+    <div class="course-details-grid">
+      <!-- ================= LEFT COLUMN: STICKY COURSE INFORMATION CARD ================= -->
+      <aside class="course-info-panel">
+        <div class="eduva-card info-card">
+          <!-- Hero Thumbnail with Level Badge -->
+          <div class="course-hero-wrapper">
+            <img
+              [src]="course()!.imageUrl || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80'"
+              alt="Course Thumbnail"
+              class="hero-img"
+            />
+            <span class="hero-level-badge font-mono">{{ course()!.level || 'Beginner' }}</span>
+          </div>
+
+          <div class="info-card-body">
+            <!-- Course Title -->
+            <h1 class="course-headline">{{ course()!.title }}</h1>
+
+            <!-- Instructor Information -->
+            <div class="instructor-profile-box">
+              <img
+                [src]="course()!.instructorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'"
+                alt="Instructor"
+                class="inst-img"
+              />
+              <div class="inst-details">
+                <span class="inst-label">Instructor</span>
+                <h4 class="inst-fullname">{{ course()!.instructorName || 'Department Faculty' }}</h4>
+                @if (course()!.instructorDepartment) {
+                  <span class="inst-dept">{{ course()!.instructorDepartment }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Meta Tags: Status & Subject Matter -->
+            <div class="course-tags-row">
+              <span
+                class="pill-badge font-mono font-bold"
+                [class.status-active]="(course()!.status.toLowerCase() || '') === 'active' || (course()!.status.toLowerCase() || '') === 'published'"
+                [class.status-under-review]="(course()!.status.toLowerCase() || '') === 'under review'"
+                [class.status-rejected]="(course()!.status.toLowerCase() || '') === 'rejected'"
+                [class.status-draft]="(course()!.status.toLowerCase() || '') === 'draft'"
+              >
+                &bull; {{ course()!.status || 'Draft' }}
+              </span>
+              <span class="pill-badge category-tag">{{ course()!.department || course()!.category }}</span>
+              <span class="pill-badge credits-tag font-mono">{{ course()!.credits }} Credits</span>
+              @if (hasCertificate()) {
+                <span class="pill-badge cert-tag font-mono">
+                  <mat-icon>workspace_premium</mat-icon> Certificate
+                </span>
+              }
+            </div>
+
+            <!-- Duration & Lesson Metrics -->
+            <div class="metrics-grid">
+              <div class="metric-item">
+                <span class="metric-label">Duration</span>
+                <span class="metric-val font-mono">{{ course()!.durationWeeks || 6 }} Weeks</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Total Lessons</span>
+                <span class="metric-val font-mono">{{ course()!.lessonsCount || 0 }} Lessons</span>
+              </div>
+            </div>
+
+            <!-- Enrollment Capacity & Availability Section -->
+            <div class="capacity-breakdown-box">
+              <div class="capacity-header-row">
+                <span class="cap-title">Class Capacity</span>
+                <span class="cap-metric font-mono" [class.text-danger]="isFull()">
+                  {{ course()!.enrolledCount }} / {{ course()!.maxCapacity }} Enrolled
+                </span>
+              </div>
+
+              <mat-progress-bar
+                mode="determinate"
+                [value]="capacityPercentage()"
+                [color]="isFull() ? 'warn' : 'primary'"
+                class="capacity-progress"
+              ></mat-progress-bar>
+
+              <div class="capacity-status-row">
+                @if (isFull()) {
+                  <span class="full-indicator font-mono font-bold">FULL</span>
+                  <span class="full-note">Max capacity reached</span>
+                } @else {
+                  <span class="available-indicator font-mono font-bold">
+                    {{ availableSeats() }} Seats Available
+                  </span>
+                  <span class="capacity-note font-mono">Max {{ course()!.maxCapacity }} students</span>
+                }
+              </div>
+            </div>
+
+            @if (hasCertificate()) {
+              <div class="cert-included-callout">
+                <mat-icon class="cert-callout-icon">workspace_premium</mat-icon>
+                <div class="cert-callout-info">
+                  <span class="cert-callout-title">Completion Certificate</span>
+                  <span class="cert-callout-sub">Official credential upon completion</span>
+                </div>
+              </div>
+            }
+
+            <!-- Actions Wrapper -->
+            <div class="enrollment-action-wrapper">
+              @if (isInstructor()) {
+                <button mat-flat-button color="primary" class="enroll-action-btn btn-enroll" (click)="openBuilder()">
+                  <mat-icon>edit_note</mat-icon>
+                  <span>Edit in Course Builder</span>
+                </button>
+              } @else if (isAdmin()) {
+                <div class="admin-actions-col">
+                  @if (course()?.status === 'Under Review' || course()?.status === 'Draft' || course()?.status === 'Rejected') {
+                    <button mat-flat-button color="primary" class="enroll-action-btn btn-approve" (click)="approveCourse()" [disabled]="isApproving()">
+                      <mat-icon>check_circle</mat-icon>
+                      <span>{{ isApproving() ? 'Approving...' : 'Approve Course' }}</span>
+                    </button>
+                  }
+                  @if (course()?.status !== 'Rejected') {
+                    <button mat-stroked-button color="warn" class="enroll-action-btn btn-reject" (click)="openRejectModal()" [disabled]="isRejecting()">
+                      <mat-icon>cancel</mat-icon>
+                      <span>Reject Course</span>
+                    </button>
+                  }
+                  <button mat-stroked-button class="enroll-action-btn btn-builder" (click)="openBuilder()">
+                    <mat-icon>edit_note</mat-icon>
+                    <span>Edit in Builder</span>
+                  </button>
+                </div>
+              } @else if (isStudent()) {
+                @if (userEnrollment()) {
+                  <div class="enrolled-status-banner">
+                    <mat-icon>check_circle</mat-icon>
+                    <span>Enrolled ({{ userEnrollment()?.status }})</span>
+                  </div>
+                } @else if (isFull()) {
+                  <button mat-flat-button disabled class="enroll-action-btn btn-full">Course Full</button>
+                } @else {
+                  <button mat-flat-button color="primary" class="enroll-action-btn btn-enroll" (click)="enroll()" [disabled]="isEnrolling()">
+                    <mat-icon>school</mat-icon>
+                    <span>{{ isEnrolling() ? 'Enrolling...' : 'Enroll in this Course' }}</span>
+                  </button>
+                }
+              }
+            </div>
+
+            <!-- Prerequisites Warning if any -->
+            @if (course()!.prerequisites && course()!.prerequisites !== 'None') {
+              <div class="prereq-callout">
+                <mat-icon>info</mat-icon>
+                <div class="prereq-text">
+                  <strong>Prerequisites:</strong> {{ course()!.prerequisites }}
+                </div>
+              </div>
+            }
           </div>
         </div>
+      </aside>
 
+      <!-- ================= RIGHT COLUMN: MAIN CONTENT & SCHEDULE ================= -->
+      <main class="course-main-sections">
         <!-- Action Feedback Alert Banner -->
         @if (actionMessage()) {
           <div class="action-alert-banner" [class.success]="actionMessage()!.isSuccess" [class.error]="!actionMessage()!.isSuccess">
@@ -83,244 +267,327 @@
           </div>
         }
 
-        <h1 class="course-title">{{ course()?.title }}</h1>
-        <div class="dept-row">
-          <mat-icon>domain</mat-icon>
-          <span>{{ course()?.department }}</span>
-        </div>
-
-        <!-- Description box -->
-        <div class="desc-box">
-          <div class="desc-label">Description & Syllabus Overview</div>
-          <p class="desc-text">{{ course()?.description || course()?.about }}</p>
-        </div>
-
-        <!-- Statistics grid -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">Maximum Class Capacity</div>
-            <div class="stat-val">{{ course()?.maxCapacity }} Students</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-label">Currently Enrolled</div>
-            <div class="stat-val text-primary-val">{{ course()?.enrolledCount }} Students</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-label">Lead Faculty Instructor</div>
-            <div class="stat-val text-accent-val">{{ course()?.instructorName || 'Department Faculty' }}</div>
-          </div>
-        </div>
-
-        <!-- Dedicated Course Schedule Section -->
-        <div class="schedule-section">
-          <div class="schedule-header-row">
-            <div class="schedule-title-wrap">
-              <mat-icon class="schedule-icon">calendar_month</mat-icon>
-              <h3 class="schedule-heading">Course Schedule</h3>
+        <!-- 1. Dedicated Course Schedule Section -->
+        <section class="eduva-card section-card schedule-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">event</mat-icon>
+              <h2 class="section-title">Course Schedule</h2>
             </div>
-            <div class="schedule-badges">
-              <span class="duration-pill font-mono">{{ course()?.durationWeeks || 6 }} Weeks</span>
-              @if (course()?.startDate && course()?.endDate) {
-                <span class="date-range-pill font-mono">
-                  {{ course()!.startDate! | date:'MMM d' }} – {{ course()!.endDate! | date:'MMM d, yyyy' }}
+            <span class="schedule-duration-badge font-mono">{{ course()!.durationWeeks || 6 }} Weeks</span>
+          </div>
+
+          <div class="schedule-body">
+            <div class="schedule-period-banner">
+              <div class="period-item">
+                <span class="period-label">Course Period</span>
+                <span class="period-dates font-mono">
+                  {{ course()!.startDate | date:'mediumDate' }} &ndash; {{ course()!.endDate | date:'mediumDate' }}
                 </span>
-              }
+              </div>
+              <div class="period-item">
+                <span class="period-label">Calendar Sync</span>
+                <span class="period-status font-bold">Auto-synced to Academic Calendar</span>
+              </div>
+            </div>
+
+            <!-- Recurring Weekly Sessions -->
+            <h4 class="sub-section-title">Weekly Recurring Sessions</h4>
+            @if (course()!.schedules && course()!.schedules!.length > 0) {
+              <div class="schedules-grid">
+                @for (sched of course()!.schedules; track sched.id) {
+                  <div class="schedule-session-card">
+                    <div class="session-card-header-line">
+                      <div class="session-day-badge">
+                        <span class="day-name font-mono">{{ sched.dayName }}</span>
+                      </div>
+                      <span class="session-type-pill font-mono">{{ sched.scheduleType || 'Lecture' }}</span>
+                    </div>
+                    <div class="session-info">
+                      <div class="session-detail-row font-mono time-row">
+                        <mat-icon>schedule</mat-icon>
+                        <span class="detail-label">Time:</span>
+                        <span class="detail-value font-bold">{{ sched.startTime }} &ndash; {{ sched.endTime }}</span>
+                      </div>
+                      <div class="session-detail-row">
+                        <mat-icon>business</mat-icon>
+                        <span class="detail-label">Location:</span>
+                        <span class="detail-value">{{ sched.location || 'Main Training Center' }}</span>
+                      </div>
+                      <div class="session-detail-row">
+                        <mat-icon>meeting_room</mat-icon>
+                        <span class="detail-label">Room:</span>
+                        <span class="detail-value font-mono">{{ sched.room || 'Room 204' }}</span>
+                      </div>
+                      <div class="session-detail-row">
+                        <mat-icon>person</mat-icon>
+                        <span class="detail-label">Instructor:</span>
+                        <span class="detail-value">{{ course()!.instructorName || 'Department Faculty' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="empty-schedule-box">
+                <mat-icon>calendar_today</mat-icon>
+                <span>Weekly class schedule details will be confirmed prior to term start.</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- 2. About This Course -->
+        <section class="eduva-card section-card about-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">menu_book</mat-icon>
+              <h2 class="section-title">About This Course</h2>
             </div>
           </div>
+          <div class="section-body">
+            @if (course()!.description || course()!.about) {
+              <p class="about-text">{{ course()!.description || course()!.about }}</p>
+            } @else {
+              <p class="empty-text">No course description available.</p>
+            }
+          </div>
+        </section>
 
-          @if (course()?.schedules && course()!.schedules!.length > 0) {
-            <div class="recurring-days-grid">
-              @for (sched of course()!.schedules!; track sched.id) {
-                <div class="recurring-day-card">
-                  <div class="day-chip-row">
-                    <span class="day-name font-mono">{{ sched.dayName | slice:0:3 | uppercase }}</span>
-                    <span class="sched-type">{{ sched.scheduleType || 'Lecture' }}</span>
-                  </div>
-                  <div class="day-time-row font-mono">
-                    <mat-icon>schedule</mat-icon>
-                    <span>{{ sched.startTime }} – {{ sched.endTime }}</span>
-                  </div>
-                  @if (sched.room) {
-                    <div class="day-room-row">
-                      <mat-icon>location_on</mat-icon>
-                      <span>{{ sched.room }}</span>
-                    </div>
-                  }
+        <!-- Completion Certificate Section (if enabled) -->
+        @if (hasCertificate()) {
+          <section class="eduva-card section-card certificate-card">
+            <div class="section-card-header">
+              <div class="header-icon-title">
+                <div class="cert-icon-wrapper">
+                  <mat-icon class="sec-icon cert-gold-icon">workspace_premium</mat-icon>
                 </div>
-              }
-            </div>
-          } @else {
-            <div class="no-schedules-placeholder">
-              <mat-icon>info</mat-icon>
-              <span>Schedule timetable is being finalized by department administrators.</span>
-            </div>
-          }
-        </div>
-
-        <!-- Course Assessment Structure Section -->
-        <div class="schedule-section">
-          <div class="schedule-header-row">
-            <div class="schedule-title-wrap">
-              <mat-icon class="schedule-icon" style="color: #4f46e5;">checklist</mat-icon>
-              <h3 class="schedule-heading">Assessment Structure</h3>
-            </div>
-            <div class="schedule-badges">
-              <span class="duration-pill font-mono">
-                {{ (course()?.expectedAssignmentCount ?? 5) + (course()?.expectedMidtermCount ?? 1) + (course()?.expectedFinalCount ?? 1) }} Assessments Required
+                <div>
+                  <h2 class="section-title">Completion Certificate</h2>
+                  <span class="section-subtitle">Official verified credential conferred upon completion</span>
+                </div>
+              </div>
+              <span class="cert-status-pill font-mono">
+                <mat-icon>verified</mat-icon> Included
               </span>
             </div>
+
+            <div class="section-body cert-card-body">
+              <div class="cert-banner-layout">
+                <div class="cert-banner-main">
+                  <div class="cert-badge-round">
+                    <mat-icon>school</mat-icon>
+                  </div>
+                  <div class="cert-banner-copy">
+                    <h4 class="cert-banner-heading">Earn Your Verified Certificate</h4>
+                    <p class="cert-banner-desc">
+                      Successfully complete all course modules and pass required assessments to receive an official Certificate of Completion issued by {{ course()!.instructorName || 'the Course Instructor' }}.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="cert-highlights-grid">
+                  <div class="cert-highlight-item">
+                    <mat-icon class="highlight-check">verified</mat-icon>
+                    <div class="highlight-details">
+                      <strong>Unique Credential ID</strong>
+                      <span>Digitally verifiable on the university portal</span>
+                    </div>
+                  </div>
+                  <div class="cert-highlight-item">
+                    <mat-icon class="highlight-check">share</mat-icon>
+                    <div class="highlight-details">
+                      <strong>Professional Sharing</strong>
+                      <span>Export to LinkedIn and digital portfolios</span>
+                    </div>
+                  </div>
+                  <div class="cert-highlight-item">
+                    <mat-icon class="highlight-check">picture_as_pdf</mat-icon>
+                    <div class="highlight-details">
+                      <strong>High-Resolution PDF</strong>
+                      <span>Instantly downloadable and printable</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        }
+
+        <!-- 3. Mode of Evaluation Section -->
+        <section class="eduva-card section-card evaluation-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">assignment_turned_in</mat-icon>
+              <h2 class="section-title">Mode of Evaluation</h2>
+            </div>
+            <span class="eval-total-badge font-mono">
+              Total Assessments: {{ (course()!.totalAssessments !== undefined && course()!.totalAssessments! > 0) ? course()!.totalAssessments : ((course()!.expectedAssignmentCount || 0) + (course()!.expectedMidtermCount || 0) + (course()!.expectedFinalCount || 0)) }}
+            </span>
           </div>
 
-          <div class="stats-grid" style="margin-bottom: 0;">
-            <div class="stat-card">
-              <div class="stat-label">Assignments Required</div>
-              <div class="stat-val font-mono">{{ course()?.expectedAssignmentCount ?? 5 }}</div>
-              <div class="stat-sub" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                {{ course()?.createdAssignmentsCount ?? 0 }} created so far
-              </div>
-            </div>
+          <div class="section-body">
+            <p class="evaluation-intro">
+              This course is evaluated according to the academic syllabus structure configured by the instructor:
+            </p>
 
-            <div class="stat-card">
-              <div class="stat-label">Midterm Examination</div>
-              <div class="stat-val font-mono">{{ course()?.expectedMidtermCount ?? 1 }}</div>
-              <div class="stat-sub" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                Required for completion
+            <div class="evaluation-grid">
+              <div class="eval-item">
+                <div class="eval-icon-wrap assignments">
+                  <mat-icon>task</mat-icon>
+                </div>
+                <div class="eval-info">
+                  <span class="eval-label">Assignments</span>
+                  <span class="eval-count font-mono">{{ course()!.expectedAssignmentCount ?? 0 }}</span>
+                </div>
               </div>
-            </div>
 
-            <div class="stat-card">
-              <div class="stat-label">Final Examination</div>
-              <div class="stat-val font-mono">{{ course()?.expectedFinalCount ?? 1 }}</div>
-              <div class="stat-sub" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                Required for completion
+              @if ((course()!.expectedMidtermCount ?? 0) > 0) {
+                <div class="eval-item">
+                  <div class="eval-icon-wrap midterm">
+                    <mat-icon>assignment</mat-icon>
+                  </div>
+                  <div class="eval-info">
+                    <span class="eval-label">Midterm Exam</span>
+                    <span class="eval-count font-mono">{{ course()!.expectedMidtermCount }}</span>
+                  </div>
+                </div>
+              }
+
+              @if ((course()!.expectedFinalCount ?? 0) > 0) {
+                <div class="eval-item">
+                  <div class="eval-icon-wrap final">
+                    <mat-icon>school</mat-icon>
+                  </div>
+                  <div class="eval-info">
+                    <span class="eval-label">Final Assessment</span>
+                    <span class="eval-count font-mono">{{ course()!.expectedFinalCount }}</span>
+                  </div>
+                </div>
+              }
+
+              <div class="eval-item eval-item-total">
+                <div class="eval-icon-wrap total">
+                  <mat-icon>assessment</mat-icon>
+                </div>
+                <div class="eval-info">
+                  <span class="eval-label">Total Assessments</span>
+                  <span class="eval-count font-mono">{{ (course()!.totalAssessments !== undefined && course()!.totalAssessments! > 0) ? course()!.totalAssessments : ((course()!.expectedAssignmentCount || 0) + (course()!.expectedMidtermCount || 0) + (course()!.expectedFinalCount || 0)) }}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Course Curriculum & Modules Section (If Present) -->
-        @if (course()?.modules && course()!.modules!.length > 0) {
-          <div class="schedule-section" style="margin-top: 24px;">
-            <div class="schedule-header-row">
-              <div class="schedule-title-wrap">
-                <mat-icon class="schedule-icon">menu_book</mat-icon>
-                <h3 class="schedule-heading">Curriculum Modules ({{ course()!.modules!.length }})</h3>
-              </div>
+        <!-- 4. Course Content / Academic Outline (Collapsible Accordion) -->
+        <section class="eduva-card section-card outline-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">format_list_numbered</mat-icon>
+              <h2 class="section-title">Course Content</h2>
             </div>
+            <span class="modules-count font-mono">{{ course()!.modules?.length || 0 }} Modules</span>
+          </div>
 
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
-              @for (mod of course()!.modules!; track mod.id) {
-                <div style="padding: 14px 18px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: #fafafa;">
-                  <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9375rem;">{{ mod.title }}</div>
-                  @if (mod.description) {
-                    <p style="margin: 4px 0 8px; font-size: 0.8125rem; color: var(--text-secondary);">{{ mod.description }}</p>
-                  }
-                  @if (mod.lessons && mod.lessons.length > 0) {
-                    <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
-                      @for (les of mod.lessons; track les.id) {
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #ffffff; border: 1px solid #f1f5f9; border-radius: var(--radius-sm); font-size: 0.8125rem;">
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <mat-icon style="font-size: 16px; width: 16px; height: 16px; color: var(--eduva-blue);">play_circle_outline</mat-icon>
-                            <span>{{ les.title }}</span>
+          <div class="section-body modules-accordion-wrapper">
+            @if (course()!.modules && course()!.modules!.length > 0) {
+              @for (mod of course()!.modules; track mod.id; let idx = $index) {
+                <div class="module-panel" [class.is-expanded]="isModuleExpanded(mod.id)">
+                  <!-- Module Header Clickable -->
+                  <div class="module-header" (click)="toggleModule(mod.id)">
+                    <div class="module-index-title">
+                      <span class="module-num font-mono">{{ (idx + 1) < 10 ? '0' + (idx + 1) : (idx + 1) }}</span>
+                      <div class="module-titles">
+                        <h4 class="module-title">{{ mod.title }}</h4>
+                        @if (mod.description) {
+                          <span class="module-desc">{{ mod.description }}</span>
+                        }
+                      </div>
+                    </div>
+                    <div class="module-meta-actions">
+                      <span class="lesson-count-tag font-mono">{{ mod.lessons.length }} Lessons</span>
+                      <mat-icon class="chevron-icon">
+                        {{ isModuleExpanded(mod.id) ? 'expand_less' : 'expand_more' }}
+                      </mat-icon>
+                    </div>
+                  </div>
+
+                  <!-- Module Lessons Content -->
+                  @if (isModuleExpanded(mod.id)) {
+                    <div class="lessons-container">
+                      @if (mod.lessons && mod.lessons.length > 0) {
+                        @for (lesson of mod.lessons; track lesson.id; let lIdx = $index) {
+                          <div class="lesson-row">
+                            <div class="lesson-lead">
+                              <mat-icon class="lesson-icon">bookmark_border</mat-icon>
+                              <span class="lesson-order font-mono">{{ lIdx + 1 }}.</span>
+                              <span class="lesson-title">{{ lesson.title }}</span>
+                            </div>
+                            @if (lesson.description) {
+                              <span class="lesson-desc">{{ lesson.description }}</span>
+                            }
                           </div>
-                          <span style="color: var(--text-muted); font-size: 0.75rem;" class="font-mono">{{ les.durationMinutes }}m</span>
+                        }
+                      } @else {
+                        <div class="empty-lessons-box">
+                          <span>No lesson topics published under this module yet.</span>
                         </div>
                       }
                     </div>
                   }
                 </div>
               }
-            </div>
-          </div>
-        }
-
-        <!-- Course PDF Resources (If Present) -->
-        @if (course()?.resources && course()!.resources!.length > 0) {
-          <div class="schedule-section" style="margin-top: 24px;">
-            <div class="schedule-header-row">
-              <div class="schedule-title-wrap">
-                <mat-icon class="schedule-icon">picture_as_pdf</mat-icon>
-                <h3 class="schedule-heading">Course Resources & Materials ({{ course()!.resources!.length }})</h3>
+            } @else {
+              <div class="empty-modules-box">
+                <mat-icon>folder_open</mat-icon>
+                <span>No course outline modules currently published.</span>
               </div>
-            </div>
+            }
+          </div>
+        </section>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px;">
-              @for (res of course()!.resources!; track res.id) {
-                <div style="padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: #ffffff; display: flex; align-items: center; gap: 10px;">
-                  <mat-icon style="color: #ef4444;">description</mat-icon>
-                  <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <div style="font-weight: 600; font-size: 0.8125rem;">{{ res.title }}</div>
-                    <span style="font-size: 0.6875rem; color: var(--text-muted);">{{ res.fileSize }} &bull; {{ res.fileType }}</span>
+        <!-- 5. Course Resources -->
+        <section class="eduva-card section-card resources-card">
+          <div class="section-card-header">
+            <div class="header-icon-title">
+              <mat-icon class="sec-icon">attachment</mat-icon>
+              <h2 class="section-title">Educational Resources</h2>
+            </div>
+            <span class="resources-count font-mono">{{ course()!.resources?.length || 0 }} Files</span>
+          </div>
+
+          <div class="section-body">
+            @if (course()!.resources && course()!.resources!.length > 0) {
+              <div class="resources-grid">
+                @for (res of course()!.resources; track res.id) {
+                  <div class="resource-card">
+                    <div class="resource-icon-badge" [ngClass]="res.fileType.toLowerCase()">
+                      <mat-icon>{{ getFileIcon(res.fileType) }}</mat-icon>
+                    </div>
+                    <div class="resource-details">
+                      <h4 class="resource-title">{{ res.title }}</h4>
+                      <div class="resource-meta font-mono">
+                        <span class="res-type">{{ res.fileType }}</span>
+                        <span class="res-divider">&bull;</span>
+                        <span class="res-size">{{ res.fileSize }}</span>
+                      </div>
+                    </div>
+                    <a [href]="res.url || '#'" class="resource-download-btn" title="Download Resource" download>
+                      <mat-icon>download</mat-icon>
+                    </a>
                   </div>
-                </div>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- Feedback Alert Banner -->
-        @if (enrollmentMessage()) {
-          <div class="enrollment-banner" [class.success]="isEnrollSuccess()" [class.error]="!isEnrollSuccess()">
-            <mat-icon>{{ isEnrollSuccess() ? 'check_circle' : 'error' }}</mat-icon>
-            <span>{{ enrollmentMessage() }}</span>
-          </div>
-        }
-
-        <!-- Bottom action bar -->
-        <div class="action-footer">
-          <button mat-stroked-button (click)="goBack()" class="btn-back">
-            <mat-icon>arrow_back</mat-icon>
-            <span>Back</span>
-          </button>
-
-          @if (isAdmin()) {
-            <div class="admin-footer-btn-group">
-              @if (course()?.status === 'Under Review' || course()?.status === 'Draft' || course()?.status === 'Rejected') {
-                <button mat-flat-button color="primary" class="btn-approve" (click)="approveCourse()" [disabled]="isApproving()">
-                  <mat-icon>check_circle</mat-icon>
-                  <span>{{ isApproving() ? 'Approving...' : 'Approve Course' }}</span>
-                </button>
-              }
-              @if (course()?.status !== 'Rejected') {
-                <button mat-stroked-button color="warn" class="btn-reject" (click)="openRejectModal()" [disabled]="isRejecting()">
-                  <mat-icon>cancel</mat-icon>
-                  <span>Reject Course</span>
-                </button>
-              }
-              <button mat-stroked-button (click)="openBuilder()" class="btn-builder">
-                <mat-icon>edit_note</mat-icon>
-                <span>Edit in Builder</span>
-              </button>
-            </div>
-          } @else if (isInstructor()) {
-            <button mat-flat-button color="primary" (click)="openBuilder()" class="btn-builder">
-              <mat-icon>edit_note</mat-icon>
-              <span>Edit in Course Builder</span>
-            </button>
-          } @else if (isStudent()) {
-            @if (userEnrollment()) {
-              <div class="enrolled-status-badge">
-                <mat-icon>{{ userEnrollment()?.status === 'Active' || userEnrollment()?.status === 'Approved' ? 'check_circle' : 'schedule' }}</mat-icon>
-                <span>Status: {{ userEnrollment()?.status }}</span>
+                }
               </div>
             } @else {
-              <button
-                mat-flat-button
-                color="primary"
-                (click)="enroll()"
-                [disabled]="isEnrolling() || (course()?.enrolledCount ?? 0) >= (course()?.maxCapacity ?? 999)"
-                class="btn-enroll"
-              >
-                <mat-icon>school</mat-icon>
-                <span>{{ isEnrolling() ? 'Enrolling...' : 'Enroll in this Course' }}</span>
-              </button>
+              <div class="empty-resources-box">
+                <mat-icon>folder_special</mat-icon>
+                <span>No educational resources available.</span>
+              </div>
             }
-          }
-        </div>
-      </mat-card>
-    }
+          </div>
+        </section>
+      </main>
+    </div>
 
     <!-- Rejection Reason Modal for Admin -->
     <div *ngIf="showRejectModal()" class="reject-modal-backdrop" (click)="closeRejectModal()">
@@ -368,5 +635,5 @@
         </div>
       </div>
     </div>
-  </div>
+  }
 </app-layout>

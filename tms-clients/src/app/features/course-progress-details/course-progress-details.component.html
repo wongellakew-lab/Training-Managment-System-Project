@@ -80,7 +80,11 @@
                 <mat-icon class="icon-grade">grade</mat-icon>
                 <h3>Academic Evaluation</h3>
               </div>
-              <span class="badge font-mono" [class.badge-evaluated]="data.finalGrade.isEvaluated" [class.badge-pending]="!data.finalGrade.isEvaluated">
+              <span
+                class="badge font-mono"
+                [class.badge-pending]="!data.finalGrade.isEvaluated"
+                [ngClass]="data.finalGrade.isEvaluated ? ('badge-evaluated ' + getGradeLevelClass(data.finalGrade.letter, data.finalGrade.score)) : 'badge-pending'"
+              >
                 {{ data.finalGrade.status }}
               </span>
             </div>
@@ -88,7 +92,7 @@
             <div class="card-body">
               @if (data.finalGrade.isEvaluated) {
                 <div class="grade-display-box">
-                  <div class="score-circle">
+                  <div class="score-circle" [ngClass]="getGradeLevelClass(data.finalGrade.letter, data.finalGrade.score)">
                     <span class="score-val font-mono">{{ data.finalGrade.score | number:'1.0-1' }}%</span>
                     <span class="score-letter font-mono">{{ data.finalGrade.letter }}</span>
                   </div>
@@ -99,7 +103,7 @@
                     </div>
                     <div class="grade-row">
                       <span class="label">Status:</span>
-                      <span class="val text-success">Official Grade Recorded</span>
+                      <span class="val status-indicator" [ngClass]="getGradeLevelClass(data.finalGrade.letter, data.finalGrade.score)">Official Grade Recorded</span>
                     </div>
                   </div>
                 </div>

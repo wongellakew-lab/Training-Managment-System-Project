@@ -25,6 +25,7 @@ export interface StudentStats {
 }
 
 export interface AdminStudentEnrolledCourse {
+  enrollmentId?: number;
   courseId: number;
   code: string;
   title: string;
@@ -89,6 +90,10 @@ export class StudentService {
 
   getStudentDetail(id: number): Observable<AdminStudentDetail> {
     return this.http.get<AdminStudentDetail>(`${this.baseUrl}/${id}/detail`);
+  }
+
+  updateEnrollmentStatus(enrollmentId: number, status: string): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`/api/v1/enrollments/${enrollmentId}/status`, { status });
   }
 
   suspendStudent(id: number): Observable<{ message: string }> {

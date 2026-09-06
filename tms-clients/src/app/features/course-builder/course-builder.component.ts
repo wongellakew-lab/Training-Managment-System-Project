@@ -158,6 +158,7 @@ export class CourseBuilderComponent implements OnInit {
     totalAssessments: 7,
     totalCoursePoints: 100,
     createdAssignmentsCount: 0,
+    hasGradedAssessments: false,
     modules: [],
     resources: []
   });
@@ -308,6 +309,14 @@ export class CourseBuilderComponent implements OnInit {
       }
     }
 
+    if (['expectedAssignmentCount', 'assignmentMaxPoints', 'expectedMidtermCount', 'midtermMaxPoints', 'expectedFinalCount', 'finalMaxPoints', 'assessmentStructure'].includes(name)) {
+      if (this.isAssessmentConfigLocked()) {
+        errors.delete(name);
+        this.fieldErrors.set(errors);
+        return;
+      }
+    }
+
     if (name === 'expectedAssignmentCount') {
       const val = Number(c.expectedAssignmentCount);
       if (isNaN(val) || val < 0) {
@@ -369,7 +378,8 @@ export class CourseBuilderComponent implements OnInit {
   }
 
   isAssessmentConfigLocked(): boolean {
-    return this.course().status === 'Active' && (this.course().id ?? 0) > 0;
+    const c = this.course();
+    return (c.status === 'Active' || c.status === 'Completed') && !!c.hasGradedAssessments;
   }
 
   getTotalAssessmentsCount(): number {
@@ -594,35 +604,37 @@ export class CourseBuilderComponent implements OnInit {
       }
     }
 
-    // Assessment Structure Validation
-    const assignCount = Number(c.expectedAssignmentCount ?? 0);
-    const assignMaxPts = Number(c.assignmentMaxPoints ?? 10);
-    const hasMid = !!c.hasMidterm;
-    const midMaxPts = Number(c.midtermMaxPoints ?? 20);
-    const hasFin = !!c.hasFinal;
-    const finMaxPts = Number(c.finalMaxPoints ?? 30);
+    // Assessment Structure Validation (only when not locked)
+    if (!this.isAssessmentConfigLocked()) {
+      const assignCount = Number(c.expectedAssignmentCount ?? 0);
+      const assignMaxPts = Number(c.assignmentMaxPoints ?? 10);
+      const hasMid = !!c.hasMidterm;
+      const midMaxPts = Number(c.midtermMaxPoints ?? 20);
+      const hasFin = !!c.hasFinal;
+      const finMaxPts = Number(c.finalMaxPoints ?? 30);
 
-    if (isNaN(assignCount) || assignCount < 0) {
-      errors.set('expectedAssignmentCount', 'Assignment count cannot be negative.');
-    } else if (c.createdAssignmentsCount && assignCount < c.createdAssignmentsCount) {
-      errors.set('expectedAssignmentCount', `Cannot reduce below ${c.createdAssignmentsCount} (already created assignments).`);
-    }
+      if (isNaN(assignCount) || assignCount < 0) {
+        errors.set('expectedAssignmentCount', 'Assignment count cannot be negative.');
+      } else if (c.createdAssignmentsCount && assignCount < c.createdAssignmentsCount) {
+        errors.set('expectedAssignmentCount', `Cannot reduce below ${c.createdAssignmentsCount} (already created assignments).`);
+      }
 
-    if (assignCount > 0 && (isNaN(assignMaxPts) || assignMaxPts <= 0)) {
-      errors.set('assignmentMaxPoints', 'Assignment maximum points must be greater than 0.');
-    }
+      if (assignCount > 0 && (isNaN(assignMaxPts) || assignMaxPts <= 0)) {
+        errors.set('assignmentMaxPoints', 'Assignment maximum points must be greater than 0.');
+      }
 
-    if (hasMid && (isNaN(midMaxPts) || midMaxPts <= 0)) {
-      errors.set('midtermMaxPoints', 'Midterm maximum points must be greater than 0.');
-    }
+      if (hasMid && (isNaN(midMaxPts) || midMaxPts <= 0)) {
+        errors.set('midtermMaxPoints', 'Midterm maximum points must be greater than 0.');
+      }
 
-    if (hasFin && (isNaN(finMaxPts) || finMaxPts <= 0)) {
-      errors.set('finalMaxPoints', 'Final exam maximum points must be greater than 0.');
-    }
+      if (hasFin && (isNaN(finMaxPts) || finMaxPts <= 0)) {
+        errors.set('finalMaxPoints', 'Final exam maximum points must be greater than 0.');
+      }
 
-    const totalAssessableCount = assignCount + (hasMid ? 1 : 0) + (hasFin ? 1 : 0);
-    if ((status === 'Active' || status === 'Under Review') && totalAssessableCount < 1) {
-      errors.set('assessmentStructure', 'At least one assessable item (Assignment, Midterm, or Final Exam) is required for course completion.');
+      const totalAssessableCount = assignCount + (hasMid ? 1 : 0) + (hasFin ? 1 : 0);
+      if ((status === 'Active' || status === 'Under Review') && totalAssessableCount < 1) {
+        errors.set('assessmentStructure', 'At least one assessable item (Assignment, Midterm, or Final Exam) is required for course completion.');
+      }
     }
 
     this.fieldErrors.set(errors);
@@ -711,14 +723,57 @@ export class CourseBuilderComponent implements OnInit {
             }
           ];
         }
-        detail.expectedAssignmentCount = detail.expectedAssignmentCount ?? 5;
-        detail.assignmentMaxPoints = detail.assignmentMaxPoints ?? 10;
-        detail.hasMidterm = detail.hasMidterm ?? ((detail.expectedMidtermCount ?? 1) > 0);
-        detail.midtermMaxPoints = detail.midtermMaxPoints ?? 20;
+        detail.expectedAssignmentCount = detail.expectedAssignmentCount !== undefined && detail.expectedAssignmentCount !== null ? Number(detail.expectedAssignmentCount) : 5;
+        detail.assignmentMaxPoints = detail.assignmentMaxPoints !== undefined && detail.assignmentMaxPoints !== null ? Number(detail.assignmentMaxPoints) : 10;
+        detail.hasMidterm = detail.hasMidterm !== undefined && detail.hasMidterm !== null ? !!detail.hasMidterm : ((detail.expectedMidtermCount ?? 1) > 0);
+        detail.midtermMaxPoints = detail.midtermMaxPoints !== undefined && detail.midtermMaxPoints !== null ? Number(detail.midtermMaxPoints) : 20;
         detail.expectedMidtermCount = detail.hasMidterm ? 1 : 0;
-        detail.hasFinal = detail.hasFinal ?? ((detail.expectedFinalCount ?? 1) > 0);
-        detail.finalMaxPoints = detail.finalMaxPoints ?? 30;
+        detail.hasFinal = detail.hasFinal !== undefined && detail.hasFinal !== null ? !!detail.hasFinal : ((detail.expectedFinalCount ?? 1) > 0);
+        detail.finalMaxPoints = detail.finalMaxPoints !== undefined && detail.finalMaxPoints !== null ? Number(detail.finalMaxPoints) : 30;
         detail.expectedFinalCount = detail.hasFinal ? 1 : 0;
+        detail.createdAssignmentsCount = detail.createdAssignmentsCount !== undefined && detail.createdAssignmentsCount !== null ? Number(detail.createdAssignmentsCount) : 0;
+        detail.hasGradedAssessments = !!detail.hasGradedAssessments;
+
+        // Parse featuresJson for feature toggles
+        if (detail.featuresJson) {
+          try {
+            const parsed = typeof detail.featuresJson === 'string' ? JSON.parse(detail.featuresJson) : detail.featuresJson;
+            if (Array.isArray(parsed)) {
+              this.featureCertificate.set(parsed.some((f: any) => typeof f === 'string' && f.toLowerCase().includes('certificate')));
+              this.featureDownloadable.set(parsed.some((f: any) => typeof f === 'string' && (f.toLowerCase().includes('download') || f.toLowerCase().includes('pdf'))));
+              this.featureExercises.set(parsed.some((f: any) => typeof f === 'string' && (f.toLowerCase().includes('exercise') || f.toLowerCase().includes('lab'))));
+            } else if (typeof parsed === 'object' && parsed !== null) {
+              if (parsed.certificate !== undefined) this.featureCertificate.set(!!parsed.certificate);
+              if (parsed.downloadable !== undefined) this.featureDownloadable.set(!!parsed.downloadable);
+              if (parsed.exercises !== undefined) this.featureExercises.set(!!parsed.exercises);
+            }
+          } catch (e) {
+            console.warn('Could not parse featuresJson:', e);
+          }
+        }
+
+        if (detail.startDate) {
+          try {
+            const d = new Date(detail.startDate);
+            detail.startDate = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+          } catch {
+            detail.startDate = '';
+          }
+        } else {
+          detail.startDate = '';
+        }
+
+        if (detail.endDate) {
+          try {
+            const d = new Date(detail.endDate);
+            detail.endDate = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+          } catch {
+            detail.endDate = '';
+          }
+        } else {
+          detail.endDate = '';
+        }
+
         this.course.set(detail);
         this.isLoading.set(false);
       },
@@ -1028,8 +1083,13 @@ export class CourseBuilderComponent implements OnInit {
       imageUrl: c.imageUrl,
       department: c.department,
       instructorId: instructorId,
-      startDate: c.startDate ? new Date(c.startDate).toISOString() : undefined,
-      endDate: c.endDate ? new Date(c.endDate).toISOString() : undefined,
+      featuresJson: JSON.stringify({
+        certificate: this.featureCertificate(),
+        downloadable: this.featureDownloadable(),
+        exercises: this.featureExercises()
+      }),
+      startDate: c.startDate && c.startDate.trim() ? (!isNaN(new Date(c.startDate).getTime()) ? new Date(c.startDate).toISOString() : null) : null,
+      endDate: c.endDate && c.endDate.trim() ? (!isNaN(new Date(c.endDate).getTime()) ? new Date(c.endDate).toISOString() : null) : null,
       maxCapacity: c.maxCapacity,
       expectedAssignmentCount: Number(c.expectedAssignmentCount ?? 0),
       assignmentMaxPoints: Number(c.assignmentMaxPoints ?? 10),
@@ -1085,10 +1145,15 @@ export class CourseBuilderComponent implements OnInit {
             ...curr,
             id: newId,
             code: returnedCode,
-            status: res?.status || status
+            status: res?.status || status,
+            featuresJson: payload.featuresJson
           }));
         } else {
-          this.course.update(curr => ({ ...curr, status: res?.status || status }));
+          this.course.update(curr => ({
+            ...curr,
+            status: res?.status || status,
+            featuresJson: payload.featuresJson
+          }));
         }
 
         this.formSubmitted.set(false);

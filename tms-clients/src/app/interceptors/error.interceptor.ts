@@ -7,19 +7,23 @@ export const errorInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, n
   const router = inject(Router);
 
   return next(req).pipe(
-    catchError((error: HttpErrorResponse) => {
-      let errorMessage = 'An unexpected error occurred';
+    catchError((error: unknown) => {
+      if (error instanceof HttpErrorResponse) {
+        // Suppress generic alerts for 401 since auth flow handles session expiration
+        if (error.status === 401) {
+          const sessionMsg = error.error?.message || 'Session expired. Please sign in again.';
+          return throwError(() => new Error(sessionMsg));
+        }
 
-      if (error.error instanceof ErrorEvent) {
-        // Client-side or network error
-        errorMessage = `Network Error: ${error.error.message}`;
-      } else {
-        // Backend returned an error response code
         if (error.status === 403) {
           router.navigate(['/unauthorized']);
         }
 
-        if (error.error && typeof error.error === 'object') {
+        let errorMessage = 'An unexpected error occurred';
+
+        if (error.error instanceof ErrorEvent) {
+          errorMessage = `Network Error: ${error.error.message}`;
+        } else if (error.error && typeof error.error === 'object') {
           if (error.error.detail) {
             errorMessage = error.error.detail;
           } else if (error.error.title) {
@@ -30,10 +34,12 @@ export const errorInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, n
         } else if (typeof error.error === 'string') {
           errorMessage = error.error;
         }
+
+        console.error(`[HTTP Error ${error.status}]:`, errorMessage, error);
+        return throwError(() => new Error(errorMessage));
       }
 
-      console.error(`[HTTP Error ${error.status}]:`, errorMessage, error);
-      return throwError(() => new Error(errorMessage));
+      return throwError(() => error);
     })
   );
 };

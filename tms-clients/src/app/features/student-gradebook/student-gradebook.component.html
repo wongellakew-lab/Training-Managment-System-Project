@@ -71,7 +71,11 @@
                 </div>
 
                 <div class="course-grade-right">
-                  <div class="grade-letter font-mono" [class.no-grade]="!rec.letterGrade">
+                  <div
+                    class="grade-letter font-mono"
+                    [class.no-grade]="!rec.letterGrade"
+                    [ngClass]="getGradeLevelClass(rec.letterGrade, rec.numericScore)"
+                  >
                     {{ rec.letterGrade || '—' }}
                   </div>
                   @if (rec.numericScore !== null && rec.numericScore !== undefined) {
@@ -94,7 +98,12 @@
                 <h2 class="course-title-lg">{{ selectedCourseGrade()!.courseTitle }}</h2>
               </div>
               <div class="course-overall-badge">
-                <span class="grade-pill-lg font-mono">{{ selectedCourseGrade()!.letterGrade || 'Pending' }}</span>
+                <span
+                  class="grade-pill-lg font-mono"
+                  [ngClass]="getGradeLevelClass(selectedCourseGrade()!.letterGrade, selectedCourseGrade()!.numericScore)"
+                >
+                  {{ selectedCourseGrade()!.letterGrade || 'Pending' }}
+                </span>
               </div>
             </div>
 

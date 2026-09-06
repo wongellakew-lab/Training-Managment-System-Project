@@ -99,9 +99,22 @@
 
           <!-- Card Middle: Courses Taught -->
           <div class="courses-box">
-            <span class="box-label">Courses</span>
-            <p class="courses-text" [title]="getCoursesDisplay(inst)">
-              {{ getCoursesDisplay(inst) }}
+            <div class="courses-box-header">
+              <span class="box-label">Courses</span>
+              <span *ngIf="inst.courseTitles && inst.courseTitles.length > 0" class="courses-count-tag font-mono">
+                {{ inst.courseTitles.length }} {{ inst.courseTitles.length === 1 ? 'course' : 'courses' }}
+              </span>
+            </div>
+            <div *ngIf="inst.courseTitles && inst.courseTitles.length > 0" class="courses-chips-wrapper">
+              <span *ngFor="let title of inst.courseTitles.slice(0, 2)" class="course-pill-chip" [title]="title">
+                {{ title }}
+              </span>
+              <span *ngIf="inst.courseTitles.length > 2" class="course-more-chip" [title]="inst.courseTitles.slice(2).join(', ')">
+                +{{ inst.courseTitles.length - 2 }} more
+              </span>
+            </div>
+            <p *ngIf="!inst.courseTitles || inst.courseTitles.length === 0" class="no-courses-text">
+              No courses assigned
             </p>
           </div>
 

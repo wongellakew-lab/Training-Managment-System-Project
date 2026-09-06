@@ -6,6 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { LayoutComponent } from '../../ui/layout/layout.component';
 import { CourseService } from '../../services/course.service';
@@ -26,6 +27,7 @@ import { Enrollment } from '../../models/enrollment.model';
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
+    MatProgressBarModule,
     MatProgressSpinnerModule
   ],
   templateUrl: './course-detail.component.html',
@@ -38,17 +40,79 @@ export class CourseDetailComponent implements OnInit {
   private enrollmentService = inject(EnrollmentService);
   authService = inject(AuthService);
 
-  course = signal<Course | null>(null);
-  userEnrollment = signal<Enrollment | null>(null);
-  isLoading = signal(true);
-  isEnrolling = signal(false);
-  enrollmentMessage = signal<string | null>(null);
-  isEnrollSuccess = signal(true);
+  readonly course = signal<Course | null>(null);
+  readonly userEnrollment = signal<Enrollment | null>(null);
+  readonly isLoading = signal(true);
+  readonly isEnrolling = signal(false);
+  readonly enrollmentMessage = signal<string | null>(null);
+  readonly isEnrollSuccess = signal(true);
+
+  // Set of expanded module IDs for the collapsible accordion
+  readonly expandedModules = signal<Set<number>>(new Set<number>());
 
   readonly isStudent = computed(() => this.authService.userRole() === 'Student');
   readonly isInstructor = computed(() => this.authService.userRole() === 'Instructor');
   readonly isAdmin = computed(() => this.authService.userRole() === 'Admin');
   readonly isInstructorOrAdmin = computed(() => this.authService.userRole() === 'Instructor' || this.authService.userRole() === 'Admin');
+
+  readonly isFull = computed(() => {
+    const c = this.course();
+    if (!c) return false;
+    return (c.enrolledCount || 0) >= (c.maxCapacity || 0);
+  });
+
+  readonly availableSeats = computed(() => {
+    const c = this.course();
+    if (!c) return 0;
+    if (c.availableSeats !== undefined) return c.availableSeats;
+    return Math.max(0, (c.maxCapacity || 0) - (c.enrolledCount || 0));
+  });
+
+  readonly capacityPercentage = computed(() => {
+    const c = this.course();
+    if (!c || !c.maxCapacity || c.maxCapacity === 0) return 0;
+    return Math.min(100, Math.round(((c.enrolledCount || 0) / c.maxCapacity) * 100));
+  });
+
+  readonly hasCertificate = computed(() => {
+    const c = this.course();
+    if (!c || !c.featuresJson) return false;
+    try {
+      const parsed = typeof c.featuresJson === 'string' ? JSON.parse(c.featuresJson) : c.featuresJson;
+      if (Array.isArray(parsed)) {
+        return parsed.some((f: any) => typeof f === 'string' && f.toLowerCase().includes('certificate'));
+      }
+      if (typeof parsed === 'object' && parsed !== null) {
+        return !!(parsed.certificate ?? parsed.hasCertificate ?? parsed.completionCertificate ?? parsed['Completion Certificate']);
+      }
+    } catch {
+      return typeof c.featuresJson === 'string' && c.featuresJson.toLowerCase().includes('certificate');
+    }
+    return false;
+  });
+
+  toggleModule(moduleId: number): void {
+    const current = new Set(this.expandedModules());
+    if (current.has(moduleId)) {
+      current.delete(moduleId);
+    } else {
+      current.add(moduleId);
+    }
+    this.expandedModules.set(current);
+  }
+
+  isModuleExpanded(moduleId: number): boolean {
+    return this.expandedModules().has(moduleId);
+  }
+
+  getFileIcon(fileType: string): string {
+    const type = (fileType || '').toLowerCase();
+    if (type.includes('pdf')) return 'picture_as_pdf';
+    if (type.includes('doc')) return 'description';
+    if (type.includes('xls') || type.includes('sheet')) return 'table_chart';
+    if (type.includes('ppt')) return 'slideshow';
+    return 'insert_drive_file';
+  }
 
   isApproving = signal<boolean>(false);
   isRejecting = signal<boolean>(false);
@@ -149,6 +213,9 @@ export class CourseDetailComponent implements OnInit {
     this.courseService.getCourseById(id).subscribe({
       next: (c) => {
         this.course.set(c);
+        if (c.modules && c.modules.length > 0) {
+          this.expandedModules.set(new Set([c.modules[0].id]));
+        }
         this.checkExistingEnrollment(id);
         this.isLoading.set(false);
       },

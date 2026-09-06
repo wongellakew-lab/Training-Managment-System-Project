@@ -53,6 +53,7 @@ export class CalendarComponent implements OnInit {
     'Information Technology',
     'Data Science'
   ]);
+  readonly allCategories = signal<string[]>(['All', 'Meetings', 'Workshops', 'Events']);
   readonly selectedCategory = signal<string>('All');
   readonly selectedView = signal<'Month' | 'Week' | 'Day'>('Month');
   readonly currentMonth = signal<number>(new Date().getMonth() + 1);
@@ -119,7 +120,15 @@ export class CalendarComponent implements OnInit {
   loadCourses(): void {
     this.courseService.getCourses({ pageSize: 100 }).subscribe({
       next: (res) => {
-        this.courses.set(res.items || []);
+        const items = res.items || [];
+        this.courses.set(items);
+        const currentCats = new Set(this.allCategories());
+        items.forEach(c => {
+          if (c.category && !currentCats.has(c.category)) {
+            currentCats.add(c.category);
+          }
+        });
+        this.allCategories.set(Array.from(currentCats));
       },
       error: (err) => console.error('Error loading courses for targeting:', err)
     });
@@ -132,6 +141,15 @@ export class CalendarComponent implements OnInit {
         this.schedules.set(data);
         this.buildCalendarGrid();
         this.isLoading.set(false);
+
+        // Update category list if new categories appear
+        const currentCats = new Set(this.allCategories());
+        data.forEach(s => {
+          if (s.category && !currentCats.has(s.category)) {
+            currentCats.add(s.category);
+          }
+        });
+        this.allCategories.set(Array.from(currentCats));
 
         // Update selected schedule
         const currentSelDateSchedules = this.selectedDateSchedules();
@@ -320,6 +338,34 @@ export class CalendarComponent implements OnInit {
     return this.schedules().filter(s => s.category?.toLowerCase() === 'workshops').length;
   }
   get totalEvents(): number {
-    return this.schedules().filter(s => s.category?.toLowerCase() === 'events').length;
+    return this.schedules().filter(s => {
+      const c = s.category?.toLowerCase();
+      return c !== 'meetings' && c !== 'workshops';
+    }).length;
+  }
+
+  getPillClass(category: string | undefined | null): string {
+    if (!category) return 'pill-default';
+    const c = category.toLowerCase().trim();
+    if (c === 'meetings') return 'pill-meetings';
+    if (c === 'workshops') return 'pill-workshops';
+    if (c === 'events' || c === 'lecture') return 'pill-events';
+    if (c === 'marketing') return 'pill-marketing';
+    if (c === 'communication') return 'pill-communication';
+    if (c.includes('web') || c.includes('dev')) return 'pill-webdev';
+    if (c === 'design') return 'pill-design';
+    if (c.includes('computer') || c.includes('software') || c === 'cs') return 'pill-computerscience';
+    if (c.includes('business')) return 'pill-business';
+    if (c.includes('data')) return 'pill-datascience';
+    if (c.includes('it') || c.includes('information')) return 'pill-it';
+    return 'pill-default';
+  }
+
+  getCategoryBadgeClass(category: string | undefined | null): string {
+    return this.getPillClass(category).replace('pill-', 'badge-');
+  }
+
+  getIconBoxClass(category: string | undefined | null): string {
+    return this.getPillClass(category).replace('pill-', 'box-');
   }
 }

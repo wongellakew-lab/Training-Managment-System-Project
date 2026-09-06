@@ -31,7 +31,7 @@ import { FooterComponent } from '../footer/footer.component';
       display: flex;
       flex-direction: column;
       min-width: 0;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
     .eduva-content-area {
       flex: 1;
